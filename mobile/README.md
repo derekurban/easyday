@@ -69,8 +69,9 @@ bash tool/publish.sh staging              # one flavour, no GitHub release
 ```
 
 The version is `pubspec.yaml`'s `version:`; bump it before publishing (the tag is `v<version without build number>`,
-and a tag that exists gets its assets replaced). The app's Settings → Updates panel asks
-`api.github.com/repos/derekurban/fitness/releases/latest`, compares the tag with the installed version, downloads its
+and a tag that exists gets its assets replaced). The app's Settings → Updates panel reads
+`api.github.com/repos/derekurban/fitness/releases`, takes the newest release carrying its flavour's APK, compares the
+tag with the installed version, downloads its
 flavour's APK into the app cache and opens the Android installer. The first time, Android asks to allow installs from
 the app, and on a phone with Play services Play Protect may ask to scan the app: "More details" offers "Install without
 scanning". Verified 0.13.5 to 0.13.6 on the emulator. `../dist/index.html` is the fallback install page over Tailscale.
@@ -78,12 +79,13 @@ scanning". Verified 0.13.5 to 0.13.6 on the emulator. `../dist/index.html` is th
 ### Branches and staging builds
 
 Work lands on `dev`. Merging `dev` into `staging` (or any push to `staging`) runs `.github/workflows/staging.yml`:
-analyze, test, build the staging flavour signed with the release key, and publish a GitHub **pre-release** tagged
-`v<version>-staging.<versionCode>` carrying `fitness-staging.apk`. The versionCode is the pubspec build number × 1000
+analyze, test, build the staging flavour signed with the release key, and publish a GitHub release tagged
+`v<version>-staging.<versionCode>` carrying only `fitness-staging.apk` (never marked latest). The versionCode is the pubspec build number × 1000
 plus the run number, so each staging build installs over the last. The staging app's Updates panel reads the release
-list and offers the newest release with its APK, comparing the build number when the version is the same; prod reads
-`releases/latest`, which never returns a pre-release, so staging builds never reach prod. `main` stays the prod line,
-published with `tool/publish.sh` as above.
+list and offers the newest release with its APK, comparing the build number when the version is the same; prod does
+the same for `fitness.apk`, which staging releases never carry, so staging builds never reach prod (and as staging
+releases are never marked latest, prod installs from 0.13.6, which still read `releases/latest`, are safe too). `main`
+stays the prod line, published with `tool/publish.sh` as above (marked latest).
 
 The signing key reaches CI as repo secrets `KEYSTORE_BASE64` (the keystore, base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS`
 and `KEY_PASSWORD`. A pull request into `staging` runs the same build as a check without releasing (the APK is kept

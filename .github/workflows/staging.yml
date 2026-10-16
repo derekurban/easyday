@@ -1,6 +1,7 @@
 # Every push to the staging branch builds the staging flavour, signs it with the release key and publishes it as a
-# GitHub pre-release tagged v<version>-staging.<versionCode>. The staging app's Settings > Updates panel finds it there;
-# prod reads releases/latest, which never returns a pre-release, so prod installs are untouched.
+# GitHub release tagged v<version>-staging.<versionCode>, carrying only fitness-staging.apk. The staging app's
+# Settings > Updates panel finds it there. Prod picks the newest release carrying fitness.apk, so it never sees one;
+# the release is also kept from being marked latest, for prod installs from before that (0.13.6), which read latest.
 #
 # versionCode = pubspec build number * 1000 + this workflow's run number (mod 1000), so every staging build installs
 # over the previous one, and over any local staging build of the same pubspec version.
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: Publish a GitHub pre-release
+        description: Publish a GitHub release
         type: boolean
         default: false
 
@@ -105,5 +106,5 @@ jobs:
             echo
             git log $range --no-merges --format='- %s' | head -30
           } > "$RUNNER_TEMP/notes.md"
-          gh release create "$TAG" "$RUNNER_TEMP/fitness-staging.apk" --prerelease --target "$GITHUB_SHA" \
+          gh release create "$TAG" "$RUNNER_TEMP/fitness-staging.apk" --latest=false --target "$GITHUB_SHA" \
             --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"

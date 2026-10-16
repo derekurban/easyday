@@ -39,7 +39,7 @@ if [ "$flavors" = "prod staging" ] && command -v gh >/dev/null; then
   if gh release view "$tag" --repo derekurban/fitness >/dev/null 2>&1; then
     gh release upload "$tag" ../dist/fitness.apk ../dist/fitness-staging.apk --clobber --repo derekurban/fitness
   else
-    gh release create "$tag" ../dist/fitness.apk ../dist/fitness-staging.apk --title "$tag" --notes "$notes" --repo derekurban/fitness
+    gh release create "$tag" ../dist/fitness.apk ../dist/fitness-staging.apk --latest --title "$tag" --notes "$notes" --repo derekurban/fitness
   fi
   echo "released $tag on github.com/derekurban/fitness"
 fi

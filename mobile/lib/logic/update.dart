@@ -1,13 +1,12 @@
 // In-app updates: the app's releases live on GitHub (derekurban/fitness, public). A prod release (tag v0.13.6, made by
-// tool/publish.sh) carries one APK per flavour and is the repo's latest release. A staging release (tag
-// v0.13.6-staging.20042, made by CI on every push to the staging branch) is a pre-release carrying only the staging
-// APK; its tag ends in the build's versionCode, which is how two staging builds of one version tell apart. Prod reads
-// releases/latest, which never returns a pre-release; staging reads the release list and takes the newest with its
-// APK. This file is the pure part: reading releases, picking one, and comparing versions.
+// tool/publish.sh) carries one APK per flavour. A staging release (tag v0.13.6-staging.20042, made by CI on every push
+// to the staging branch) carries only the staging APK and is never marked latest; its tag ends in the build's
+// versionCode, which is how two staging builds of one version tell apart. Each flavour reads the release list and
+// takes the newest release carrying its own APK, so prod never sees a staging build. This file is the pure part:
+// reading releases, picking one, and comparing versions.
 import 'dart:convert';
 
 const updateRepo = 'derekurban/fitness';
-const latestReleaseUrl = 'https://api.github.com/repos/$updateRepo/releases/latest';
 const releasesUrl = 'https://api.github.com/repos/$updateRepo/releases?per_page=30';
 
 /// One published build: its version (from the tag), notes, and the download URL per asset name.
@@ -69,8 +68,7 @@ ReleaseInfo? parseRelease(String body) {
   return _release(j);
 }
 
-/// The /releases list, newest first, as the staging app's pick: the first release (drafts aside) carrying
-/// [assetFor] the flavour. Null when the body is not a list or nothing has the asset.
+/// The /releases list as a flavour's pick: the newest release (drafts aside) carrying [assetFor] the flavour. Null when the body is not a list or nothing has the asset.
 ReleaseInfo? pickRelease(String body, String? flavor) {
   final dynamic j;
   try { j = jsonDecode(body); } catch (_) { return null; }
