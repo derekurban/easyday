@@ -71,8 +71,9 @@ bash tool/publish.sh staging              # one flavour, no GitHub release
 The version is `pubspec.yaml`'s `version:`; bump it before publishing (the tag is `v<version without build number>`,
 and a tag that exists gets its assets replaced). The app's Settings → Updates panel asks
 `api.github.com/repos/derekurban/fitness/releases/latest`, compares the tag with the installed version, downloads its
-flavour's APK into the app cache and opens the Android installer (first time, Android asks to allow installs from the
-app). `../dist/index.html` is the fallback install page over Tailscale.
+flavour's APK into the app cache and opens the Android installer. The first time, Android asks to allow installs from
+the app, and on a phone with Play services Play Protect may ask to scan the app: "More details" offers "Install without
+scanning". Verified 0.13.5 to 0.13.6 on the emulator. `../dist/index.html` is the fallback install page over Tailscale.
 
 ## Words
 
