@@ -5,18 +5,21 @@
 # versionCode = pubspec build number * 1000 + this workflow's run number (mod 1000), so every staging build installs
 # over the previous one, and over any local staging build of the same pubspec version.
 #
-# Run it by hand (Actions > staging > Run workflow) on any branch with "release" off to check that it builds.
+# A pull request into staging runs the same build as a check, without releasing. Once this file is on the default
+# branch, Actions > staging > Run workflow also builds any branch, releasing only if "release" is ticked.
 name: staging
 
 on:
   push:
+    branches: [staging]
+  pull_request:
     branches: [staging]
   workflow_dispatch:
     inputs:
       release:
         description: Publish a GitHub pre-release
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: staging-${{ github.ref }}
@@ -90,7 +93,7 @@ jobs:
           path: ${{ runner.temp }}/fitness-staging.apk
 
       - name: Release
-        if: github.event_name == 'push' || inputs.release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.release)
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}

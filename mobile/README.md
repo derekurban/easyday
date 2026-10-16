@@ -86,8 +86,8 @@ list and offers the newest release with its APK, comparing the build number when
 published with `tool/publish.sh` as above.
 
 The signing key reaches CI as repo secrets `KEYSTORE_BASE64` (the keystore, base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS`
-and `KEY_PASSWORD`. To check a branch builds without releasing: Actions → staging → Run workflow, with "release" off
-(the APK is kept as a run artifact).
+and `KEY_PASSWORD`. A pull request into `staging` runs the same build as a check without releasing (the APK is kept
+as a run artifact), so the flow is: open a PR `dev` → `staging`, let it go green, merge, and the merge publishes.
 
 ## Words
 
