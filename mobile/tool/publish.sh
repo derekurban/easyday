@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the release APKs and publish them to ../dist/ for download over Tailscale.
-#   bash tool/publish.sh                 build prod and staging, copy both, and publish a GitHub release v<version>
-#   NOTES="what changed" bash tool/publish.sh   with release notes (the app shows them under Update)
+# Build the release APKs locally and copy them to ../dist/ for download over Tailscale. GitHub releases (which the
+# apps update from) are made by CI on merges into staging and main: .github/workflows/release.yml.
+#   bash tool/publish.sh                 build prod and staging and copy both
 #   bash tool/publish.sh staging         build one flavour
 #   bash tool/publish.sh --no-build      copy the last builds only
 # Then open http://derek-desktop.tail546211.ts.net:5180/dist/ on the phone. The two flavours install side by side:
@@ -31,15 +31,3 @@ for f in $flavors; do
 done
 cat ../dist/build.txt
 echo "published to ../dist/"
-
-# A GitHub release carries both APKs; the app's Updates panel reads the latest one. Only when both were built.
-if [ "$flavors" = "prod staging" ] && command -v gh >/dev/null; then
-  tag="v${ver%%+*}"
-  notes="${NOTES:-$(cat ../dist/build.txt)}"
-  if gh release view "$tag" --repo derekurban/fitness >/dev/null 2>&1; then
-    gh release upload "$tag" ../dist/fitness.apk ../dist/fitness-staging.apk --clobber --repo derekurban/fitness
-  else
-    gh release create "$tag" ../dist/fitness.apk ../dist/fitness-staging.apk --title "$tag" --notes "$notes" --repo derekurban/fitness
-  fi
-  echo "released $tag on github.com/derekurban/fitness"
-fi

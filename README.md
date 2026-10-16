@@ -10,6 +10,15 @@ Serve the repo and open `/app/`: `node serve.mjs` (dev) or the `fitness-logic-si
 The UI uses [derekurban/design-system](https://github.com/derekurban/design-system), vendored at the tag in `app/vendor/du/PINNED_VERSION`;
 `app/styles.css` consumes its tokens only. Icons are Lucide (`app/vendor/lucide.min.js`).
 
+**Android app:** `mobile/` is the Flutter build of the same spec, the one in daily use. Its dev loop, flavours,
+releases and in-app updates are in `mobile/README.md`.
+
+## Branches and releases
+Work lands on `dev`. Merging `dev` into `staging` builds and publishes a staging release on GitHub; merging `staging`
+into `main` does the same for prod (`.github/workflows/release.yml`). Installed apps find the newest release for
+their flavour and update themselves. Open a pull request for each merge: it runs the same build as a check, and the
+merge publishes. Details: `mobile/README.md`, "Branches and releases" and "Updates in the app".
+
 ## Layout
 | Path | What |
 |---|---|
@@ -19,6 +28,8 @@ The UI uses [derekurban/design-system](https://github.com/derekurban/design-syst
 | `muscle-map/playground/` | Reference renderer: all exercises, male/female, custom highlighting |
 | `data/exercises.json` | [free-exercise-db](https://github.com/yuhonas/free-exercise-db): 876 exercises, public domain |
 | `docs/` | Muscle-mapping decisions and project history |
+| `mobile/` | The Android app (Flutter): `lib/` code, `test/`, `android/`, `tool/` dev scripts |
+| `.github/workflows/` | `release.yml`: staging and prod releases on merge |
 | `app/` | Mobile prototype: onboarding, today, session, progress, settings. Logic in `app/js/{planner,loops,params}.js`; illustrations in `app/art/` (monoline SVGs generated with Codex, see `app/art/manifest.json`) |
 | `docs/inspiration/` | Inspiration board: exercise demonstration images in several styles, generated with the Codex image tool from `styles.json` |
 | `docs/app-logic/` | App logic diagrams (system map, session loop, feedback loops, states, automations) + design principles |
