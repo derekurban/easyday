@@ -2,6 +2,7 @@
 // hot-reload, hot-restart, read the log, and stop it without an interactive terminal.
 //
 //   node tool/dev.mjs [deviceId]          start (default device: emulator-5554), listens on 127.0.0.1:5181
+//   FLAVOR=prod node tool/dev.mjs         run the prod flavour instead of the default staging one
 //   curl localhost:5181/reload            hot reload (keeps state)
 //   curl localhost:5181/restart           hot restart (resets state)
 //   curl localhost:5181/log?tail=80       last N log lines
@@ -15,6 +16,7 @@ import path from "node:path";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const device = process.argv[2] ?? "emulator-5554";
+const flavor = process.env.FLAVOR ?? "staging";
 const port = Number(process.env.DEV_PORT ?? 5181);
 const logFile = path.join(root, "build", "dev.log");
 try { writeFileSync(logFile, ""); } catch {}
@@ -23,7 +25,7 @@ const lines = [];
 const log = (s) => { for (const l of String(s).split(/\r?\n/)) { if (!l) continue; lines.push(l); if (lines.length > 2000) lines.shift(); try { appendFileSync(logFile, l + "\n"); } catch {} } };
 
 const flutter = process.platform === "win32" ? "flutter.bat" : "flutter";
-const child = spawn(flutter, ["run", "--machine", "-d", device], { cwd: root, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32" });
+const child = spawn(flutter, ["run", "--machine", "-d", device, "--flavor", flavor], { cwd: root, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32" });
 
 let appId = null, ready = false, nextId = 1;
 const pending = new Map();
@@ -62,7 +64,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
   const reply = (code, body) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(body)); };
   try {
-    if (url.pathname === "/status") return reply(200, { running: child.exitCode == null, appId, ready, device });
+    if (url.pathname === "/status") return reply(200, { running: child.exitCode == null, appId, ready, device, flavor });
     if (url.pathname === "/log") { const n = Number(url.searchParams.get("tail") ?? 60); res.writeHead(200, { "content-type": "text/plain" }); return res.end(lines.slice(-n).join("\n") + "\n"); }
     if (url.pathname === "/reload" || url.pathname === "/restart") {
       if (!appId) return reply(409, { error: "app not started yet" });

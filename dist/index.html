@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fitness · install</title>
+<link rel="stylesheet" href="../app/vendor/du/styles.css">
+<style>
+  body { margin: 0; background: var(--bg); color: var(--ink); font: var(--font-body-style); }
+  main { max-width: 32rem; margin: 0 auto; padding: 48px 20px 64px; }
+  h1 { font: var(--font-title-style); letter-spacing: var(--tracking-title); margin: 0 0 8px; }
+  p { margin: 0 0 16px; color: var(--ink-secondary); }
+  .btn { display: block; text-align: center; background: var(--accent-strong); color: var(--on-accent); text-decoration: none;
+         padding: 18px; border-radius: 12px; font: var(--font-label); font-size: 17px; margin: 24px 0 12px; }
+  .meta { font: var(--font-caption); color: var(--ink-tertiary); white-space: pre-line; }
+  ol { padding-left: 20px; color: var(--ink-secondary); } li { margin-bottom: 8px; }
+  code { font-size: 0.9em; background: var(--sunk); padding: 2px 6px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fitness</h1>
+  <p>The Android build. Download, open, allow installs from your browser if asked, done.</p>
+  <a class="btn" href="fitness.apk">Download the APK</a>
+  <a class="btn" href="fitness-staging.apk" style="background: var(--surface); color: var(--ink); border: 1px solid var(--line)">Download the staging APK</a>
+  <div class="meta" id="meta">Loading build info…</div>
+  <p class="meta" style="margin-top: 12px">Staging installs beside the real app as <strong>Fitness Staging</strong> with an amber icon and its own data, so a try-out never touches your history.</p>
+  <h2 style="font: var(--font-subheading); margin-top: 32px">If Android asks</h2>
+  <ol>
+    <li>Chrome may say the file <em>could be harmful</em>. Tap <strong>Download anyway</strong>: it is your own build, signed with a debug key.</li>
+    <li>Opening the APK the first time asks to allow installs from Chrome. Allow it and go back.</li>
+    <li>Updating keeps your data: the package id stays <code>dev.derekurban.fitness</code>, so each new APK installs over the old one.</li>
+  </ol>
+</main>
+<script>
+  fetch("build.txt", { cache: "no-store" }).then(r => r.ok ? r.text() : "").then(t => { document.getElementById("meta").textContent = t.trim() || "No build info."; });
+</script>
+</body>
+</html>

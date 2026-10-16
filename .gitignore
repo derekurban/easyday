@@ -4,5 +4,5 @@ muscle-map/pipeline/work/
 muscle-map/pipeline/verify/
 __pycache__/
 
-dist/
-*.apk
+dist/*.apk
+dist/build.txt

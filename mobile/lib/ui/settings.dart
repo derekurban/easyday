@@ -1,6 +1,7 @@
 // Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
 // settings, breaks, and prototype tools.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show appFlavor;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/index.dart';
@@ -207,7 +208,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           const SizedBox(height: 14),
           TextButton.icon(onPressed: () => _confirmReset(context), style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error), icon: const Icon(LucideIcons.trash2, size: 16), label: const Text('Erase everything')),
-          Text('Version 0.13.4 · body map: brand moss fills, group outline, tooltip, expand · ${exercises.length} exercises', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
+          Text('Version 0.13.4${appFlavor == null || appFlavor == 'prod' ? '' : ' $appFlavor'} · body map: brand moss fills, group outline, tooltip, expand · ${exercises.length} exercises', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
         ])),
       ]),
     );

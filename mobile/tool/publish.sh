@@ -1,18 +1,32 @@
 #!/usr/bin/env bash
-# Build the release APK and publish it to ../dist/ for download over Tailscale.
-#   bash tool/publish.sh            build and copy
-#   bash tool/publish.sh --no-build copy the last build only
-# Then open http://derek-desktop.tail546211.ts.net:5180/dist/ on the phone.
+# Build the release APKs and publish them to ../dist/ for download over Tailscale.
+#   bash tool/publish.sh                 build prod and staging, copy both
+#   bash tool/publish.sh staging         build one flavour
+#   bash tool/publish.sh --no-build      copy the last builds only
+# Then open http://derek-desktop.tail546211.ts.net:5180/dist/ on the phone. The two flavours install side by side:
+# prod is dev.derekurban.fitness ("Fitness", green icon), staging adds .staging ("Fitness Staging", amber icon).
 set -e
 cd "$(dirname "$0")/.."
-if [ "${1:-}" != "--no-build" ]; then flutter build apk --release; fi
-apk="build/app/outputs/flutter-apk/app-release.apk"
-[ -f "$apk" ] || { echo "no release apk at $apk" >&2; exit 1; }
+flavors="prod staging"
+build=1
+case "${1:-}" in
+  --no-build) build=0 ;;
+  prod|staging) flavors="$1" ;;
+  "") ;;
+  *) echo "usage: tool/publish.sh [prod|staging|--no-build]" >&2; exit 2 ;;
+esac
 mkdir -p ../dist
-cp "$apk" ../dist/fitness.apk
 ver="$(grep -E '^version:' pubspec.yaml | sed 's/version: *//')"
-size="$(du -h ../dist/fitness.apk | cut -f1)"
-sha="$(sha1sum ../dist/fitness.apk | cut -c1-12)"
-echo "Version $ver · built $(date '+%Y-%m-%d %H:%M') · $size · sha1 $sha" > ../dist/build.txt
+: > ../dist/build.txt
+for f in $flavors; do
+  if [ "$build" = 1 ]; then flutter build apk --release --flavor "$f"; fi
+  apk="build/app/outputs/flutter-apk/app-$f-release.apk"
+  [ -f "$apk" ] || { echo "no release apk at $apk" >&2; exit 1; }
+  out="fitness.apk"; [ "$f" = staging ] && out="fitness-staging.apk"
+  cp "$apk" "../dist/$out"
+  size="$(du -h "../dist/$out" | cut -f1)"
+  sha="$(sha1sum "../dist/$out" | cut -c1-12)"
+  echo "$f: Version $ver · built $(date '+%Y-%m-%d %H:%M') · $size · sha1 $sha · $out" >> ../dist/build.txt
+done
 cat ../dist/build.txt
-echo "published to ../dist/fitness.apk"
+echo "published to ../dist/"
