@@ -1,7 +1,6 @@
 // Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
 // settings, breaks, and prototype tools.
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show appFlavor;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/index.dart';
@@ -17,6 +16,7 @@ import 'goal_editor.dart';
 import 'how.dart';
 import 'location_editor.dart';
 import 'theme.dart';
+import 'updates.dart';
 import 'widgets.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -185,6 +185,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ValueSlider(label: 'Days an exercise rests after pain', value: st.painRestDays, min: 3, max: 28, unit: ' days', icon: LucideIcons.bandage, onChanged: (v) => store.update((_) => st.painRestDays = v)),
         ])),
         const SizedBox(height: 20),
+        const SectionHeader('Updates', icon: LucideIcons.download),
+        const UpdatePanel(),
+        const SizedBox(height: 20),
         const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -208,7 +211,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ]),
           const SizedBox(height: 14),
           TextButton.icon(onPressed: () => _confirmReset(context), style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error), icon: const Icon(LucideIcons.trash2, size: 16), label: const Text('Erase everything')),
-          Text('Version 0.13.4${appFlavor == null || appFlavor == 'prod' ? '' : ' $appFlavor'} · body map: brand moss fills, group outline, tooltip, expand · ${exercises.length} exercises', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
+          Text('${exercises.length} exercises built in', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
         ])),
       ]),
     );

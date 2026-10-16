@@ -1,5 +1,8 @@
 // Notifications, calendar and location. Each is off until the user turns it on in Settings and grants the permission.
 // Every call here is safe to make on a platform without the capability: it returns false, null or an empty list.
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -10,6 +13,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'data/model.dart';
 import 'logic/calendar.dart';
+import 'logic/update.dart';
 
 class Notifications {
   static final _plugin = FlutterLocalNotificationsPlugin();
@@ -245,5 +249,90 @@ class LocationBridge {
       if (d != null && d <= bestD) { best = l; bestD = d; }
     }
     return best;
+  }
+}
+
+/// What build is installed, from the package manager.
+class AppInfo {
+  const AppInfo({required this.versionName, required this.versionCode, required this.flavor, required this.package});
+  final String versionName;
+  final int versionCode;
+  final String flavor;
+  final String package;
+}
+
+/// The updater: GitHub's latest release, a download into the app cache, and the Android installer.
+class UpdateBridge {
+  static const _ch = MethodChannel('fitness/update');
+
+  static Future<AppInfo?> appInfo() async {
+    try {
+      final m = await _ch.invokeMapMethod<String, dynamic>('appInfo');
+      if (m == null) return null;
+      return AppInfo(versionName: m['versionName'] as String? ?? '', versionCode: (m['versionCode'] as num?)?.toInt() ?? 0,
+          flavor: m['flavor'] as String? ?? 'prod', package: m['package'] as String? ?? '');
+    } catch (_) { return null; }
+  }
+
+  /// The latest release on GitHub. `reachable` is false when the request itself failed; a reachable answer with
+  /// no release means nothing has been published yet.
+  static Future<({ReleaseInfo? release, bool reachable})> latest() async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final req = await client.getUrl(Uri.parse(latestReleaseUrl));
+      req.headers.set(HttpHeaders.userAgentHeader, 'fitness-app');
+      req.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
+      final res = await req.close();
+      final body = await res.transform(const Utf8Decoder()).join();
+      if (res.statusCode == 404) return (release: null, reachable: true);
+      if (res.statusCode != 200) return (release: null, reachable: false);
+      return (release: parseRelease(body), reachable: true);
+    } catch (_) {
+      return (release: null, reachable: false);
+    } finally {
+      client.close();
+    }
+  }
+
+  static Future<bool> canInstall() async {
+    try { return await _ch.invokeMethod<bool>('canInstall') ?? false; } catch (_) { return false; }
+  }
+
+  static Future<void> openInstallSettings() async {
+    try { await _ch.invokeMethod<bool>('openInstallSettings'); } catch (_) {}
+  }
+
+  /// Downloads [url] into the app's update cache as [name], reporting 0..1, and returns the file path.
+  static Future<String?> download(String url, String name, void Function(double) onProgress) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final dir = await _ch.invokeMethod<String>('cacheDir');
+      if (dir == null) return null;
+      final file = File('$dir/$name');
+      final req = await client.getUrl(Uri.parse(url));
+      req.followRedirects = true;
+      req.headers.set(HttpHeaders.userAgentHeader, 'fitness-app');
+      final res = await req.close();
+      if (res.statusCode != 200) return null;
+      final total = res.contentLength;
+      var got = 0;
+      final sink = file.openWrite();
+      await for (final chunk in res) {
+        sink.add(chunk);
+        got += chunk.length;
+        if (total > 0) onProgress(got / total);
+      }
+      await sink.close();
+      onProgress(1);
+      return file.path;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  static Future<bool> install(String path) async {
+    try { return await _ch.invokeMethod<bool>('install', {'path': path}) ?? false; } catch (_) { return false; }
   }
 }

@@ -20,7 +20,7 @@ The logic in `lib/logic/` is the spec in `../docs/app/APPLICATION.md` (sections 
 | `lib/logic/person.dart` | Person state and nudges |
 | `lib/logic/rotation.dart` | The rotation |
 | `lib/ui/` | Screens: onboarding, today (with the done-for-today state), session (straight sets or circuit), exercise card, catalog (grouped by the chosen index), progress, settings. `theme.dart` carries the design-system tokens, `widgets.dart` the shared controls, `motion.dart` the motion tokens |
-| `tool/` | The dev loop (below) |
+| `tool/` | The dev loop, `icons.py`, `publish.sh` (below) |
 
 ## Dev loop
 
@@ -46,15 +46,33 @@ Everything runs from `mobile/`. The emulator is the `Pixel_9_Pro_API_36` AVD; bo
 6. **Time travel**: Settings → Prototype tools moves the app clock by days and simulates clean or short sessions, so decay,
    person state and defaults can be exercised without waiting.
 
-## Installable APK
+## Builds, releases and updates
+
+Two flavours on one dimension, so a try-out never touches the real install:
+
+| Flavour | Application id | Name | Icon |
+|---|---|---|---|
+| `prod` | `dev.derekurban.fitness` | Fitness | green bracket |
+| `staging` | `dev.derekurban.fitness.staging` | Fitness Staging | amber bracket |
+
+The dev loop runs staging (`FLAVOR=prod node tool/dev.mjs` for prod). Every `flutter run` or `flutter build apk` needs
+`--flavor prod|staging`. The launcher icons are drawn from the brand mark `../app/icon.svg` by `python -I tool/icons.py`.
+
+Release builds are signed with the keystore named in `android/key.properties` (ignored by git; the keystore lives in
+`~/.keys/fitness/`). Without that file a checkout still builds, signed with the debug key, but such a build cannot update
+an install signed with the release key.
 
 ```
-flutter build apk --release
-adb install -r build/app/outputs/flutter-apk/app-release.apk
+bash tool/publish.sh                      # build both flavours, copy to ../dist/, publish GitHub release v<version>
+NOTES="what changed" bash tool/publish.sh # with release notes, shown in the app under Update
+bash tool/publish.sh staging              # one flavour, no GitHub release
 ```
 
-The release APK is signed with the debug key, which is fine for sideloading on your own phone. Application id
-`dev.derekurban.fitness`.
+The version is `pubspec.yaml`'s `version:`; bump it before publishing (the tag is `v<version without build number>`,
+and a tag that exists gets its assets replaced). The app's Settings → Updates panel asks
+`api.github.com/repos/derekurban/fitness/releases/latest`, compares the tag with the installed version, downloads its
+flavour's APK into the app cache and opens the Android installer (first time, Android asks to allow installs from the
+app). `../dist/index.html` is the fallback install page over Tailscale.
 
 ## Words
 
@@ -64,6 +82,6 @@ internal to the builder and never shown.
 
 ## Not in this build yet
 
-Diagrams, the muscle map, and the step guides with visuals (see `../docs/`). The rotation (which slot types each workout
+Diagrams and the step guides with visuals (see `../docs/`). The rotation (which slot types each workout
 holds) is fixed; the goal decides how many of them a workout plans. The reminder is a fixed line at a fixed hour; it does
 not yet know whether today's workout is already done.

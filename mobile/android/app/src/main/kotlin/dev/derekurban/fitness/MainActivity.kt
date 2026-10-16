@@ -1,17 +1,24 @@
 package dev.derekurban.fitness
 
 import android.content.ContentValues
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.provider.CalendarContract
+import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import java.io.File
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
 import java.util.TimeZone
 
-/// Hosts one small channel: the calendar permissions, today's events, the writable calendars, and writing one event.
+/// Hosts two small channels: the calendar (permissions, today's events, the writable calendars, writing one event)
+/// and the updater (what build this is, the install permission, and handing a downloaded APK to the installer).
 class MainActivity : FlutterActivity() {
     private var pendingPermission: MethodChannel.Result? = null
     private var pendingWrite: MethodChannel.Result? = null
@@ -43,6 +50,34 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "fitness/update").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "appInfo" -> {
+                    val pi = packageManager.getPackageInfo(packageName, 0)
+                    val code = if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode else @Suppress("DEPRECATION") pi.versionCode.toLong()
+                    result.success(mapOf("versionName" to (pi.versionName ?: ""), "versionCode" to code, "flavor" to BuildConfig.FLAVOR, "package" to packageName))
+                }
+                "canInstall" -> result.success(Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls())
+                "openInstallSettings" -> {
+                    if (Build.VERSION.SDK_INT >= 26) startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                    result.success(true)
+                }
+                "cacheDir" -> result.success(File(cacheDir, "updates").apply { mkdirs() }.absolutePath)
+                "install" -> result.success(installApk(call.argument<String>("path")!!))
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    /// Opens the package installer on an APK in our cache, through the FileProvider declared in the manifest.
+    private fun installApk(path: String): Boolean = try {
+        val uri = FileProvider.getUriForFile(this, "$packageName.files", File(path))
+        startActivity(Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, "application/vnd.android.package-archive")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK))
+        true
+    } catch (e: Exception) {
+        false
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
