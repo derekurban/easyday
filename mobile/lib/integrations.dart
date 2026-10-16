@@ -274,19 +274,21 @@ class UpdateBridge {
     } catch (_) { return null; }
   }
 
-  /// The latest release on GitHub. `reachable` is false when the request itself failed; a reachable answer with
-  /// no release means nothing has been published yet.
-  static Future<({ReleaseInfo? release, bool reachable})> latest() async {
+  /// The newest release on GitHub for [flavor]: prod asks for the latest release, staging for the newest one carrying
+  /// its APK (CI publishes those as pre-releases). `reachable` is false when the request itself failed; a reachable
+  /// answer with no release means nothing has been published yet.
+  static Future<({ReleaseInfo? release, bool reachable})> latest(String? flavor) async {
+    final staging = flavor == 'staging';
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
-      final req = await client.getUrl(Uri.parse(latestReleaseUrl));
+      final req = await client.getUrl(Uri.parse(staging ? releasesUrl : latestReleaseUrl));
       req.headers.set(HttpHeaders.userAgentHeader, 'fitness-app');
       req.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       final res = await req.close();
       final body = await res.transform(const Utf8Decoder()).join();
       if (res.statusCode == 404) return (release: null, reachable: true);
       if (res.statusCode != 200) return (release: null, reachable: false);
-      return (release: parseRelease(body), reachable: true);
+      return (release: staging ? pickRelease(body, flavor) : parseRelease(body), reachable: true);
     } catch (_) {
       return (release: null, reachable: false);
     } finally {

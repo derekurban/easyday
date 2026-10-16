@@ -69,7 +69,7 @@ class ProgressScreen extends StatelessWidget {
         const SectionHeader('Muscles, last two weeks', icon: LucideIcons.personStanding),
         Panel(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Row(children: [
-            MuscleFigure(highlight: byDatasetGroup(worked), height: 190, keyLabels: const ('worked lately', 'fading'), expandable: true, title: 'Muscles, last two weeks',
+            MuscleFigure(highlight: byDatasetGroup(worked), height: 190, keyLabels: const ['worked hard', 'worked', 'fading'], expandable: true, title: 'Muscles, last two weeks',
                 detail: (h) => _muscleDetail(h, worked, last, now)),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

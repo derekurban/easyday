@@ -75,6 +75,20 @@ flavour's APK into the app cache and opens the Android installer. The first time
 the app, and on a phone with Play services Play Protect may ask to scan the app: "More details" offers "Install without
 scanning". Verified 0.13.5 to 0.13.6 on the emulator. `../dist/index.html` is the fallback install page over Tailscale.
 
+### Branches and staging builds
+
+Work lands on `dev`. Merging `dev` into `staging` (or any push to `staging`) runs `.github/workflows/staging.yml`:
+analyze, test, build the staging flavour signed with the release key, and publish a GitHub **pre-release** tagged
+`v<version>-staging.<versionCode>` carrying `fitness-staging.apk`. The versionCode is the pubspec build number × 1000
+plus the run number, so each staging build installs over the last. The staging app's Updates panel reads the release
+list and offers the newest release with its APK, comparing the build number when the version is the same; prod reads
+`releases/latest`, which never returns a pre-release, so staging builds never reach prod. `main` stays the prod line,
+published with `tool/publish.sh` as above.
+
+The signing key reaches CI as repo secrets `KEYSTORE_BASE64` (the keystore, base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS`
+and `KEY_PASSWORD`. To check a branch builds without releasing: Actions → staging → Run workflow, with "release" off
+(the APK is kept as a run artifact).
+
 ## Words
 
 The spec and the UI say **progression** and **level**; the code still says ladder and rung in a few places (`ladder.dart`,

@@ -1,14 +1,21 @@
-// In-app updates: the app's releases live on GitHub (derekurban/fitness, public). The latest release names a version
-// in its tag and carries one APK per flavour. This file is the pure part: reading a release and comparing versions.
+// In-app updates: the app's releases live on GitHub (derekurban/fitness, public). A prod release (tag v0.13.6, made by
+// tool/publish.sh) carries one APK per flavour and is the repo's latest release. A staging release (tag
+// v0.13.6-staging.20042, made by CI on every push to the staging branch) is a pre-release carrying only the staging
+// APK; its tag ends in the build's versionCode, which is how two staging builds of one version tell apart. Prod reads
+// releases/latest, which never returns a pre-release; staging reads the release list and takes the newest with its
+// APK. This file is the pure part: reading releases, picking one, and comparing versions.
 import 'dart:convert';
 
 const updateRepo = 'derekurban/fitness';
 const latestReleaseUrl = 'https://api.github.com/repos/$updateRepo/releases/latest';
+const releasesUrl = 'https://api.github.com/repos/$updateRepo/releases?per_page=30';
 
 /// One published build: its version (from the tag), notes, and the download URL per asset name.
 class ReleaseInfo {
-  const ReleaseInfo({required this.version, required this.tag, required this.notes, required this.assets, this.at});
+  const ReleaseInfo({required this.version, required this.tag, required this.notes, required this.assets, this.at, this.build});
   final String version;
+  /// The versionCode a staging tag ends in, or null for a prod tag.
+  final int? build;
   final String tag;
   final String notes;
   final Map<String, String> assets;
@@ -41,10 +48,40 @@ int compareVersions(String a, String b) {
   return 0;
 }
 
+/// The build number in a staging tag: "v0.13.6-staging.20042" -> 20042; null for any other tag.
+int? tagBuild(String tag) {
+  final m = RegExp(r'-staging\.(\d+)$').firstMatch(tag.trim());
+  return m == null ? null : int.tryParse(m.group(1)!);
+}
+
+/// Whether [r] is newer than the installed build: a higher version, or for a staging build of the same version, a
+/// higher build number than [installedCode].
+bool isNewer(ReleaseInfo r, String installedName, int installedCode) {
+  final c = compareVersions(r.version, installedName);
+  if (c != 0) return c > 0;
+  return r.build != null && r.build! > installedCode;
+}
+
 /// A GitHub release JSON (the /releases/latest shape) as a ReleaseInfo, or null when it has no usable tag.
 ReleaseInfo? parseRelease(String body) {
   final dynamic j;
   try { j = jsonDecode(body); } catch (_) { return null; }
+  return _release(j);
+}
+
+/// The /releases list, newest first, as the staging app's pick: the first release (drafts aside) carrying
+/// [assetFor] the flavour. Null when the body is not a list or nothing has the asset.
+ReleaseInfo? pickRelease(String body, String? flavor) {
+  final dynamic j;
+  try { j = jsonDecode(body); } catch (_) { return null; }
+  if (j is! List) return null;
+  final all = [for (final x in j) if (x is Map<String, dynamic> && x['draft'] != true) _release(x)].whereType<ReleaseInfo>()
+      .where((r) => r.assets.containsKey(assetFor(flavor))).toList()
+    ..sort((a, b) => (b.at ?? DateTime(0)).compareTo(a.at ?? DateTime(0)));
+  return all.isEmpty ? null : all.first;
+}
+
+ReleaseInfo? _release(dynamic j) {
   if (j is! Map<String, dynamic>) return null;
   final tag = j['tag_name'] as String?;
   if (tag == null || versionParts(tag).isEmpty) return null;
@@ -58,5 +95,6 @@ ReleaseInfo? parseRelease(String body) {
     notes: (j['body'] as String? ?? '').trim(),
     assets: assets,
     at: DateTime.tryParse(j['published_at'] as String? ?? ''),
+    build: tagBuild(tag),
   );
 }

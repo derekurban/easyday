@@ -30,12 +30,12 @@ class _UpdatePanelState extends State<UpdatePanel> {
   Future<void> _check() async {
     setState(() { phase = _Phase.checking; error = null; });
     info ??= await UpdateBridge.appInfo();
-    final got = await UpdateBridge.latest();
+    final got = await UpdateBridge.latest(info?.flavor);
     if (!mounted) return;
     final r = got.release;
     if (r == null) { setState(() => phase = got.reachable ? _Phase.none : _Phase.offline); return; }
     latest = r;
-    final newer = info != null && compareVersions(r.version, info!.versionName) > 0;
+    final newer = info != null && isNewer(r, info!.versionName, info!.versionCode);
     setState(() => phase = newer ? _Phase.available : _Phase.upToDate);
   }
 
@@ -71,7 +71,7 @@ class _UpdatePanelState extends State<UpdatePanel> {
   Widget build(BuildContext context) {
     final du = context.du;
     final t = Theme.of(context).textTheme;
-    final version = info == null ? '…' : versionParts(info!.versionName).join('.');
+    final version = info == null ? '…' : '${versionParts(info!.versionName).join('.')}${info!.flavor == 'staging' ? ' (build ${info!.versionCode})' : ''}';
     final (String status, Widget? action) = switch (phase) {
       _Phase.checking => ('Checking GitHub for a newer build…', null),
       _Phase.upToDate => ('Up to date.${latest?.at == null ? '' : ' Latest release ${_date(latest!.at!)}.'}', OutlinedButton(onPressed: _check, child: const Text('Check'))),

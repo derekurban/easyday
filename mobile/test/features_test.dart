@@ -171,6 +171,16 @@ void main() {
       expect(spread.containsKey('chest'), isFalse);
     });
 
+    test('a strength draws at one of three accent steps: main full, helping the middle one, a trace the lightest', () {
+      expect(muscleStepOpacity(0), 0);
+      expect(muscleStepOpacity(0.05), muscleSteps[0]);
+      expect(muscleStepOpacity(1 / 3), muscleSteps[0]);
+      expect(muscleStepOpacity(secondaryStrength), muscleSteps[1]);
+      expect(muscleStepOpacity(0.7), muscleSteps[2]);
+      expect(muscleStepOpacity(primaryStrength), muscleSteps[2]);
+      expect(muscleStepOpacity(3), muscleSteps[2]);
+    });
+
     test('the level history folds a hard day back to the user\'s level and reads the growth in weights', () {
       final s = fresh(template: 'gym');
       final ex = exerciseById['bb_squat']!;
