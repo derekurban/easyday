@@ -1,0 +1,27 @@
+---
+title: Session loop · one visit to the app
+---
+flowchart TD
+  A([Open app]) --> B["Detect context<br/>location · days since last session · calendar"]
+  B --> C["Two questions, both defaulted<br/>How much energy? easy / normal / hard<br/>How much time? short / normal / long"]
+  C --> D{"Away 7+ days?"}
+  D -- yes --> E["Energy defaults to easy<br/>decayed rungs already applied"]
+  D -- no --> F["Defaults from last time<br/>and the calendar"]
+  E --> G
+  F --> G["Build the session<br/>time → slots · energy → rungs and variants by cost"]
+  G --> H["Show session<br/>each exercise: rung · sets · aim for the top of the range"]
+  H --> I{"User adjusts?"}
+  I -- "energy or time" --> G
+  I -- "swap" --> K["Movement session<br/>cardio duration or mobility routine"]
+  I -- "no" --> L
+  K --> L["Do session"]
+  L --> M["Per set, one tap<br/>hit the top, or how many you got<br/>timestamps recorded, no timer shown"]
+  M --> S{"Stop early?"}
+  S -- "one tap" --> T["Reason: energy / time / pain<br/>remaining sets = not attempted"]
+  S -- no --> N
+  T --> N(["Finish"])
+  N --> O{"Feel rating?"}
+  O -- "one tap" --> P["Write history<br/>energy · time · who chose them · reps · timestamps"]
+  O -- "skip" --> P
+  P --> Q["Ladder judges each exercise<br/>timing model updates seconds per set"]
+  Q --> R["Rotation advances · one line says what changed"]

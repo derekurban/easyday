@@ -1,0 +1,64 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>body{margin:0;padding:24px;background:#fff;font-family:Segoe UI,system-ui,sans-serif}.d{width:2352px}</style>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad:true, theme:"neutral", flowchart:{ htmlLabels:true, curve:"basis", padding:12 } });
+</script></head><body><div class="d"><pre class="mermaid">---
+title: System map · what feeds what
+---
+flowchart TB
+  classDef input fill:#dbeafe,stroke:#60a5fa,color:#1e3a8a
+  classDef ctx fill:#fef3c7,stroke:#f59e0b,color:#78350f
+  classDef engine fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95
+  classDef store fill:#dcfce7,stroke:#22c55e,color:#14532d
+  classDef out fill:#fff,stroke:#111,color:#111,stroke-width:2px
+
+  OB["Onboarding&lt;br/>goal · experience · days per week · locations"]:::input
+  CTRL["Two questions per visit&lt;br/>energy: easy / normal / hard · time: short / normal / long"]:::input
+  TAPS["In-session taps&lt;br/>per set: hit the top, or how many · optional feel tap"]:::input
+  LOC["Current location"]:::ctx
+  GAP["Days since last session"]:::ctx
+  CAL["Calendar availability"]:::ctx
+
+  GT["Goal translator&lt;br/>rep range per pattern"]:::engine
+  SB["Session builder&lt;br/>time → slots · energy → which rungs and variants"]:::engine
+  LAD["Ladder&lt;br/>step up · step down · decay"]:::engine
+  TM["Timing model&lt;br/>seconds per set, learned from taps"]:::engine
+  AU["Automations"]:::engine
+
+  LIB[("Exercise library&lt;br/>pattern → exercises → ladders · cost 1 to 5")]:::store
+  LOCS[("Location profiles")]:::store
+  HIST[("Session history&lt;br/>sets · reps · timestamps")]:::store
+  PLAN[("Plan state&lt;br/>rotation · rung per exercise · cost overrides · time per set")]:::store
+
+  TODAY[/"Today's session"/]:::out
+  NUDGE[/"Reminder or suggestion"/]:::out
+  PROG[/"Progress view"/]:::out
+
+  OB --> GT --> PLAN
+  OB --> LOCS
+  LOCS --> SB
+  LIB --> SB
+  PLAN --> SB
+  LOC --> SB
+  CTRL --> SB
+  SB --> TODAY
+  TODAY --> TAPS --> HIST
+  HIST --> LAD --> PLAN
+  HIST --> TM --> PLAN
+  GAP --> LAD
+  LOC --> AU
+  CAL --> AU
+  GAP --> AU
+  AU --> NUDGE
+  HIST --> PROG
+
+  subgraph KEY["Key"]
+    direction LR
+    K1["User input"]:::input
+    K2["Context signal"]:::ctx
+    K3["Engine"]:::engine
+    K4[("Store")]:::store
+    K5[/"Output"/]:::out
+  end
+</pre></div></body></html>

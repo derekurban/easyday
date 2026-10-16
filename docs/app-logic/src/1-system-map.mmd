@@ -1,0 +1,58 @@
+---
+title: System map · what feeds what
+---
+flowchart TB
+  classDef input fill:#dbeafe,stroke:#60a5fa,color:#1e3a8a
+  classDef ctx fill:#fef3c7,stroke:#f59e0b,color:#78350f
+  classDef engine fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95
+  classDef store fill:#dcfce7,stroke:#22c55e,color:#14532d
+  classDef out fill:#fff,stroke:#111,color:#111,stroke-width:2px
+
+  OB["Onboarding<br/>goal · experience · days per week · locations"]:::input
+  CTRL["Two questions per visit<br/>energy: easy / normal / hard · time: short / normal / long"]:::input
+  TAPS["In-session taps<br/>per set: hit the top, or how many · optional feel tap"]:::input
+  LOC["Current location"]:::ctx
+  GAP["Days since last session"]:::ctx
+  CAL["Calendar availability"]:::ctx
+
+  GT["Goal translator<br/>rep range per pattern"]:::engine
+  SB["Session builder<br/>time → slots · energy → which rungs and variants"]:::engine
+  LAD["Ladder<br/>step up · step down · decay"]:::engine
+  TM["Timing model<br/>seconds per set, learned from taps"]:::engine
+  AU["Automations"]:::engine
+
+  LIB[("Exercise library<br/>pattern → exercises → ladders · cost 1 to 5")]:::store
+  LOCS[("Location profiles")]:::store
+  HIST[("Session history<br/>sets · reps · timestamps")]:::store
+  PLAN[("Plan state<br/>rotation · rung per exercise · cost overrides · time per set")]:::store
+
+  TODAY[/"Today's session"/]:::out
+  NUDGE[/"Reminder or suggestion"/]:::out
+  PROG[/"Progress view"/]:::out
+
+  OB --> GT --> PLAN
+  OB --> LOCS
+  LOCS --> SB
+  LIB --> SB
+  PLAN --> SB
+  LOC --> SB
+  CTRL --> SB
+  SB --> TODAY
+  TODAY --> TAPS --> HIST
+  HIST --> LAD --> PLAN
+  HIST --> TM --> PLAN
+  GAP --> LAD
+  LOC --> AU
+  CAL --> AU
+  GAP --> AU
+  AU --> NUDGE
+  HIST --> PROG
+
+  subgraph KEY["Key"]
+    direction LR
+    K1["User input"]:::input
+    K2["Context signal"]:::ctx
+    K3["Engine"]:::engine
+    K4[("Store")]:::store
+    K5[/"Output"/]:::out
+  end

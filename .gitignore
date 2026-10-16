@@ -1,0 +1,8 @@
+node_modules/
+.venv/
+muscle-map/pipeline/work/
+muscle-map/pipeline/verify/
+__pycache__/
+
+dist/
+*.apk

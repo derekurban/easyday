@@ -1,0 +1,375 @@
+{
+  "exercise": "Barbell bench press",
+  "character": "The person is the app's male muscle mannequin from the attached reference images: a smooth matte light-gray anatomical figure made of rounded muscle plates separated by dark charcoal grooves, with a dark charcoal featureless head, hands and feet. No clothing, no face, no hair. Keep its proportions and plate pattern exactly as in the references.",
+  "muscles": "Chest plates tinted moss green (#456938). Front shoulder and triceps plates tinted a lighter moss (#aec6a6). Every other plate stays light gray.",
+  "styles": [
+    {
+      "id": "studio-render",
+      "name": "Studio render",
+      "size": "1536x1024",
+      "blurb": "The body map, posed. A clean 3D render on a soft white studio floor, two frames side by side: bar at the chest, then arms locked out. The closest match to the muscle map already in the app.",
+      "prompt": "Clean 3D studio render, soft white seamless background with a faint floor shadow, side view from the figure's left. Two frames side by side in one image, separated by a thin gap: left frame the barbell touching the chest with forearms vertical, right frame arms locked out above the shoulders. A simple black flat bench, a chrome barbell with two black rubber plates per side. Even soft lighting, no text.",
+      "review": "Closest to the body map in the app, and the figure is faithful. Form note: the bar sits over the neck in the first frame; it should touch the lower chest. A prompt fix, not a style problem.",
+      "group": "Styles"
+    },
+    {
+      "id": "monoline",
+      "name": "Monoline",
+      "size": "1536x1024",
+      "blurb": "The app's illustration language: one thin even line, round caps, white background, the bar path drawn as a moss arrow. The figure keeps its plate pattern as hairline seams.",
+      "prompt": "Minimal monoline line drawing on a pure white background: a single thin even dark-gray stroke with rounded ends, no shading, no fills except the moss-green chest plates and lighter moss shoulder and triceps plates. Side view. Two frames side by side: bar at chest, then locked out. The bar path shown as a thin moss-green arrow with a small arrowhead. Bench and barbell drawn in the same thin line. No text.",
+      "review": "Matches the app illustrations and the bar-path arrow reads instantly. Plate seams get busy at small sizes; would want a simplified figure for thumbnails.",
+      "group": "Styles"
+    },
+    {
+      "id": "blueprint",
+      "name": "Blueprint",
+      "size": "1536x1024",
+      "blurb": "Technical drawing on faint graph paper with the bar path as a dimensioned arc and small tick marks for grip width. Precise where it is structural.",
+      "prompt": "Technical engineering drawing on faint light-gray graph paper, muted dark-gray ink, thin precise lines, side view and a small front-view inset in one corner. The barbell bench press shown at the bottom position with the bar path arc drawn as a dashed line up to the lockout position, small dimension ticks for grip width and bar-over-chest alignment, no numbers, no letters, no labels. The figure's chest plates filled moss green, shoulder and triceps plates lighter moss. Flat bench and barbell drawn as clean line work.",
+      "review": "The front inset with grip-width ticks and the dashed bar-path arc are genuinely instructive. The side figure lost one arm behind the plate, so it needs a second pass.",
+      "group": "Styles"
+    },
+    {
+      "id": "ink-wash",
+      "name": "Ink and wash",
+      "size": "1536x1024",
+      "blurb": "Texture where it is human: a brush-ink figure on warm paper with a loose green wash over the working muscles. Softer, slower, more like a notebook.",
+      "prompt": "Loose ink brush drawing on warm off-white paper with visible fiber texture, a few confident dark strokes, generous white space, side view of the figure pressing a barbell on a flat bench at the lockout position with a faint ghosted second pose at the chest. Translucent moss-green watercolor wash over the chest plates and a paler wash over the shoulder and triceps plates. The figure keeps its plate seams as thin ink lines. No text.",
+      "review": "The most human of the set, and the ghosted bottom position is a nice way to show range of motion in one frame. Slower to read than the renders.",
+      "group": "Styles"
+    },
+    {
+      "id": "isometric",
+      "name": "Isometric scene",
+      "size": "1024x1024",
+      "blurb": "A tiny isometric diorama: bench, rack, plates and figure in flat shaded 3D with soft pastel grays. Reads well as a thumbnail.",
+      "prompt": "Isometric 3D illustration, flat cel shading, soft light-gray floor tile, the figure lying on a flat bench inside a small power rack pressing a barbell with two plates per side, bar at chest height. Clean geometric shapes, gentle ambient shadows, muted gray palette with the chest plates moss green and the shoulder and triceps plates lighter moss. No text, nothing else in the scene.",
+      "review": "Clean and friendly, reads well small. Came out square rather than landscape. The grip and bar height are plausible.",
+      "group": "Styles"
+    },
+    {
+      "id": "sequence-strip",
+      "name": "Sequence strip",
+      "size": "1536x1024",
+      "blurb": "Three frames in a row like a film strip: setup with the bar racked, bar at the chest, lockout. One accent per frame on the bar.",
+      "prompt": "Three equal frames in a horizontal row separated by thin light-gray dividers, consistent camera: side view, soft neutral gray studio. Frame one: the figure lying on the bench with the barbell still on the rack uprights, hands gripping. Frame two: the bar lowered to the chest. Frame three: arms locked out. Chest plates moss green, shoulder and triceps plates lighter moss. Clean 3D render look, soft shadows, no text.",
+      "review": "Setup, bottom, lockout in one strip is the most tutorial-like layout. Middle frame has the elbows flared and the bar too high.",
+      "group": "Styles"
+    },
+    {
+      "id": "dark-mode",
+      "name": "Dark mode",
+      "size": "1536x1024",
+      "blurb": "For the dark theme: near-black background, light-gray figure, moss plates glowing softly. Minimal and quiet.",
+      "prompt": "Dark minimal 3D render on a near-black background (#141414) with a barely visible floor, the light-gray figure well lit from above, side view, bar at the chest and a faint ghost of the lockout position. Chest plates glow a soft moss green, shoulder and triceps plates a dimmer pale moss. Matte black bench and dark steel barbell with subtle rim light. No text.",
+      "review": "Works as the dark-theme partner to the studio render; the glowing plates stay quiet. Ghost lockout is clear.",
+      "group": "Styles"
+    },
+    {
+      "id": "photoreal-gym",
+      "name": "Mannequin in a real gym",
+      "size": "1536x1024",
+      "blurb": "The mannequin photographed like a product shot in a real gym: knurled steel bar, rubber plates, daylight, shallow depth of field. The most literal.",
+      "prompt": "Photorealistic photograph of the gray anatomical mannequin figure lying on a real black vinyl flat bench in a bright quiet gym, pressing a knurled steel barbell with black rubber bumper plates, bar at the chest, side view at bench height, shallow depth of field, soft daylight from a window, concrete floor. The figure is matte gray with its plate grooves visible, chest plates tinted moss green, shoulder and triceps plates lighter moss. No people, no text, no logos.",
+      "review": "Strong as a product shot, and the knurled bar and bumper plates read as real. Bar is over the face rather than the chest, and the gym setting adds noise for a tutorial.",
+      "group": "Styles"
+    },
+    {
+      "id": "annotated",
+      "name": "Annotated cutaway",
+      "size": "1024x1536",
+      "blurb": "Portrait layout with the figure at lockout and thin leader lines pointing to the working muscles, the way a good textbook plate does. No words in the image; labels would be added by the app.",
+      "prompt": "Clean 3D render, portrait layout, side view slightly from above, the figure at lockout on a flat bench, soft white background. Thin dark-gray leader lines with small dots point from the chest, front shoulder and triceps plates out to empty space at the right margin, leaving room for labels, no text or letters in the image. Chest plates moss green, shoulder and triceps plates lighter moss, all other plates light gray. Chrome bar, two black plates per side.",
+      "review": "Leader lines land on the working muscles and leave room for labels the app would add. The third line points at the abdomen rather than the triceps; easy to redo.",
+      "group": "Styles"
+    },
+    {
+      "id": "guide-numbered-strip",
+      "group": "Form guides",
+      "name": "Sequence with numbered markers",
+      "size": "1536x1024",
+      "blurb": "Three frames, setup to lockout, with small numbered circle markers on the form points. No words in the image; the app shows the numbered cue list beside it.",
+      "prompt": "Clean 3D studio render on soft white, three equal frames in a row separated by thin light-gray dividers, same side-view camera at bench height in all three. Frame one: setup, the figure lying with eyes under the racked bar, hands gripping, feet flat. Frame two: the bar touching the lower chest at the sternum with forearms vertical and elbows about 45 degrees from the torso. Frame three: arms locked out with the bar over the shoulders. Small moss-green circular markers containing single digits 1 to 6 sit on the form points: 1 on the feet in frame one, 2 on the upper back and arch in frame one, 3 on the wrist in frame two, 4 on the bar at the chest in frame two, 5 on the bar at lockout in frame three, 6 on the head in frame one. Thin dark-gray leader lines from each marker to its point. No other text.",
+      "review": "Form is right in all three frames: bar at the lower chest, forearms vertical, lockout over the shoulders. Markers 1 to 6 land where asked and leave the words to the app, which keeps it translatable and editable. The strongest candidate for the session screen."
+    },
+    {
+      "id": "guide-labeled-strip",
+      "group": "Form guides",
+      "name": "Sequence with short labels",
+      "size": "1536x1024",
+      "blurb": "The same three frames with very short text labels drawn in the image on thin leader lines. Tests whether the generator can be trusted with words.",
+      "prompt": "Clean 3D studio render on soft white, three equal frames in a row separated by thin light-gray dividers, same side-view camera at bench height. Frame one: setup, eyes under the racked bar, feet flat, shoulder blades pulled back with a slight arch. Frame two: the bar touching the lower chest at the sternum, forearms vertical, elbows about 45 degrees from the torso. Frame three: arms locked out with the bar over the shoulders. Thin dark-gray leader lines with small dots point from form points to short labels in a clean sans-serif, dark gray, lower case, exactly these words and nothing else: \"feet flat\" near the feet in frame one, \"shoulder blades back\" near the upper back in frame one, \"bar to lower chest\" near the bar in frame two, \"elbows 45 degrees\" near the elbow in frame two, \"wrists straight\" near the wrist in frame two, \"lock out over shoulders\" near the bar in frame three. Keep text small, legible, and spelled exactly.",
+      "review": "Every label is spelled exactly and sits on the right point, so the generator can be trusted with short words. The bar lands at the lower chest. Text baked into the image means a regeneration for any edit, and no translation."
+    },
+    {
+      "id": "guide-form-map",
+      "group": "Form guides",
+      "name": "Form map with inset",
+      "size": "1024x1536",
+      "blurb": "One large frame at the bottom position, where most form mistakes happen, with six numbered markers, plus a small lockout inset and the bar path as a dashed arc. Portrait, built for a phone.",
+      "prompt": "Clean 3D studio render on soft white, portrait layout. Main image: large side view of the figure at the bottom of the bench press, the bar touching the lower chest at the sternum, forearms vertical, elbows about 45 degrees from the torso, feet flat on the floor, shoulder blades pulled back with a slight arch, glutes on the bench. A thin dashed dark-gray arc shows the bar path from the chest up and slightly back to the lockout position. Six small moss-green circular markers with single digits 1 to 6 on thin leader lines: 1 feet, 2 upper back arch, 3 wrist and grip, 4 bar at the sternum, 5 the end of the bar-path arc at the lockout position, 6 the head. Bottom corner: a small inset of the lockout position with the bar over the shoulders. No other text.",
+      "review": "One big bottom-position frame is where mistakes happen, and the dashed bar path plus the lockout inset tell the whole story in portrait. Markers 3 and 4 crowd each other at the wrist and chest; worth nudging apart."
+    },
+    {
+      "id": "guide-vertical-steps",
+      "group": "Form guides",
+      "name": "Vertical steps with captions",
+      "size": "1024x1536",
+      "blurb": "Portrait strip of three frames stacked top to bottom, each with a step number and a one-line caption drawn under it. Reads like a card you scroll.",
+      "prompt": "Clean 3D studio render on soft white, portrait layout with three frames stacked vertically and separated by thin light-gray dividers, same side-view camera. Top frame: setup, eyes under the racked bar, feet flat, shoulder blades back with a slight arch; beneath it a large moss-green digit 1 and the caption \"set up: feet flat, shoulder blades back\" in small dark-gray sans-serif. Middle frame: the bar lowered to the lower chest at the sternum, forearms vertical, elbows about 45 degrees; beneath it the digit 2 and the caption \"lower to the chest, elbows at 45 degrees\". Bottom frame: arms locked out, bar over the shoulders; beneath it the digit 3 and the caption \"press up and back, lock out over the shoulders\". Exactly those captions, spelled exactly, nothing else written.",
+      "review": "Captions are exact and the three frames scroll like a card. Setup frame shows the bar unracked over the chest rather than in the hooks, which is a small liberty. Easiest to read of the four on a phone."
+    },
+    {
+      "id": "frame-render-side-setup",
+      "group": "Transparent frames",
+      "name": "Render · Side · setup",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Side, setup.",
+      "prompt": "Clean matte 3D render, even soft lighting, no ground shadow. Pure side view from the figure's left at bench height, camera level with the bar, orthographic feel with almost no perspective. The figure lies with the head to the LEFT and the feet to the RIGHT. The flat bench spans the lower middle of the image. The barbell is a chrome bar with ONE black plate visible on the near end, drawn small so it never hides the arm or the chest. Same scale in every frame: the bench top sits at one third up from the bottom edge. Setup position: the bar is held at arms' length directly over the shoulders after unracking, arms locked, eyes under the bar, feet flat on the floor under the knees, shoulder blades pulled back and down with a slight arch in the lower back, glutes on the bench. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Clean. Bar stacked over the shoulder, forearm vertical, feet flat with the knee over the foot, head on the bench. Same bench and figure scale as the other two side frames, so the three read as one sequence."
+    },
+    {
+      "id": "frame-render-side-bottom",
+      "group": "Transparent frames",
+      "name": "Render · Side · bottom",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Side, bottom.",
+      "prompt": "Clean matte 3D render, even soft lighting, no ground shadow. Pure side view from the figure's left at bench height, camera level with the bar, orthographic feel with almost no perspective. The figure lies with the head to the LEFT and the feet to the RIGHT. The flat bench spans the lower middle of the image. The barbell is a chrome bar with ONE black plate visible on the near end, drawn small so it never hides the arm or the chest. Same scale in every frame: the bench top sits at one third up from the bottom edge. Bottom position: the bar touches the lower chest at the sternum, never the neck. Forearms exactly vertical. Wrists straight and stacked over the forearms. Elbows just below the torso line. Feet flat, shoulder blades back, slight arch. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Correct contact point: bar on the lower chest, nowhere near the neck. Elbow tucked under the bar, wrist stacked. The plate hides part of the arm, which is the cost of a true side view; the marker and the top-down frame cover what it hides."
+    },
+    {
+      "id": "frame-render-side-lockout",
+      "group": "Transparent frames",
+      "name": "Render · Side · lockout",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Side, lockout.",
+      "prompt": "Clean matte 3D render, even soft lighting, no ground shadow. Pure side view from the figure's left at bench height, camera level with the bar, orthographic feel with almost no perspective. The figure lies with the head to the LEFT and the feet to the RIGHT. The flat bench spans the lower middle of the image. The barbell is a chrome bar with ONE black plate visible on the near end, drawn small so it never hides the arm or the chest. Same scale in every frame: the bench top sits at one third up from the bottom edge. Lockout position: arms fully locked with the bar directly over the shoulders, slightly toward the head compared with the chest, feet flat, shoulder blades still back. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Nearly identical to the setup, which is the point: setup is lockout before the first rep. Could be dropped and replaced by the setup frame plus a path overlay if we want three frames instead of four."
+    },
+    {
+      "id": "frame-render-top-bottom",
+      "group": "Transparent frames",
+      "name": "Render · Top-down · bottom",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Top-down, bottom.",
+      "prompt": "Pure top-down bird's-eye view looking straight down at the figure lying on its back on the flat bench, head at the TOP of the image, feet at the BOTTOM, the bench a narrow vertical dark strip under the torso. Camera centered over the chest. IMPORTANT, the legs: the feet are NOT on the bench. The knees are bent and the legs open to either side of the bench so that both feet rest flat on the FLOOR, one on each side, clearly wider apart than the bench, soles down, toes pointing slightly outward. Seen from above the thighs angle outward from the hips and the lower legs point down toward the floor, so the feet appear foreshortened beside the bench. Bottom position seen from above: the bar lies across the lower chest, grip a little wider than the shoulders, elbows about 45 degrees out from the torso (clearly closer to the ribs than to a 90-degree flare), wrists straight, thumbs wrapped around the bar. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop.",
+      "review": "Second pass. Feet now on the floor either side of the bench, knees out, which the first version got wrong. Elbows sit nearer 60 degrees than 45, still inside the safe range. Grip and bar line read clearly."
+    },
+    {
+      "id": "frame-mono-side-setup",
+      "group": "Transparent frames",
+      "name": "Monoline · Side · setup",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Side, setup.",
+      "prompt": "Minimal monoline line drawing: one thin even dark-gray stroke with rounded ends, no shading, the figure's plate seams as hairlines, no fills except the moss-green chest plates and lighter moss shoulder and triceps plates. Pure side view from the figure's left at bench height, camera level with the bar, orthographic feel with almost no perspective. The figure lies with the head to the LEFT and the feet to the RIGHT. The flat bench spans the lower middle of the image. The barbell is a chrome bar with ONE black plate visible on the near end, drawn small so it never hides the arm or the chest. Same scale in every frame: the bench top sits at one third up from the bottom edge. Setup position: the bar is held at arms' length directly over the shoulders after unracking, arms locked, eyes under the bar, feet flat on the floor under the knees, shoulder blades pulled back and down with a slight arch in the lower back, glutes on the bench. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Matches the rendered setup almost pose for pose, so the two styles can share one set of marker coordinates with small offsets. Tint on chest, shoulder and triceps is readable at thumbnail size."
+    },
+    {
+      "id": "frame-mono-side-bottom",
+      "group": "Transparent frames",
+      "name": "Monoline · Side · bottom",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Side, bottom.",
+      "prompt": "Minimal monoline line drawing: one thin even dark-gray stroke with rounded ends, no shading, the figure's plate seams as hairlines, no fills except the moss-green chest plates and lighter moss shoulder and triceps plates. Pure side view from the figure's left at bench height, camera level with the bar, orthographic feel with almost no perspective. The figure lies with the head to the LEFT and the feet to the RIGHT. The flat bench spans the lower middle of the image. The barbell is a chrome bar with ONE black plate visible on the near end, drawn small so it never hides the arm or the chest. Same scale in every frame: the bench top sits at one third up from the bottom edge. Bottom position: the bar touches the lower chest at the sternum, never the neck. Forearms exactly vertical. Wrists straight and stacked over the forearms. Elbows just below the torso line. Feet flat, shoulder blades back, slight arch. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Weakest frame of the eight. The plate overlaps the forearm so the arm looks short, and the bar-to-chest contact is harder to read than in the render. Would redraw with the plate pushed slightly behind the hand."
+    },
+    {
+      "id": "frame-mono-side-lockout",
+      "group": "Transparent frames",
+      "name": "Monoline · Side · lockout",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Side, lockout.",
+      "prompt": "Minimal monoline line drawing: one thin even dark-gray stroke with rounded ends, no shading, the figure's plate seams as hairlines, no fills except the moss-green chest plates and lighter moss shoulder and triceps plates. Pure side view from the figure's left at bench height, camera level with the bar, orthographic feel with almost no perspective. The figure lies with the head to the LEFT and the feet to the RIGHT. The flat bench spans the lower middle of the image. The barbell is a chrome bar with ONE black plate visible on the near end, drawn small so it never hides the arm or the chest. Same scale in every frame: the bench top sits at one third up from the bottom edge. Lockout position: arms fully locked with the bar directly over the shoulders, slightly toward the head compared with the chest, feet flat, shoulder blades still back. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Clean and consistent with the mono setup. Line weight matches the app's existing monoline art, so this would sit naturally next to the onboarding illustrations."
+    },
+    {
+      "id": "frame-mono-top-bottom",
+      "group": "Transparent frames",
+      "name": "Monoline · Top-down · bottom",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Single frame, no background. Top-down, bottom.",
+      "prompt": "Minimal monoline line drawing: one thin even dark-gray stroke with rounded ends, no shading, the figure's plate seams as hairlines, no fills except the moss-green chest plates and lighter moss shoulder and triceps plates. Pure top-down bird's-eye view looking straight down at the figure lying on the bench, head at the TOP of the image, feet at the BOTTOM, the bench a vertical dark strip under the figure. Camera centered over the chest. Bottom position seen from above: the bar lies across the lower chest, grip a little wider than the shoulders, elbows about 45 degrees out from the torso, not flared to 90 and not tucked to the sides, wrists straight. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop, nothing but the figure, the bench and the bar.",
+      "review": "Elbows flare close to 90 degrees, which is the exact mistake cue 7 warns against. Grip width is right. Needs a regeneration with the elbow angle spelled out, same fix that worked for the neck cue earlier."
+    },
+    {
+      "id": "frame-render-rack-setup",
+      "name": "Render · Side · racked setup",
+      "group": "Tutorial frames",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Full side frame with the bar still in the hooks, for the lie-down cues.",
+      "prompt": "Pure side view. The flat bench sits inside a simple power rack: two dark vertical uprights with J-hooks, one upright near the head end. The figure lies on its back on the bench BEFORE unracking: the bar still rests in the J-hooks above the figure, and the figure's eyes are directly under the bar. The hands grip the bar, a little wider than the shoulders, arms slightly bent. Feet flat on the floor directly under the knees, knees bent about 90 degrees. Shoulder blades pulled back and down, a slight arch in the lower back, glutes on the bench. Same scale as a full side frame: the bench top sits one third up from the bottom edge, the whole figure and the rack uprights visible. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop.",
+      "review": "Rack and J-hooks read well and the frame scale matches the other side views. The bar sits over the upper chest rather than exactly over the eyes, and the arms are already straight; the close-up carries the eye-line cue, so this frame is kept for context."
+    },
+    {
+      "id": "close-eyes-under-bar",
+      "name": "Close-up · Eyes under the bar",
+      "group": "Tutorial frames",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Head, neck and the racked bar.",
+      "prompt": "CLOSE-UP, side view, framed tightly on the head, neck and upper chest of the figure lying on the bench with the racked bar directly above the eyes, resting in a J-hook on a dark upright. The head rests on the bench, chin neutral, the eye line vertically under the bar. The bar, the J-hook and the top of the upright are large and clear. Nothing else in frame. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop.",
+      "review": "Clear. Head flat on the bench, chin neutral, bar in the hook above the eye line. Does its one job."
+    },
+    {
+      "id": "close-arch",
+      "name": "Close-up · Slight arch",
+      "group": "Tutorial frames",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Torso on the bench, shoulder blades down, small gap under the lower back.",
+      "prompt": "CLOSE-UP, pure side view with the camera exactly at bench-top height, framed on the torso from the shoulders to the hips. The figure lies FACE UP on its BACK on the flat bench, chest toward the sky, head to the left (out of frame), hips to the right. The bench top runs horizontally along the lower part of the frame. The upper back and shoulders press into the bench on the left, the glutes press into the bench on the right, and between them the lower back lifts into a SLIGHT arch so a thin sliver of empty space is clearly visible between the lower back and the bench top. The chest rises. The arch is modest, not a bridge. Arms rest along the sides. The moss-green chest plates face upward. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop.",
+      "review": "Second pass works: face up, upper back and glutes on the bench, a clear gap under the lower back. The arch is a touch bigger than the cue asks for; the text says modest, and the picture gets the idea across."
+    },
+    {
+      "id": "close-grip",
+      "name": "Close-up · Grip",
+      "group": "Tutorial frames",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Hand and forearm on the bar.",
+      "prompt": "CLOSE-UP, three-quarter view from slightly above and to the side, framed tightly on one hand and forearm gripping the chrome bar at the top of the press. The bar sits LOW in the palm over the heel of the hand, the wrist is straight and stacked directly over the forearm (not bent back), the thumb is wrapped fully around the bar in a closed grip, knuckles up. Forearm vertical. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop.",
+      "review": "Wrist straight and stacked over the forearm, thumb wrapped, knuckles up. The bar sits mid-palm rather than low in the heel, close enough for a cue image."
+    },
+    {
+      "id": "close-feet",
+      "name": "Close-up · Feet flat",
+      "group": "Tutorial frames",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Lower leg from the bench to the floor.",
+      "prompt": "CLOSE-UP, side view, framed tightly on one lower leg of the figure lying on the bench: the thigh angles down from the bench edge, the knee is bent about 90 degrees, the shin is vertical and the foot is flat on the floor directly under the knee, heel down, the whole sole in contact. Include the end of the bench top for context. Draw a thin floor line only if needed to show the sole is flat; otherwise nothing. TRANSPARENT BACKGROUND: PNG with alpha, no shadow, no backdrop.",
+      "review": "Knee near 90 degrees, shin vertical, the whole sole down. Clean and unambiguous."
+    },
+    {
+      "id": "close-bottom-contact",
+      "name": "Close-up · Bar on the lower chest",
+      "group": "Tutorial frames",
+      "size": "1024x1024",
+      "transparent": true,
+      "blurb": "Chest and near arm at the bottom of the press.",
+      "prompt": "CLOSE-UP, pure side view, framed on the chest, shoulder and near arm at the BOTTOM of the bench press. The chrome bar is RESTING ON the chest: it touches the body at the base of the sternum, on the lower part of the moss-green chest plates, well below the neck. The hand grips the bar there, the wrist is straight, and the forearm drops VERTICALLY from the hand down to the elbow, which sits just below bench-top height beside the torso. Show only a short section of bar and NO weight plate, so the point where the bar meets the chest is completely unobstructed. Head on the bench at the left edge, out of focus of the frame. TRANSPARENT BACKGROUND: PNG with alpha, no floor, no shadow, no backdrop.",
+      "review": "Second pass works: no plate, the bar rests on the lower edge of the chest plates with the forearm vertical and the elbow at bench height. Reads as touch, not hover."
+    }
+  ],
+  "form": "Form cues for the barbell bench press, in order: (1) feet flat on the floor, pressing down; (2) shoulder blades pulled back and down, a slight arch in the lower back, glutes on the bench; (3) grip a little wider than the shoulders, wrists straight and stacked over the forearms; (4) the bar lowers to the lower chest at the sternum, never the neck, with the elbows about 45 degrees from the torso and the forearms vertical at the bottom; (5) press up and slightly back so the bar finishes over the shoulders with the arms locked out; (6) at setup the eyes are under the bar.",
+  "method": {
+    "intro": "A form image is a set of cues made visible. Each cue is one of a few kinds, and each kind has an angle where it is unambiguous. Pick the frames from the cues, not the other way round.",
+    "kinds": [
+      [
+        "Position",
+        "where something is: bar over the shoulders, bar at the lower chest, eyes under the bar",
+        "side view"
+      ],
+      [
+        "Contact",
+        "what touches what: feet flat, shoulder blades on the bench, glutes down",
+        "side view"
+      ],
+      [
+        "Angle in the side plane",
+        "forearm vertical, back arch, hip hinge",
+        "side view"
+      ],
+      [
+        "Angle in the front plane",
+        "elbow flare, grip width, knees tracking, symmetry",
+        "top-down or front view, never the side"
+      ],
+      [
+        "Path",
+        "where the bar travels: the bench press J-curve",
+        "side view, drawn by the app over the frames"
+      ],
+      [
+        "Timing",
+        "pause at the chest, exhale on the press, brace before the descent",
+        "text only; images cannot show it"
+      ]
+    ],
+    "frames": "Three frames carry almost every exercise: the setup, the hardest position (where mistakes happen), and the finish. Add one more frame only when a cue lives in another plane, taken at the hardest position from that plane.",
+    "bench": [
+      [
+        "1",
+        "Feet flat, under the knees",
+        "contact",
+        "side",
+        "setup"
+      ],
+      [
+        "2",
+        "Shoulder blades back and down, slight arch, glutes on the bench",
+        "contact",
+        "side",
+        "setup"
+      ],
+      [
+        "3",
+        "Eyes under the bar",
+        "position",
+        "side",
+        "setup"
+      ],
+      [
+        "4",
+        "Grip a little wider than the shoulders",
+        "front-plane distance",
+        "top-down",
+        "bottom"
+      ],
+      [
+        "5",
+        "Wrists straight, stacked over the forearms",
+        "side-plane angle",
+        "side",
+        "bottom"
+      ],
+      [
+        "6",
+        "Bar to the lower chest, never the neck",
+        "position",
+        "side",
+        "bottom"
+      ],
+      [
+        "7",
+        "Elbows about 45 degrees from the torso",
+        "front-plane angle",
+        "top-down",
+        "bottom"
+      ],
+      [
+        "8",
+        "Forearms vertical at the bottom",
+        "side-plane angle",
+        "side",
+        "bottom"
+      ],
+      [
+        "9",
+        "Bar path up and slightly back",
+        "path",
+        "side",
+        "drawn across bottom and lockout"
+      ],
+      [
+        "10",
+        "Lock out over the shoulders",
+        "position",
+        "side",
+        "lockout"
+      ]
+    ],
+    "result": "So the bench press needs four frames: side setup, side bottom, side lockout, and a top-down bottom. Everything else is drawn or written by the app over the frames. Backgrounds stay empty so the app owns the surface, the layout, the markers and the words.",
+    "composition": "Transparent frames give the app the control it needs: the same figure on light and dark surfaces, frames laid side by side or stacked for portrait, numbered markers placed per frame and tappable, the bar path drawn as a dashed arc in the accent, and labels set in the app typeface where they can be edited and translated."
+  }
+}

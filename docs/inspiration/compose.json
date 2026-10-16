@@ -1,0 +1,98 @@
+{
+  "note": "The rendered style is the pick. The strip uses the four transparent frames with nothing baked in: the app draws the numbered markers, the dashed bar path and the captions over them. Markers sit at percent coordinates so they survive any frame size.",
+  "cues": [
+    "Feet flat, under the knees",
+    "Shoulder blades back and down, slight arch, glutes on the bench",
+    "Eyes under the bar",
+    "Grip a little wider than the shoulders",
+    "Wrists straight, stacked over the forearms",
+    "Bar to the lower chest, never the neck",
+    "Elbows about 45 degrees from the torso",
+    "Forearms vertical at the bottom",
+    "Bar path up and slightly back",
+    "Lock out over the shoulders"
+  ],
+  "styles": {
+    "render": {
+      "name": "Rendered",
+      "frames": [
+        {
+          "id": "frame-render-side-setup",
+          "label": "1 · Setup",
+          "markers": [
+            [
+              1,
+              87,
+              85
+            ],
+            [
+              2,
+              45,
+              63
+            ],
+            [
+              3,
+              21,
+              56
+            ]
+          ]
+        },
+        {
+          "id": "frame-render-side-bottom",
+          "label": "2 · Bottom",
+          "markers": [
+            [
+              5,
+              37,
+              49
+            ],
+            [
+              6,
+              43,
+              56
+            ],
+            [
+              8,
+              32,
+              60
+            ],
+            [
+              9,
+              35,
+              29
+            ]
+          ],
+          "path": "M37.5 43 Q 36 29 33.5 16"
+        },
+        {
+          "id": "frame-render-side-lockout",
+          "label": "3 · Lockout",
+          "markers": [
+            [
+              10,
+              33.5,
+              25
+            ]
+          ],
+          "path": "M37.5 43 Q 36 29 33.5 16"
+        },
+        {
+          "id": "frame-render-top-bottom",
+          "label": "Top-down · Bottom",
+          "markers": [
+            [
+              4,
+              28,
+              44
+            ],
+            [
+              7,
+              74,
+              37.5
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

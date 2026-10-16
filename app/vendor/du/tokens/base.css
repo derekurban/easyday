@@ -1,0 +1,24 @@
+/* Element defaults and type-style classes. */
+html{background:var(--bg);color:var(--ink);font:var(--font-body-style);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility}
+[data-theme]{background:var(--bg);color:var(--ink)}
+body{margin:0}
+h1,h2,h3,h4{font-family:var(--font-title);font-weight:500;text-wrap:balance;margin:0}
+p{text-wrap:pretty;margin:0}
+a{color:var(--accent-text);text-decoration:underline;text-decoration-color:var(--accent-line);text-decoration-thickness:1px;text-underline-offset:3px;transition:text-decoration-color var(--duration-fast) var(--ease-out)}
+a:hover{color:var(--accent-text);text-decoration-color:currentColor}
+::selection{background:var(--accent-subtle);color:var(--ink)}
+:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}
+hr{border:0;height:0;box-shadow:var(--ring-hairline);margin:0}
+
+.du-display{font:var(--font-display);letter-spacing:var(--tracking-display);text-wrap:balance}
+.du-title{font:var(--font-title-style);letter-spacing:var(--tracking-title);text-wrap:balance}
+.du-heading{font:var(--font-heading);letter-spacing:var(--tracking-heading);text-wrap:balance}
+.du-subheading{font:var(--font-subheading);letter-spacing:var(--tracking-subheading);text-wrap:balance}
+.du-body{font:var(--font-body-style);text-wrap:pretty}
+.du-small{font:var(--font-small);text-wrap:pretty}
+.du-caption{font:var(--font-caption);color:var(--ink-tertiary)}
+.du-label{font:var(--font-label)}
+.du-secondary{color:var(--ink-secondary)}
+.du-tertiary{color:var(--ink-tertiary)}
+.du-tabular{font-variant-numeric:tabular-nums}
+.du-measure{max-width:var(--measure)}

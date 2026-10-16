@@ -1,0 +1,110 @@
+[
+  {
+    "name": "intro-one-decision",
+    "file": "intro-one-decision.svg",
+    "png": "intro-one-decision.png",
+    "message": "one decision a day: start or not"
+  },
+  {
+    "name": "intro-dose",
+    "file": "intro-dose.svg",
+    "png": "intro-dose.png",
+    "message": "the dose adapts, erring easy"
+  },
+  {
+    "name": "intro-comeback",
+    "file": "intro-comeback.svg",
+    "png": "intro-comeback.png",
+    "message": "missing days is expected, coming back is designed"
+  },
+  {
+    "name": "intro-move",
+    "file": "intro-move.svg",
+    "png": "intro-move.png",
+    "message": "a walk counts"
+  },
+  {
+    "name": "intro-cycle",
+    "file": "intro-cycle.svg",
+    "png": "intro-cycle.png",
+    "message": "a short cycle; next is always next"
+  },
+  {
+    "name": "goal-strength",
+    "file": "goal-strength.svg",
+    "png": "goal-strength.png",
+    "message": "build strength"
+  },
+  {
+    "name": "goal-muscle",
+    "file": "goal-muscle.svg",
+    "png": "goal-muscle.png",
+    "message": "build muscle"
+  },
+  {
+    "name": "goal-fit",
+    "file": "goal-fit.svg",
+    "png": "goal-fit.png",
+    "message": "improve everyday fitness"
+  },
+  {
+    "name": "goal-feel",
+    "file": "goal-feel.svg",
+    "png": "goal-feel.png",
+    "message": "feel better"
+  },
+  {
+    "name": "loc-gym",
+    "file": "loc-gym.svg",
+    "png": "loc-gym.png",
+    "message": "at the gym"
+  },
+  {
+    "name": "loc-home",
+    "file": "loc-home.svg",
+    "png": "loc-home.png",
+    "message": "at home"
+  },
+  {
+    "name": "loc-hotel",
+    "file": "loc-hotel.svg",
+    "png": "loc-hotel.png",
+    "message": "while travelling"
+  },
+  {
+    "name": "loc-none",
+    "file": "loc-none.svg",
+    "png": "loc-none.png",
+    "message": "no equipment needed"
+  },
+  {
+    "name": "empty-progress",
+    "file": "empty-progress.svg",
+    "png": "empty-progress.png",
+    "message": "progress begins with one small step"
+  },
+  {
+    "name": "done",
+    "file": "done.svg",
+    "png": "done.png",
+    "message": "today's work is done"
+  },
+  {
+    "name": "rest",
+    "file": "rest.svg",
+    "png": "rest.png",
+    "message": "rest is part of the plan"
+  },
+  {
+    "name": "body",
+    "file": "body.svg",
+    "png": "body.png",
+    "message": "meet your body where it is"
+  },
+  {
+    "name": "mark-glyph",
+    "file": "mark-glyph.svg",
+    "png": "mark-glyph.png",
+    "message": "a simple dumbbell mark"
+  }
+]

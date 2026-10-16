@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Muscle Map Playground</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --bg:#f3f4f6; --panel:#fff; --ink:#111827; --muted:#6b7280; --line:#e5e7eb; --p:#e5392f; --s:#f4917a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 ui-sans-serif,system-ui,"Segoe UI",Roboto,sans-serif; }
+  .app { display:grid; grid-template-columns: 300px 1fr 300px; height:100vh; }
+  aside { background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  aside.right { border-right:0; border-left:1px solid var(--line); overflow-y:auto; padding:16px; gap:14px; }
+  .head { padding:14px 14px 10px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px; }
+  h1 { font-size:16px; margin:0; }
+  input[type=search], select { width:100%; border:1px solid var(--line); border-radius:8px; padding:7px 9px; font:inherit; background:#fff; }
+  .list { overflow-y:auto; flex:1; }
+  .ex { padding:8px 14px; cursor:pointer; border-bottom:1px solid #f3f4f6; }
+  .ex:hover { background:#f9fafb; } .ex.on { background:#111827; color:#fff; }
+  .ex small { display:block; color:var(--muted); text-transform:capitalize; } .ex.on small { color:#9ca3af; }
+  .count { color:var(--muted); font-size:12px; }
+  main { position:relative; display:flex; flex-direction:column; min-width:0; }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:10px 14px; background:var(--panel); border-bottom:1px solid var(--line); }
+  .seg { display:inline-flex; background:#f3f4f6; border-radius:9px; padding:3px; }
+  .seg button { all:unset; cursor:pointer; padding:5px 12px; border-radius:7px; font-size:13px; font-weight:600; color:var(--muted); }
+  .seg button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+  label.t { display:flex; gap:6px; align-items:center; font-size:13px; color:var(--muted); }
+  .stage { flex:1; overflow:auto; display:flex; justify-content:center; align-items:flex-start; padding:16px; }
+  .views { display:flex; gap:8px; transform-origin: top center; }
+  .view { position:relative; text-align:center; }
+  .view canvas { display:block; height:var(--h); width:auto; cursor:crosshair; }
+  .view .lbl { font-size:12px; color:var(--muted); font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+  .tip { position:fixed; pointer-events:none; background:#111827; color:#fff; padding:5px 9px; border-radius:7px; font-size:12px; z-index:9; white-space:nowrap; }
+  .tip b { text-transform:capitalize; } .tip span { color:#9ca3af; margin-left:6px; text-transform:capitalize; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:6px 0 6px; }
+  .title { font-size:18px; font-weight:700; line-height:1.25; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .chip { all:unset; cursor:pointer; font-size:12.5px; padding:4px 9px; border-radius:7px; background:#f3f4f6; color:#374151; text-transform:capitalize; border:1px solid transparent; }
+  .chip.p { background:#fde2df; color:#b42318; border-color:#f5b5ad; } .chip.s { background:#fdeee9; color:#c2410c; border-color:#f8cdbf; }
+  .chip.na { opacity:.45; text-decoration:line-through; cursor:default; }
+  .note { font-size:12px; color:var(--muted); }
+  .legend { display:flex; gap:12px; font-size:12px; color:var(--muted); } .dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:-1px; }
+  ol { margin:0; padding-left:18px; color:#374151; } li { margin-bottom:6px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  input[type=color] { width:34px; height:26px; border:1px solid var(--line); border-radius:6px; padding:1px; background:#fff; }
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 1fr; height:auto; }
+    aside { max-height: 40vh; } aside.right { max-height:none; }
+    .stage { padding:8px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="head">
+      <h1>Muscle Map Playground</h1>
+      <input type="search" id="q" placeholder="Search 870+ exercises…" />
+      <select id="fMuscle"><option value="">All target muscles</option></select>
+      <select id="fEquip"><option value="">All equipment</option></select>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="list" id="list"></div>
+  </aside>
+
+  <main>
+    <div class="bar">
+      <div class="seg" id="sex"><button data-v="male" class="on">Male</button><button data-v="female">Female</button></div>
+      <div class="seg" id="mode"><button data-v="exercise" class="on">Exercise</button><button data-v="custom">Custom</button><button data-v="debug">All groups</button></div>
+      <label class="t"><input type="checkbox" id="pulse" checked /> Pulse</label>
+      <label class="t">Zoom <input type="range" id="zoom" min="1" max="4" step="0.25" value="1" /></label>
+      <div class="legend"><span><i class="dot" style="background:var(--p)"></i>Primary</span><span><i class="dot" style="background:var(--s)"></i>Secondary</span></div>
+    </div>
+    <div class="stage" id="stage"><div class="views" id="views"></div></div>
+  </main>
+
+  <aside class="right" id="details"></aside>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script type="module">
+const A = "../assets/";                       // muscle maps (built by ../pipeline/make.py)
+const [meta, exercises] = await Promise.all([fetch(A + "flat.json").then(r => r.json()), fetch("../../data/exercises.json").then(r => r.json())]);
+const GROUPS = meta.groups;
+const DEBUG_COLORS = ["#e6194b","#3cb44b","#ffe119","#0082c8","#f58231","#911eb4","#46f0f0","#f032e6","#d2f53c","#fabebe","#008080","#e6beff","#aa6e28","#fffac8","#800000","#aaffc3","#000080"];
+
+const state = { sex: "male", mode: "exercise", ex: null, custom: {}, primary: "#e5392f", secondary: "#f4917a", zoom: 1, hover: null };
+
+// ---------- load the four maps (base RGBA + 8-bit plate-id map) into pixel buffers
+const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+function pixels(img) {
+  const c = document.createElement("canvas"); c.width = img.width; c.height = img.height;
+  const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(img, 0, 0);
+  return x.getImageData(0, 0, c.width, c.height);
+}
+const maps = {};
+for (const key of Object.keys(meta.maps)) {
+  const [base, ids] = await Promise.all([loadImg(`${A}${key}.png`), loadImg(`${A}${key}_ids.png`)]);
+  const bd = pixels(base), id = pixels(ids);
+  const n = base.width * base.height;
+  // ids PNG: R = plate id, G = verified tint strength (0..255, already groove/seam/edge aware)
+  const lum = new Float32Array(n), plate = new Uint8Array(n), tint = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    lum[i] = (bd.data[i * 4] + bd.data[i * 4 + 1] + bd.data[i * 4 + 2]) / 3; plate[i] = id.data[i * 4];
+    tint[i] = (id.data[i * 4 + 1] / 255) * (bd.data[i * 4 + 3] / 255);      // x base alpha -> correct edge anti-aliasing
+  }
+  const m = meta.maps[key];
+  const plateGroup = new Int8Array(256).fill(-1), plateInfo = [];
+  for (const p of m.plates) { plateGroup[p.id] = p.group ? GROUPS.indexOf(p.group) : -1; plateInfo[p.id] = p; }
+  maps[key] = { w: base.width, h: base.height, base: bd, lum, plate, tint, plateGroup, plateInfo, T: m.T, groupsPresent: new Set(m.plates.map(p => p.group).filter(Boolean)) };
+}
+
+// crop: union bounding box of all bodies (+margin) so the figures fill the canvas
+let X0 = 1e9, Y0 = 1e9, X1 = 0, Y1 = 0;
+for (const M of Object.values(maps)) for (let y = 0; y < M.h; y++) for (let x = 0; x < M.w; x++) {
+  if (M.base.data[(y * M.w + x) * 4 + 3] > 0) { if (x < X0) X0 = x; if (x > X1) X1 = x; if (y < Y0) Y0 = y; if (y > Y1) Y1 = y; }
+}
+X0 = Math.max(0, X0 - 12); Y0 = Math.max(0, Y0 - 12); X1 = Math.min(1253, X1 + 12); Y1 = Math.min(1253, Y1 + 12);
+const CW = X1 - X0 + 1, CH = Y1 - Y0 + 1;
+// ---------- views
+const viewsEl = document.getElementById("views");
+const views = ["front", "back"].map((side) => {
+  const wrap = document.createElement("div"); wrap.className = "view";
+  const base = document.createElement("canvas"), over = document.createElement("canvas");
+  base.width = over.width = CW; base.height = over.height = CH;
+  over.style.position = "absolute"; over.style.left = "0"; over.style.top = "0";
+  const holder = document.createElement("div"); holder.style.position = "relative";
+  holder.append(base, over);
+  const lbl = document.createElement("div"); lbl.className = "lbl"; lbl.textContent = side;
+  wrap.append(holder, lbl); viewsEl.append(wrap);
+  return { side, base, over, bctx: base.getContext("2d"), octx: over.getContext("2d") };
+});
+function fit() {
+  const st = document.getElementById("stage");
+  const h = Math.min(st.clientHeight - 60, ((st.clientWidth - 48) / 2) * CH / CW);
+  viewsEl.style.setProperty("--h", Math.max(240, Math.floor(h)) * state.zoom + "px");
+}
+addEventListener("resize", fit);
+
+const hex = (h) => [1, 3, 5].map((k) => parseInt(h.slice(k, k + 2), 16));
+function levelsFor() {
+  const lv = {};
+  if (state.mode === "custom") return { ...state.custom };
+  if (state.mode === "debug") return null;
+  if (!state.ex) return lv;
+  state.ex.secondaryMuscles.forEach((m) => (lv[m] = "secondary"));
+  state.ex.primaryMuscles.forEach((m) => (lv[m] = "primary"));
+  return lv;
+}
+
+// Tint overlay: per pixel of a plate whose group is active. Strength follows luminance so the tint
+// fades out exactly where the plate meets the dark groove (the groove itself is never tinted).
+function render() {
+  const lv = levelsFor();
+  const P = hex(state.primary), S = hex(state.secondary);
+  for (const v of views) {
+    const M = maps[`${state.sex}_${v.side}`];
+    v.bctx.clearRect(0, 0, CW, CH); v.bctx.putImageData(M.base, -X0, -Y0, X0, Y0, CW, CH);
+    const out = v.octx.createImageData(M.w, M.h), d = out.data;
+    const groupCol = new Array(256).fill(null);
+    for (let id = 1; id < 256; id++) {
+      const g = M.plateGroup[id]; if (g < 0) continue;
+      if (lv === null) groupCol[id] = hex(DEBUG_COLORS[g]);
+      else if (lv[GROUPS[g]] === "primary") groupCol[id] = P;
+      else if (lv[GROUPS[g]] === "secondary") groupCol[id] = S;
+    }
+    const ref = 182;
+    for (let i = 0, n = M.w * M.h; i < n; i++) {
+      const id = M.plate[i]; const c = groupCol[id];
+      if (!c) continue;
+      const a = M.tint[i]; if (a <= 0) continue;
+      const L = M.lum[i];
+      const sh = Math.min(1.12, L / ref);                       // keep the plate's own shading
+      const k = i * 4;
+      d[k] = Math.min(255, c[0] * sh); d[k + 1] = Math.min(255, c[1] * sh); d[k + 2] = Math.min(255, c[2] * sh);
+      d[k + 3] = Math.round(a * 235);
+    }
+    v.octx.clearRect(0, 0, CW, CH); v.octx.putImageData(out, -X0, -Y0, X0, Y0, CW, CH);
+    v.overData = out;
+  }
+  drawHover();
+}
+
+// ---------- hover: outline + tooltip
+const tip = document.getElementById("tip");
+let hoverCanvas = null;
+function drawHover() {
+  for (const v of views) {
+    if (!v.hover) { v.hover = document.createElement("canvas"); v.hover.width = CW; v.hover.height = CH; v.hover.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none"; v.over.parentNode.append(v.hover); }
+    const hx = v.hover.getContext("2d"); hx.clearRect(0, 0, CW, CH);
+    if (!state.hover || state.hover.side !== v.side) continue;
+    const M = maps[`${state.sex}_${v.side}`];
+    const id = state.hover.id, img = hx.createImageData(M.w, M.h), d = img.data;
+    const g = M.plateGroup[id];
+    for (let i = 0, n = M.w * M.h; i < n; i++) {
+      const pid = M.plate[i]; if (!pid) continue;
+      const same = pid === id ? 2 : (g >= 0 && M.plateGroup[pid] === g ? 1 : 0); if (!same) continue;
+      const a = M.tint[i];
+      const k = i * 4; d[k] = 59; d[k + 1] = 130; d[k + 2] = 246; d[k + 3] = (same === 2 ? 120 : 55) * a;
+    }
+    hx.putImageData(img, -X0, -Y0, X0, Y0, CW, CH);
+  }
+}
+for (const v of views) {
+  v.over.addEventListener("mousemove", (e) => {
+    const r = v.over.getBoundingClientRect();
+    const x = X0 + Math.floor((e.clientX - r.left) / r.width * CW), y = Y0 + Math.floor((e.clientY - r.top) / r.height * CH);
+    const M = maps[`${state.sex}_${v.side}`];
+    const id = M.plate[y * M.w + x] || 0;
+    if (!id) { tip.hidden = true; if (state.hover) { state.hover = null; drawHover(); } return; }
+    const info = M.plateInfo[id]; const lv = levelsFor();
+    const lvl = info.group && lv && lv[info.group] ? ` · ${lv[info.group]}` : "";
+    tip.innerHTML = `<b>${info.muscle}</b><span>${info.group ?? "not tracked"}${lvl}</span>`;
+    tip.style.left = e.clientX + 14 + "px"; tip.style.top = e.clientY + 14 + "px"; tip.hidden = false;
+    if (!state.hover || state.hover.id !== id || state.hover.side !== v.side) { state.hover = { id, side: v.side }; drawHover(); }
+  });
+  v.over.addEventListener("mouseleave", () => { tip.hidden = true; state.hover = null; drawHover(); });
+  v.over.addEventListener("click", (e) => {
+    if (!state.hover) return;
+    const info = maps[`${state.sex}_${v.side}`].plateInfo[state.hover.id]; if (!info.group) return;
+    if (state.mode !== "custom") { state.custom = state.mode === "exercise" ? { ...levelsFor() } : {}; setMode("custom", true); }
+    const cur = state.custom[info.group];
+    state.custom[info.group] = cur === "primary" ? "secondary" : cur === "secondary" ? undefined : "primary";
+    if (!state.custom[info.group]) delete state.custom[info.group];
+    render(); renderDetails();
+  });
+}
+
+// ---------- pulse: animate overlay opacity (no re-render)
+let t0 = performance.now();
+function tick(now) {
+  const op = document.getElementById("pulse").checked && state.mode !== "debug" ? 0.72 + 0.28 * Math.sin((now - t0) / 420) : 1;
+  for (const v of views) v.over.style.opacity = op;
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// ---------- exercise list
+const listEl = document.getElementById("list"), q = document.getElementById("q");
+const fM = document.getElementById("fMuscle"), fE = document.getElementById("fEquip");
+for (const g of GROUPS) fM.add(new Option(g, g));
+[...new Set(exercises.map((e) => e.equipment).filter(Boolean))].sort().forEach((e) => fE.add(new Option(e, e)));
+function filtered() {
+  const s = q.value.trim().toLowerCase();
+  return exercises.filter((e) => (!s || e.name.toLowerCase().includes(s)) && (!fM.value || e.primaryMuscles.includes(fM.value)) && (!fE.value || e.equipment === fE.value));
+}
+function renderList() {
+  const items = filtered();
+  document.getElementById("count").textContent = `${items.length} exercises`;
+  listEl.innerHTML = items.slice(0, 400).map((e) => `<div class="ex ${state.ex === e ? "on" : ""}" data-id="${e.id}">${e.name}<small>${e.primaryMuscles.join(", ")} · ${e.equipment ?? "—"}</small></div>`).join("");
+}
+listEl.addEventListener("click", (e) => {
+  const el = e.target.closest(".ex"); if (!el) return;
+  state.ex = exercises.find((x) => x.id === el.dataset.id);
+  if (state.mode !== "exercise") setMode("exercise", true);
+  renderList(); render(); renderDetails();
+});
+[q, fM, fE].forEach((el) => el.addEventListener("input", renderList));
+
+// ---------- details panel
+const det = document.getElementById("details");
+function chip(g, cls) {
+  const M = [maps[`${state.sex}_front`], maps[`${state.sex}_back`]];
+  const has = M.some((m) => m.groupsPresent.has(g));
+  return `<button class="chip ${cls} ${has ? "" : "na"}" data-g="${g}" title="${has ? "" : "No plate for this muscle on the body map"}">${g}</button>`;
+}
+function renderDetails() {
+  if (state.mode === "debug") {
+    det.innerHTML = `<div class="title">All muscle groups</div><p class="note">Every plate coloured by the group it counts toward. Grey plates (shins) aren't tracked by the dataset. Hover any plate for its name.</p>
+      <div class="chips">${GROUPS.map((g, i) => `<span class="chip" style="background:${DEBUG_COLORS[i]}33;border-color:${DEBUG_COLORS[i]}">${g}</span>`).join("")}</div>`;
+    return;
+  }
+  if (state.mode === "custom") {
+    det.innerHTML = `<div class="title">Custom highlight</div>
+      <p class="note">Click a muscle on the body or a chip below: once = primary, twice = secondary, three times = off.</p>
+      <h2>Groups</h2><div class="chips" id="cchips">${GROUPS.map((g) => chip(g, state.custom[g] === "primary" ? "p" : state.custom[g] === "secondary" ? "s" : "")).join("")}</div>
+      <h2>Colours</h2><div class="row"><input type="color" id="cp" value="${state.primary}"> primary <input type="color" id="cs" value="${state.secondary}"> secondary</div>
+      <div class="row" style="margin-top:8px"><button class="chip" id="clear">Clear all</button></div>`;
+    det.querySelectorAll("#cchips .chip").forEach((b) => b.onclick = () => {
+      if (b.classList.contains("na")) return;
+      const g = b.dataset.g, cur = state.custom[g];
+      state.custom[g] = cur === "primary" ? "secondary" : cur === "secondary" ? undefined : "primary";
+      if (!state.custom[g]) delete state.custom[g];
+      render(); renderDetails();
+    });
+    det.querySelector("#cp").oninput = (e) => { state.primary = e.target.value; render(); };
+    det.querySelector("#cs").oninput = (e) => { state.secondary = e.target.value; render(); };
+    det.querySelector("#clear").onclick = () => { state.custom = {}; render(); renderDetails(); };
+    return;
+  }
+  const e = state.ex;
+  if (!e) { det.innerHTML = `<p class="note">Pick an exercise.</p>`; return; }
+  det.innerHTML = `<div class="title">${e.name}</div>
+    <div class="note" style="text-transform:capitalize">${[e.equipment, e.level, e.mechanic, e.force].filter(Boolean).join(" · ")}</div>
+    <h2>Primary</h2><div class="chips">${e.primaryMuscles.map((m) => chip(m, "p")).join("") || "<span class='note'>—</span>"}</div>
+    <h2>Secondary</h2><div class="chips">${e.secondaryMuscles.map((m) => chip(m, "s")).join("") || "<span class='note'>—</span>"}</div>
+    <h2>How to</h2><ol>${e.instructions.map((s) => `<li>${s}</li>`).join("")}</ol>
+    <p class="note">Data: free-exercise-db (public domain)</p>`;
+}
+
+// ---------- controls
+function setMode(m, silent) {
+  state.mode = m;
+  document.querySelectorAll("#mode button").forEach((b) => b.classList.toggle("on", b.dataset.v === m));
+  if (m === "custom" && !Object.keys(state.custom).length && state.ex) state.custom = levelsFor.call(null) ?? {};
+  if (!silent) { render(); renderDetails(); }
+}
+document.querySelectorAll("#mode button").forEach((b) => b.onclick = () => {
+  if (b.dataset.v === "custom" && state.mode === "exercise" && state.ex) {
+    const lv = {}; state.ex.secondaryMuscles.forEach((m) => lv[m] = "secondary"); state.ex.primaryMuscles.forEach((m) => lv[m] = "primary"); state.custom = lv;
+  }
+  setMode(b.dataset.v);
+});
+document.querySelectorAll("#sex button").forEach((b) => b.onclick = () => {
+  state.sex = b.dataset.v; document.querySelectorAll("#sex button").forEach((x) => x.classList.toggle("on", x === b));
+  state.hover = null; render(); renderDetails();
+});
+document.getElementById("zoom").oninput = (e) => { state.zoom = Number(e.target.value); fit(); };
+
+state.ex = exercises.find((e) => e.id === "Barbell_Full_Squat") ?? exercises[0];
+renderList(); fit(); render(); renderDetails();
+window.__flat = { state, render, maps, setMode, exercises, views, crop: { X0, Y0, CW, CH } };
+</script>
+</body>
+</html>

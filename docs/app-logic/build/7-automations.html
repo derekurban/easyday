@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>body{margin:0;padding:24px;background:#fff;font-family:Segoe UI,system-ui,sans-serif}.d{width:2352px}</style>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad:true, theme:"neutral", flowchart:{ htmlLabels:true, curve:"basis", padding:12 } });
+</script></head><body><div class="d"><pre class="mermaid">---
+title: Automations · triggers and what they change
+---
+flowchart LR
+  subgraph LT["Location triggers"]
+    direction LR
+    T1["Arrive at a known gym"] --> A1["Notify: today's session is ready"]
+    T2["Leave gym with nothing logged"] --> A2["Ask: quick log?"]
+    T3["At home on a session day"] --> A3["Offer the home version"]
+    T4["Unknown place for 2+ days"] --> A4["Switch to no-equipment profile"]
+  end
+  subgraph CT["Calendar triggers"]
+    direction LR
+    T5["Free block of 30+ min"] --> A5["Suggest: a session fits here"]
+    T6["Packed day"] --> A6["Default time to short"]
+    T7["Travel event"] --> A7["Pre-switch location profile"]
+    T8["State is At risk"] --> A8["One nudge, never daily"]
+    T9["Short picked most weekdays"] --> A9["Default time to short on weekdays"]
+  end
+  A1 --> SB["Session builder"]
+  A3 --> SB
+  A4 --> SB
+  A5 --> SB
+  A6 --> SB
+  A7 --> SB
+  A9 --> SB
+</pre></div></body></html>

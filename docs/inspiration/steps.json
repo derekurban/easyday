@@ -1,0 +1,151 @@
+{
+  "exercise": "Barbell bench press",
+  "dir": "barbell-bench-press",
+  "summary": "Lie on a flat bench, lower a barbell to your lower chest and press it back up over your shoulders. Chest, front shoulders and triceps.",
+  "thumbnail": {
+    "id": "thumb-bench-press",
+    "brief": "One image that says bench press: three-quarter view from the front and slightly above, mid-press, bar just off the chest, chest highlighted. No rack, no background.",
+    "review": "Reads as bench press at a glance: three-quarter view, bar just off the chest, bench and bar fill the frame. Bench perspective is slightly stretched; fine at thumbnail size."
+  },
+  "steps": [
+    {
+      "title": "Lie down under the bar",
+      "do": "Lie back on the bench and slide up until the racked bar is straight above your eyes. Plant both feet flat on the floor, under your knees.",
+      "remember": [
+        "Eyes directly under the bar",
+        "Head, upper back and glutes all on the bench",
+        "Feet flat, heels down, knees over the ankles"
+      ],
+      "visual": {
+        "id": "step-1-lie-down",
+        "view": "Side, full frame, bar racked",
+        "brief": "Figure lying on the bench inside the rack, arms at the sides, eyes under the racked bar, feet flat under the knees.",
+        "review": "Arms at the sides, feet flat under the knees, same rack and bench as every other side frame. The bar sits a little behind the eyes rather than over them; close enough to teach the idea."
+      }
+    },
+    {
+      "title": "Set your shoulders and back",
+      "do": "Squeeze your shoulder blades together and tuck them down toward your back pockets. Your chest lifts and a small gap opens under your lower back. Push the floor away with your feet.",
+      "remember": [
+        "Shoulder blades back and down, pinned to the bench",
+        "A slight arch, not a bridge: glutes stay down",
+        "Legs tense, pushing the floor, hips still"
+      ],
+      "visual": {
+        "id": "step-2-set-body",
+        "view": "Side, close-up on the torso",
+        "brief": "Torso from shoulders to hips at bench-top height: upper back and glutes pressed down, a thin gap under the lower back.",
+        "review": "Camera at bench-top height does the job: upper back and glutes down, a clear gap under the lower back, no tint. Head is out of frame, which keeps the eye on the arch."
+      }
+    },
+    {
+      "title": "Grip the bar",
+      "do": "Take the bar a little wider than your shoulders, wrap your thumbs around it and set it low in your palms so your wrists stay straight.",
+      "remember": [
+        "A hand's width outside each shoulder",
+        "Thumbs wrapped, never a thumbless grip",
+        "Bar over the heel of the hand, wrists straight"
+      ],
+      "visual": {
+        "id": "step-3-grip",
+        "view": "Top-down, bar racked",
+        "brief": "Bird's-eye view of the figure under the racked bar, hands on the bar a little wider than the shoulders, thumbs around.",
+        "review": "Grip width, thumbs around the bar, bar in the hooks above the head, feet on the floor beside the bench. Clean."
+      }
+    },
+    {
+      "title": "Unrack",
+      "do": "Press the bar up out of the hooks and bring it forward until it sits directly over your shoulders with your arms straight. Settle, breathe in, brace.",
+      "remember": [
+        "Straight up first, then forward over the shoulders",
+        "Arms locked before you start the rep",
+        "Breathe in and brace before you lower"
+      ],
+      "visual": {
+        "id": "step-4-unrack",
+        "view": "Side, full frame",
+        "brief": "Arms straight, bar lifted just clear of the hooks and starting forward. The app draws the forward arrow.",
+        "review": "Arms straight, bar just clear of the hooks and still over them. Visually close to the re-rack frame; the arrow is what tells them apart."
+      },
+      "arrow": "M10 34 L 10 26 L 30 26"
+    },
+    {
+      "title": "Lower to your chest",
+      "do": "Bend your elbows and lower the bar in two to three seconds. Keep your elbows about 45 degrees from your torso so your forearms stay vertical.",
+      "remember": [
+        "Two to three seconds down, under control",
+        "Elbows about 45 degrees out, not flared, not pinned",
+        "Forearms vertical, wrists straight"
+      ],
+      "visual": {
+        "id": "step-5-mid-rep",
+        "view": "Side, full frame",
+        "brief": "Bar halfway between lockout and chest, elbows bending, forearms vertical. The app draws the downward arrow.",
+        "review": "Bar halfway, elbow near 90 degrees, forearm vertical. Used twice: the lowering arrow and the pressing arrow are drawn by the app."
+      },
+      "arrow": "M27 20 L 27 44"
+    },
+    {
+      "title": "Touch your lower chest",
+      "do": "Let the bar touch the lower part of your chest, at the base of the sternum. Pause for a beat without bouncing.",
+      "remember": [
+        "Lower chest, never the neck",
+        "Elbow directly under the bar",
+        "Touch, do not bounce; shoulder blades stay pinned"
+      ],
+      "visual": {
+        "id": "step-6-touch",
+        "view": "Side, full frame",
+        "brief": "Bar resting on the lower chest, elbow under the bar, forearm vertical, feet still flat.",
+        "review": "Bar on the chest, forearm vertical. The plate hides the hand, and the contact is nearer mid-chest than the base of the sternum. Acceptable; a plate-free version would be clearer."
+      }
+    },
+    {
+      "title": "Press up and slightly back",
+      "do": "Drive the bar up and a little back toward your face so it finishes over your shoulders. Push the floor with your feet and keep your hips on the bench.",
+      "remember": [
+        "Up and slightly back, a shallow curve",
+        "Feet drive, hips stay down",
+        "Breathe out through the hardest part"
+      ],
+      "visual": {
+        "id": "step-5-mid-rep",
+        "view": "Side, full frame",
+        "brief": "Same mid-rep frame; the app draws the up-and-back arrow.",
+        "review": "Same mid-rep frame as step 5 with the up-and-back arrow."
+      },
+      "arrow": "M28 46 Q 28 32 25 18"
+    },
+    {
+      "title": "Lock out and repeat",
+      "do": "Finish with straight arms, bar over your shoulders. Breathe in, brace again, and start the next rep.",
+      "remember": [
+        "Arms straight, bar over the shoulders",
+        "Reset your breath between reps",
+        "Shoulder blades still back and down"
+      ],
+      "visual": {
+        "id": "step-8-lockout",
+        "view": "Side, full frame",
+        "brief": "Arms locked, bar over the shoulders, clear of the hooks.",
+        "review": "Arms locked, bar over the shoulders, clear of the hooks. Clean."
+      }
+    },
+    {
+      "title": "Re-rack",
+      "do": "After the last rep, with arms straight, push the bar back until it touches the uprights, then lower it into the hooks.",
+      "remember": [
+        "Arms stay locked while you move back",
+        "Touch the uprights first, then lower",
+        "Never aim for the hooks directly"
+      ],
+      "visual": {
+        "id": "step-9-rerack",
+        "view": "Side, full frame",
+        "brief": "Arms straight, bar pushed back against the uprights just above the hooks. The app draws the back-then-down arrow.",
+        "review": "Bar against the uprights above the hooks, arms straight. Reads correctly with the back-then-down arrow."
+      },
+      "arrow": "M30 26 L 11 26 L 11 36"
+    }
+  ]
+}

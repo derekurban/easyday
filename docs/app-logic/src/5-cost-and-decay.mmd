@@ -1,0 +1,25 @@
+---
+title: Cost drift, decay and timing · what the app learns over time
+---
+flowchart TB
+  subgraph DRIFT["Cost in play = default cost, moved by you, clamped 1 to 5"]
+    direction LR
+    D0["Default cost<br/>from the exercise library<br/>override any time in the catalog"] --> D1["Not done for 3+ weeks<br/>cost in play +1<br/>(weeks before decay: 2 to 8, or off)"]
+    D0 --> D2["Bodyweight ceiling cleared<br/>a few sessions in a row<br/>cost in play −1 · the next variant becomes the hard thing"]
+    D0 --> D3["Loaded exercise<br/>cost stays, the weight climbs"]
+  end
+  subgraph DECAY["Rung decay replaces comeback"]
+    direction LR
+    K1["Every 3 weeks an exercise is not done<br/>its rung drops by one<br/>never below where it started"] --> K2["First clean session at the top<br/>steps straight back up<br/>regardless of the step-up setting"]
+    K3["Away 7+ days<br/>next session defaults to easy<br/>cost-5 lifts start one rung down"]
+  end
+  subgraph TIMING["Timing model: seconds per set, per exercise"]
+    direction LR
+    M1["Seeded by cost<br/>cost 5 ≈ 4 min · cost 3 ≈ 2.5 min · cost 1 ≈ 1.5 min<br/>set plus rest"] --> M2["Learned from taps<br/>gap between one set tap and the next<br/>weighted toward recent sessions"] --> M3["Used by the time dial<br/>3 sets of deadlift ≈ 12 min until your history says otherwise"]
+    M4["Rest is never prompted<br/>shown only as history on the exercise card"]
+  end
+  subgraph CARD["The exercise card shows"]
+    direction LR
+    C1["Rung<br/>variant or weight"] ~~~ C2["Average time per set<br/>at your current reps"] ~~~ C3["Best total reps<br/>at this rung"] ~~~ C4["Cost<br/>default and override"]
+  end
+  DRIFT ~~~ DECAY ~~~ TIMING ~~~ CARD

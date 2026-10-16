@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspiration board · exercise images</title>
+<link rel="stylesheet" href="../../app/vendor/du/styles.css">
+<style>
+  body { padding: 24px 16px 64px; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { font: var(--font-title-style); letter-spacing: var(--tracking-title); margin: 0 0 4px; }
+  .sub { color: var(--ink-secondary); margin: 0 0 24px; max-width: 70ch; }
+  .meta { background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 20px 24px; margin: 0 0 32px; }
+  .meta p { margin: 6px 0; font: var(--font-small); color: var(--ink-secondary); }
+  .meta b { color: var(--ink); font-weight: 500; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
+  .card { background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+  .card .img { background: var(--sunk); aspect-ratio: 3 / 2; display: grid; place-items: center; color: var(--ink-tertiary); font: var(--font-caption); }
+  .card .img.portrait { aspect-ratio: 2 / 3; max-height: 520px; }
+  .card .img.square { aspect-ratio: 1; }
+  .card .img.checker { background-color: var(--sunk); background-image: linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%), linear-gradient(45deg, var(--line) 25%, transparent 25%, transparent 75%, var(--line) 75%); background-size: 20px 20px; background-position: 0 0, 10px 10px; }
+  .card img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .card .body { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 8px; }
+  .card h2 { font: var(--font-subheading); letter-spacing: var(--tracking-subheading); margin: 0; display: flex; align-items: center; gap: 8px; }
+  .card h2 span { font: var(--font-caption); color: var(--ink-tertiary); font-weight: 400; }
+  .card p { margin: 0; font: var(--font-small); color: var(--ink-secondary); }
+  .card p.review { color: var(--ink); } .card p.review b { font-weight: 500; color: var(--accent-text); }
+  details { margin-top: 4px; } summary { cursor: pointer; font: var(--font-label); color: var(--ink-tertiary); }
+  details p { margin-top: 8px; font: var(--font-caption); color: var(--ink-secondary); white-space: pre-wrap; }
+  .refs { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; } .refs img { height: 120px; border-radius: 10px; background: var(--sunk); box-shadow: var(--ring-hairline); }
+  .toggle { display: inline-flex; gap: 6px; margin-left: auto; }
+  .toggle button { font: var(--font-label); padding: 6px 10px; border: 0; border-radius: 8px; background: var(--sunk); color: var(--ink-secondary); cursor: pointer; }
+  .toggle button.on { background: var(--surface); color: var(--ink); box-shadow: var(--ring-hairline); }
+  header { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 8px; }
+  .group { grid-column: 1 / -1; font: var(--font-heading); letter-spacing: var(--tracking-heading); margin: 16px 0 0; } .group .sub { font: var(--font-small); margin: 6px 0 0; }
+  /* method */
+  .method { grid-column: 1 / -1; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 20px 24px; display: grid; gap: 16px; }
+  .method h3 { font: var(--font-subheading); margin: 0; } .method p { margin: 0; font: var(--font-small); color: var(--ink-secondary); max-width: 80ch; }
+  .method table { border-collapse: collapse; width: 100%; font: var(--font-small); } .method th, .method td { text-align: left; padding: 8px 10px 8px 0; vertical-align: top; box-shadow: inset 0 -0.5px 0 var(--line); }
+  .method th { font: var(--font-label); color: var(--ink-tertiary); font-weight: 500; } .method td.n { color: var(--accent-text); font-variant-numeric: tabular-nums; width: 28px; }
+  /* step guide */
+  .guide { grid-column: 1 / -1; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 20px 24px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; grid-template-areas: "head head" "stage panel" "strip strip"; gap: 20px; outline: none; }
+  .guide:focus-visible { box-shadow: var(--shadow-rest), 0 0 0 2px var(--accent-line); }
+  @media (max-width: 860px) { .guide { grid-template-columns: 1fr; grid-template-areas: "head" "stage" "panel" "strip"; } }
+  .guide .exh { grid-area: head; display: flex; gap: 16px; align-items: center; }
+  .guide .exh .thumb { flex: none; width: 96px; height: 96px; border-radius: 14px; background: var(--sunk); box-shadow: var(--ring-hairline); overflow: hidden; }
+  .guide .exh img { width: 100%; height: 100%; object-fit: contain; }
+  .guide .exh h3 { font: var(--font-heading); letter-spacing: var(--tracking-heading); margin: 0 0 4px; }
+  .guide .exh p { margin: 0; font: var(--font-small); color: var(--ink-secondary); max-width: 60ch; }
+  .guide .exh .count { margin-top: 4px; }
+  .guide .stage { grid-area: stage; position: relative; aspect-ratio: 1; background: var(--bg); border-radius: 14px; box-shadow: var(--ring-hairline); overflow: hidden; }
+  .guide .stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity .35s ease; }
+  .guide .stage img.out { opacity: 0; }
+  .guide .stage .cap { position: absolute; left: 12px; top: 10px; font: var(--font-label); color: var(--ink-tertiary); }
+  .guide .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .guide .stage svg path { fill: none; stroke: var(--accent-strong); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 3 2.5; vector-effect: non-scaling-stroke; }
+  .guide .stage svg marker path { fill: var(--accent-strong); stroke: none; stroke-dasharray: none; }
+  .guide .stage svg[hidden] { display: none; }
+  .guide .panel { grid-area: panel; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .guide .count { font: var(--font-label); color: var(--ink-tertiary); }
+  .guide .panel h3 { font: var(--font-subheading); letter-spacing: var(--tracking-subheading); margin: 0; }
+  .guide .panel > p { margin: 0; font: var(--font-small); color: var(--ink-secondary); }
+  .guide .remember { background: var(--sunk); border-radius: 12px; padding: 12px 14px; }
+  .guide .remember .label { font: var(--font-label); color: var(--accent-text); margin-bottom: 6px; }
+  .guide .remember ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .guide .remember li { position: relative; padding-left: 18px; font: var(--font-small); color: var(--ink); }
+  .guide .remember li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 7px; height: 7px; border-radius: 999px; background: var(--accent-strong); }
+  .guide .ctrl { display: flex; gap: 8px; }
+  .guide .btn { font: var(--font-label); padding: 9px 16px; border: 0; border-radius: 10px; background: var(--accent-strong); color: var(--on-accent); cursor: pointer; }
+  .guide .btn.ghost { background: var(--sunk); color: var(--ink); } .guide .btn:disabled { opacity: .4; cursor: default; }
+  .guide .strip { grid-area: strip; list-style: none; margin: 0; padding: 4px 0 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(104px, 1fr); gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; }
+  .guide .strip li { scroll-snap-align: start; cursor: pointer; border-radius: 12px; padding: 6px; background: var(--bg); box-shadow: var(--ring-hairline); display: grid; gap: 6px; opacity: .8; }
+  .guide .strip li:hover { opacity: 1; }
+  .guide .strip li.on { opacity: 1; box-shadow: 0 0 0 2px var(--accent-strong); }
+  .guide .strip img { width: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 8px; background: var(--sunk); }
+  .guide .strip span { display: flex; gap: 6px; align-items: flex-start; font: var(--font-caption); color: var(--ink-secondary); line-height: 1.25; }
+  .guide .strip i { flex: none; width: 16px; height: 16px; border-radius: 999px; background: var(--sunk); color: var(--ink-tertiary); font: 500 10px/16px var(--font-body); text-align: center; font-style: normal; }
+  .guide .strip li.on i, .guide .strip li.done i { background: var(--accent-strong); color: var(--on-accent); }
+  .guide .strip li.done i { background: var(--accent-subtle); color: var(--accent-text); }
+  /* steps plan table */
+  .plan { grid-column: 1 / -1; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 20px 24px; }
+  .plan table { border-collapse: collapse; width: 100%; font: var(--font-small); } .plan th, .plan td { text-align: left; padding: 10px 12px 10px 0; vertical-align: top; box-shadow: inset 0 -0.5px 0 var(--line); }
+  .plan th { font: var(--font-label); color: var(--ink-tertiary); font-weight: 500; } .plan td.n { color: var(--accent-text); font-variant-numeric: tabular-nums; width: 24px; }
+  .plan td .rv { display: inline-block; margin-top: 6px; color: var(--ink); } .plan td .rv::first-word { color: var(--accent-text); }
+  .plan td ul { margin: 0; padding-left: 16px; color: var(--ink-secondary); } .plan td.v { color: var(--ink-secondary); } .plan td.v b { color: var(--ink); font-weight: 500; display: block; }
+  /* tutorial */
+  .tut { grid-column: 1 / -1; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 20px 24px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; outline: none; }
+  .tut:focus-visible { box-shadow: var(--shadow-rest), 0 0 0 2px var(--accent-line); }
+  @media (max-width: 860px) { .tut { grid-template-columns: 1fr; } }
+  .tut .stage { position: relative; aspect-ratio: 1; background: var(--bg); border-radius: 14px; box-shadow: var(--ring-hairline); overflow: hidden; }
+  .tut .stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: opacity .35s ease; }
+  .tut .stage img.out { opacity: 0; }
+  .tut .stage .cap { position: absolute; left: 12px; top: 10px; font: var(--font-label); color: var(--ink-tertiary); }
+  .tut .stage svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .tut .stage svg path { fill: none; stroke: var(--accent-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+  .tut .mk { position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 999px; background: var(--ink-tertiary); color: var(--surface); font: 500 12px/24px var(--font-body); text-align: center; box-shadow: 0 0 0 2px var(--surface); cursor: pointer; opacity: .75; transition: transform .25s ease, opacity .25s ease, background .25s ease; }
+  .tut .mk:hover { opacity: 1; }
+  .tut .mk.on { background: var(--accent-strong); color: var(--on-accent); opacity: 1; transform: scale(1.3); box-shadow: 0 0 0 2px var(--surface), 0 0 0 6px color-mix(in srgb, var(--accent-strong) 30%, transparent); z-index: 2; }
+  .tut .tip { position: absolute; z-index: 3; width: max-content; max-width: min(300px, 56%); transform: translateX(-50%); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(6px); box-shadow: var(--shadow-rest); border-radius: 12px; padding: 10px 12px; font: var(--font-caption); color: var(--ink-secondary); animation: tut-in .3s ease; }
+  .tut .tip::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: inherit; transform: rotate(45deg); box-shadow: 2px 2px 3px -2px rgba(0,0,0,.15); }
+  .tut .tip.below::after { bottom: auto; top: -6px; box-shadow: -2px -2px 3px -2px rgba(0,0,0,.15); }
+  .tut .tip b { display: block; font: var(--font-label); color: var(--ink); font-weight: 500; margin-bottom: 4px; }
+  .tut .tip[hidden] { display: none; }
+  @keyframes tut-in { from { opacity: 0; transform: translateX(-50%) translateY(4px); } }
+  @media (max-width: 860px) { .tut .tip span { display: none; } .tut .tip b { margin: 0; } .tut .tip { max-width: 70%; } }
+  .tut .back { position: absolute; right: 12px; top: 10px; z-index: 3; }
+  .tut .panel { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .tut .count { font: var(--font-label); color: var(--ink-tertiary); }
+  .tut h3 { font: var(--font-subheading); letter-spacing: var(--tracking-subheading); margin: 0; }
+  .tut .panel > p { margin: 0; font: var(--font-small); color: var(--ink-secondary); }
+  .tut .closeup { display: grid; grid-template-columns: 96px 1fr; gap: 12px; align-items: center; text-align: left; background: var(--sunk); border: 0; border-radius: 12px; padding: 10px; cursor: pointer; color: var(--ink-secondary); font: var(--font-caption); }
+  .tut .closeup:hover { box-shadow: var(--ring-hairline); } .tut .closeup.on { box-shadow: inset 0 0 0 1.5px var(--accent-line); }
+  .tut .closeup img { width: 96px; height: 96px; object-fit: contain; border-radius: 8px; background: var(--bg); }
+  .tut .closeup b { display: block; font: var(--font-label); color: var(--accent-text); font-weight: 500; margin-bottom: 2px; }
+  .tut .ctrl { display: flex; gap: 8px; }
+  .tut .btn { font: var(--font-label); padding: 9px 16px; border: 0; border-radius: 10px; background: var(--accent-strong); color: var(--on-accent); cursor: pointer; }
+  .tut .btn.ghost { background: var(--sunk); color: var(--ink); } .tut .btn:disabled { opacity: .4; cursor: default; }
+  .tut .steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; }
+  .tut .steps li { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 8px; font: var(--font-small); color: var(--ink-secondary); cursor: pointer; }
+  .tut .steps li:hover { background: var(--sunk); }
+  .tut .steps li i { flex: none; width: 20px; height: 20px; border-radius: 999px; background: var(--sunk); color: var(--ink-tertiary); font: 500 11px/20px var(--font-body); text-align: center; font-style: normal; box-shadow: var(--ring-hairline); }
+  .tut .steps li.done i { background: var(--accent-subtle); color: var(--accent-text); box-shadow: none; }
+  .tut .steps li.on { background: var(--accent-subtle); color: var(--accent-text); } .tut .steps li.on i { background: var(--accent-strong); color: var(--on-accent); box-shadow: none; }
+  /* composition demo */
+  .compose { grid-column: 1 / -1; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 20px 24px; display: grid; gap: 16px; }
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .frame { position: relative; aspect-ratio: 1; background: var(--bg); border-radius: 12px; box-shadow: var(--ring-hairline); overflow: hidden; }
+  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .frame .cap { position: absolute; left: 10px; top: 8px; font: var(--font-label); color: var(--ink-tertiary); }
+  .frame .mk { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 999px; background: var(--accent-strong); color: var(--on-accent); font: 500 12px/22px var(--font-body); text-align: center; box-shadow: 0 0 0 2px var(--surface); }
+  .frame svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  [data-theme="dark"] .frame img[data-style="mono"] { filter: invert(1) hue-rotate(180deg); }
+  @media (prefers-color-scheme: dark) { [data-theme="system"] .frame img[data-style="mono"] { filter: invert(1) hue-rotate(180deg); } }
+  .frame svg path { fill: none; stroke: var(--accent-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+  .cues { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 20px; font: var(--font-small); margin: 0; padding: 0; list-style: none; }
+  .cues li { display: flex; gap: 8px; } .cues i { flex: none; width: 20px; height: 20px; border-radius: 999px; background: var(--accent-strong); color: var(--on-accent); font: 500 11px/20px var(--font-body); text-align: center; font-style: normal; }
+  .styleswitch { display: inline-flex; gap: 6px; } .styleswitch button { font: var(--font-label); padding: 6px 10px; border: 0; border-radius: 8px; background: var(--sunk); color: var(--ink-secondary); cursor: pointer; } .styleswitch button.on { background: var(--accent-subtle); color: var(--accent-text); box-shadow: inset 0 0 0 0.5px var(--accent-line); }
+</style>
+</head>
+<body>
+<main>
+  <header><div><h1>Inspiration board</h1><p class="sub" id="sub"></p></div>
+    <div class="toggle"><button data-theme-set="light">Light</button><button data-theme-set="dark">Dark</button><button data-theme-set="system" class="on">System</button></div></header>
+  <section class="meta" id="meta"></section>
+  <section class="grid" id="grid"></section>
+</main>
+<script type="module">
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const data = await fetch("styles.json").then((r) => r.json());
+  const guide = await fetch("steps.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const tut = await fetch("tutorial.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const compose = await fetch("compose.json").then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const slug = data.exercise.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  document.getElementById("sub").textContent = `${data.exercise}: ${data.styles.length} images, all using the app's male muscle figure as the person. Generated with the Codex CLI image tool from the same character reference.`;
+  document.getElementById("meta").innerHTML = `<p><b>Character brief.</b> ${esc(data.character)}</p><p><b>Muscle tint.</b> ${esc(data.muscles)}</p>
+    <div class="refs"><img src="../../references/style/style_sheet_male.png" alt="style sheet"><img src="../../references/renders/male_side_facing_left.png" alt="side render"></div>`;
+
+  const groupOf = (s) => s.group || "Styles";
+  const order = ["Method", "Tutorial frames", "Transparent frames", "Form guides", "Styles"];
+  const groups = [...new Set(data.styles.map(groupOf))].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const card = (s) => `<article class="card">
+      <div class="img ${s.size === "1024x1536" ? "portrait" : s.size === "1024x1024" ? "square" : ""} ${s.transparent ? "checker" : ""}"><img src="${slug}/${s.id}.png" alt="${esc(s.name)}" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{textContent:'not generated yet'}))"></div>
+      <div class="body"><h2>${esc(s.name)} <span>${s.size}${s.transparent ? " · transparent" : ""}</span></h2><p>${esc(s.blurb)}</p>${s.review ? `<p class="review"><b>Review.</b> ${esc(s.review)}</p>` : ""}<details><summary>Prompt</summary><p>${esc(s.prompt)}</p></details></div></article>`;
+
+  let html = "";
+  if (data.method) {
+    const m = data.method;
+    html += `<h2 class="group">From form to picture</h2><section class="method">
+      <p>${esc(m.intro)}</p>
+      <table><tr><th>Kind of cue</th><th>Examples</th><th>Where it is unambiguous</th></tr>${m.kinds.map((k) => `<tr><td><b>${esc(k[0])}</b></td><td>${esc(k[1])}</td><td>${esc(k[2])}</td></tr>`).join("")}</table>
+      <p>${esc(m.frames)}</p>
+      <h3>Bench press, cue by cue</h3>
+      <table><tr><th></th><th>Cue</th><th>Kind</th><th>Angle</th><th>Frame</th></tr>${m.bench.map((b) => `<tr><td class="n">${b[0]}</td><td>${esc(b[1])}</td><td>${esc(b[2])}</td><td>${esc(b[3])}</td><td>${esc(b[4])}</td></tr>`).join("")}</table>
+      <p>${esc(m.result)}</p><p>${esc(m.composition)}</p></section>`;
+  }
+  if (guide) {
+    html += `<h2 class="group">Step guide<p class="sub">Steps first: what to do, what to remember, then one visual per step and one thumbnail that stands for the whole exercise. Arrows are drawn by the app. No muscle tint on these renders.</p></h2><section class="guide" id="guide"></section>`;
+    html += `<h2 class="group">The plan behind it</h2><section class="plan"><table><tr><th></th><th>Step</th><th>Things to remember</th><th>Visual</th></tr>${guide.steps.map((s, k) => `<tr><td class="n">${k + 1}</td><td><b>${esc(s.title)}</b><br><span style="color:var(--ink-secondary)">${esc(s.do)}</span></td><td><ul>${s.remember.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></td><td class="v"><b>${esc(s.visual.view)}</b>${esc(s.visual.brief)}${s.visual.review ? `<br><span class="rv">Review. ${esc(s.visual.review)}</span>` : ""}</td></tr>`).join("")}<tr><td class="n">T</td><td><b>Thumbnail</b></td><td></td><td class="v">${esc(guide.thumbnail.brief)}${guide.thumbnail.review ? `<br><span class="rv">Review. ${esc(guide.thumbnail.review)}</span>` : ""}</td></tr></table></section>`;
+  }
+  if (tut) html += `<h2 class="group">Earlier approach: cue-driven tutorial<p class="sub">${esc(tut.intro)}</p></h2><section class="tut" id="tut"></section>`;
+  const styleKeys = compose ? Object.keys(compose.styles) : [];
+  if (compose) {
+    html += `<h2 class="group">Composed by the app</h2><section class="compose" id="compose">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><p style="margin:0;font:var(--font-small);color:var(--ink-secondary);max-width:70ch">${esc(compose.note)}</p>
+      </div>
+      ${styleKeys.map((k) => `<h3 style="margin:4px 0 -8px;font:var(--font-subheading)">${esc(compose.styles[k].name)}</h3><div class="strip" data-strip="${k}"></div>`).join("")}
+      <ul class="cues">${compose.cues.map((c, i) => `<li><i>${i + 1}</i><span>${esc(c)}</span></li>`).join("")}</ul></section>`;
+  }
+  for (const g of groups) html += `<h2 class="group">${esc(g)}${g === "Form guides" && data.form ? `<p class="sub">${esc(data.form)}</p>` : ""}</h2>` + data.styles.filter((s) => groupOf(s) === g).map(card).join("");
+  document.getElementById("grid").innerHTML = html;
+
+  if (guide) { const { mountSteps } = await import("./steps.js"); mountSteps(document.getElementById("guide"), guide); }
+  if (tut) { const { mountTutorial } = await import("./tutorial.js"); mountTutorial(document.getElementById("tut"), tut); }
+  if (compose) {
+    const draw = (key) => {
+      const st = compose.styles[key];
+      document.querySelector(`[data-strip="${key}"]`).innerHTML = st.frames.map((f) => `<div class="frame"><img src="${slug}/${f.id}.png" alt="" data-style="${key}"><span class="cap">${esc(f.label)}</span>
+        ${f.path ? `<svg viewBox="0 0 100 100" preserveAspectRatio="none"><path d="${f.path}"/></svg>` : ""}
+        ${(f.markers || []).map((m) => `<span class="mk" style="left:${m[1]}%;top:${m[2]}%">${m[0]}</span>`).join("")}</div>`).join("");
+    };
+    styleKeys.forEach(draw);
+  }
+  document.querySelectorAll("[data-theme-set]").forEach((b) => b.onclick = () => { document.documentElement.dataset.theme = b.dataset.themeSet; document.querySelectorAll("[data-theme-set]").forEach((x) => x.classList.toggle("on", x === b)); });
+</script>
+</body>
+</html>

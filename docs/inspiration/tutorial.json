@@ -1,0 +1,178 @@
+{
+  "exercise": "Barbell bench press",
+  "intro": "Step through the lift one cue at a time. Each step lights up a marker on the figure, explains the point, and switches to a close-up where a wide shot cannot show it. Arrow keys work too.",
+  "dir": "barbell-bench-press",
+  "frames": {
+    "rack": {
+      "id": "frame-render-rack-setup",
+      "label": "Setup, bar racked"
+    },
+    "setup": {
+      "id": "frame-render-side-setup",
+      "label": "Unracked, arms locked"
+    },
+    "bottom": {
+      "id": "frame-render-side-bottom",
+      "label": "Bottom"
+    },
+    "lockout": {
+      "id": "frame-render-side-lockout",
+      "label": "Lockout"
+    },
+    "top": {
+      "id": "frame-render-top-bottom",
+      "label": "Bottom, from above"
+    }
+  },
+  "path": {
+    "frames": [
+      "bottom",
+      "lockout"
+    ],
+    "d": "M37.5 43 Q 36 29 33.5 16"
+  },
+  "steps": [
+    {
+      "title": "Lie down with your eyes under the bar",
+      "frame": "rack",
+      "marker": [
+        29.5,
+        66
+      ],
+      "tip": "Slide up the bench until the racked bar is straight above your eyes. Too far toward your feet and the bar clips the hooks on the way up. Too far toward your head and the unrack becomes a long reach behind you.",
+      "closeup": {
+        "id": "close-eyes-under-bar",
+        "caption": "Head on the bench, chin neutral, the bar directly over the eye line."
+      }
+    },
+    {
+      "title": "Feet flat, under the knees",
+      "frame": "rack",
+      "marker": [
+        86,
+        92
+      ],
+      "tip": "Plant the whole foot, heel included, with the knee stacked over the ankle. Push the floor away gently. That tension travels up through the hips and makes your body a solid base. The hips stay on the bench the whole time.",
+      "closeup": {
+        "id": "close-feet",
+        "caption": "Shin vertical, knee near 90 degrees, the whole sole on the floor."
+      }
+    },
+    {
+      "title": "Shoulder blades back and down, slight arch",
+      "frame": "rack",
+      "marker": [
+        47,
+        71
+      ],
+      "tip": "Squeeze your shoulder blades together, then tuck them down toward your back pockets. That lifts the chest and leaves a small, natural gap under the lower back. The glutes stay down. It is a firm shelf for the shoulders, not a gymnastics bridge.",
+      "closeup": {
+        "id": "close-arch",
+        "caption": "Upper back and glutes pressed into the bench, a modest gap under the lower back."
+      }
+    },
+    {
+      "title": "Grip a little wider than your shoulders",
+      "frame": "top",
+      "marker": [
+        28,
+        44
+      ],
+      "markers": [
+        [
+          28,
+          44
+        ],
+        [
+          72,
+          44
+        ]
+      ],
+      "tip": "Take the bar about a hand's width outside each shoulder. The test comes later: with the bar on your chest, the forearms should be vertical. If they lean in, widen the grip. If they lean out, bring it in. The rings on the knurling are a handy landmark."
+    },
+    {
+      "title": "Wrists straight, bar in the heel of the palm",
+      "frame": "rack",
+      "marker": [
+        37.5,
+        44
+      ],
+      "tip": "Set the bar low in the palm over the wrist bones and squeeze hard with the thumb wrapped around. A wrist bent back toward you leaks force into the joint and is what makes wrists ache after benching.",
+      "closeup": {
+        "id": "close-grip",
+        "caption": "Bar over the heel of the hand, wrist stacked on the forearm, thumb wrapped."
+      }
+    },
+    {
+      "title": "Unrack and settle over the shoulders",
+      "frame": "setup",
+      "marker": [
+        33.5,
+        24
+      ],
+      "tip": "Press the bar out of the hooks and bring it forward until it sits directly over your shoulders with the arms straight. Pause there. Breathe in, brace your trunk, and only then start the first rep."
+    },
+    {
+      "title": "Lower under control, elbows about 45 degrees",
+      "frame": "top",
+      "marker": [
+        74,
+        37.5
+      ],
+      "markers": [
+        [
+          26,
+          37.5
+        ],
+        [
+          74,
+          37.5
+        ]
+      ],
+      "tip": "Take two to three seconds on the way down. Keep the elbows about 45 degrees from your torso. Flared level with the shoulders strains the joint. Pinned to the ribs turns it into a triceps press."
+    },
+    {
+      "title": "Touch the lower chest, forearms vertical",
+      "frame": "bottom",
+      "marker": [
+        43,
+        56
+      ],
+      "markers": [
+        [
+          43,
+          56
+        ],
+        [
+          32,
+          60
+        ]
+      ],
+      "tip": "The bar lands on the lower chest at the base of the sternum, never the neck. At that moment the elbow is directly under the bar and the forearm is vertical. Touch, do not bounce.",
+      "closeup": {
+        "id": "close-bottom-contact",
+        "caption": "Bar at the base of the sternum, elbow under the bar, wrist stacked."
+      }
+    },
+    {
+      "title": "Press up and slightly back",
+      "frame": "bottom",
+      "marker": [
+        35,
+        29
+      ],
+      "path": true,
+      "tip": "Drive the bar up and a little back toward your face so it finishes over the shoulders. The path is a shallow curve, not a straight vertical line. Keep pushing the floor with your feet and keep the hips down."
+    },
+    {
+      "title": "Lock out, breathe, repeat",
+      "frame": "lockout",
+      "marker": [
+        33.5,
+        24
+      ],
+      "path": true,
+      "tip": "Finish with straight arms over the shoulders. Breathe in and brace before each rep. On the last rep, push the bar back until it touches the uprights, then lower it into the hooks. Never rack by aiming for the hooks directly."
+    }
+  ]
+}

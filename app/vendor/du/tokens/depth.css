@@ -1,0 +1,32 @@
+/* Depth: hairlines and surface steps first. A 0.5px ring replaces borders.
+   --shadow-rest is the hairline plus a very soft lift, used by resting cards; --shadow-rest-hover for interactive cards.
+   Real shadows are reserved for floating layers (menus, popovers, toasts, dialogs). */
+:root,[data-theme]{
+  --ring-hairline:0 0 0 0.5px var(--line);
+  --ring-control:0 0 0 0.5px var(--line-strong);
+  --ring-focus:0 0 0 3px var(--accent-line);
+  --shadow-rest:0 0 0 0.5px var(--line),0 1px 2px rgb(0 0 0 / 0.04),0 2px 8px -2px rgb(0 0 0 / 0.06);
+  --shadow-rest-hover:0 0 0 0.5px var(--line-strong),0 2px 4px rgb(0 0 0 / 0.05),0 6px 16px -4px rgb(0 0 0 / 0.08);
+  --shadow-float:0 0 0 0.5px var(--line),0 4px 12px -2px rgb(0 0 0 / 0.08),0 12px 32px -8px rgb(0 0 0 / 0.10);
+  --shadow-overlay:0 0 0 0.5px var(--line),0 8px 24px -4px rgb(0 0 0 / 0.12),0 24px 64px -12px rgb(0 0 0 / 0.16);
+  --scrim:rgb(0 0 0 / 0.32);
+  --image-outline:oklch(0 0 0 / 0.1);
+}
+[data-theme="dark"]{
+  --shadow-rest:0 0 0 0.5px var(--line),0 1px 2px rgb(0 0 0 / 0.3),0 2px 8px -2px rgb(0 0 0 / 0.36);
+  --shadow-rest-hover:0 0 0 0.5px var(--line-strong),0 2px 4px rgb(0 0 0 / 0.34),0 6px 16px -4px rgb(0 0 0 / 0.44);
+  --shadow-float:0 0 0 0.5px var(--line-strong),0 4px 12px -2px rgb(0 0 0 / 0.4),0 12px 32px -8px rgb(0 0 0 / 0.5);
+  --shadow-overlay:0 0 0 0.5px var(--line-strong),0 8px 24px -4px rgb(0 0 0 / 0.5),0 24px 64px -12px rgb(0 0 0 / 0.6);
+  --scrim:rgb(0 0 0 / 0.56);
+  --image-outline:oklch(1 0 0 / 0.1);
+}
+@media (prefers-color-scheme:dark){
+  [data-theme="system"]{
+    --shadow-rest:0 0 0 0.5px var(--line),0 1px 2px rgb(0 0 0 / 0.3),0 2px 8px -2px rgb(0 0 0 / 0.36);
+    --shadow-rest-hover:0 0 0 0.5px var(--line-strong),0 2px 4px rgb(0 0 0 / 0.34),0 6px 16px -4px rgb(0 0 0 / 0.44);
+    --shadow-float:0 0 0 0.5px var(--line-strong),0 4px 12px -2px rgb(0 0 0 / 0.4),0 12px 32px -8px rgb(0 0 0 / 0.5);
+    --shadow-overlay:0 0 0 0.5px var(--line-strong),0 8px 24px -4px rgb(0 0 0 / 0.5),0 24px 64px -12px rgb(0 0 0 / 0.6);
+    --scrim:rgb(0 0 0 / 0.56);
+    --image-outline:oklch(1 0 0 / 0.1);
+  }
+}

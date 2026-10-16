@@ -1,0 +1,8 @@
+/* Albert Sans (titles) and Wix Madefor Text (body + interface). SIL Open Font License, see assets/fonts/. */
+@font-face{font-family:"Albert Sans";src:url("../assets/fonts/AlbertSans-300.woff2") format("woff2");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:"Albert Sans";src:url("../assets/fonts/AlbertSans-400.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Albert Sans";src:url("../assets/fonts/AlbertSans-500.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Albert Sans";src:url("../assets/fonts/AlbertSans-600.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:"Wix Madefor Text";src:url("../assets/fonts/WixMadeforText-400.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"Wix Madefor Text";src:url("../assets/fonts/WixMadeforText-500.woff2") format("woff2");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"Wix Madefor Text";src:url("../assets/fonts/WixMadeforText-600.woff2") format("woff2");font-weight:600;font-style:normal;font-display:swap}

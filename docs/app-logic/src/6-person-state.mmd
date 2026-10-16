@@ -1,0 +1,25 @@
+---
+title: Person state · drives defaults and reminder tone
+---
+stateDiagram-v2
+  state "At risk" as AtRisk
+  [*] --> Onboarding
+  Onboarding --> Active: first session logged
+  Active --> AtRisk: 3 days without a session
+  AtRisk --> Active: session logged
+  AtRisk --> Away: 7 days without a session
+  Away --> Active: any session logged
+  note right of Active
+    defaults from last time
+    ladder judges normal and hard sessions
+  end note
+  note right of AtRisk
+    one gentle nudge
+    suggests easy or a movement session
+  end note
+  note left of Away
+    no guilt, reminders go quiet
+    next session defaults to easy
+    decayed rungs already applied
+    one clean session re-climbs a decayed rung
+  end note

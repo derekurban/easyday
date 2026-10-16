@@ -1,0 +1,282 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fitness app · logic</title>
+<style>
+  :root{--fg:#1b1b1f;--muted:#6b6b76;--line:#e4e4ea;--bg:#fff;--accent:#5b4fd1}
+  @media (prefers-color-scheme:dark){:root{--fg:#ececf1;--muted:#9a9aa6;--line:#2c2c34;--bg:#131316;--accent:#a89cff}}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 Segoe UI,system-ui,sans-serif}
+  header{padding:28px 20px 12px;max-width:1200px;margin:0 auto} h1{margin:0 0 4px;font-size:26px} .sub{color:var(--muted);margin:0}
+  nav{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 20px;display:flex;gap:6px;flex-wrap:wrap;z-index:1}
+  nav a{color:var(--fg);text-decoration:none;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font-size:14px}
+  nav a:hover{border-color:var(--accent);color:var(--accent)}
+  main{max-width:1200px;margin:0 auto;padding:12px 20px 60px}
+  section{padding:28px 0;border-bottom:1px solid var(--line)} h2{margin:0 0 14px;font-size:20px}
+  .diagram{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;overflow:auto}
+  .diagram svg{display:block;margin:0 auto}
+  .meta{color:var(--muted);font-size:13px;margin:8px 0 0} .meta a{color:var(--muted)}
+  ol.principles{padding-left:22px;margin:0} ol.principles li{margin:8px 0}
+  footer{color:var(--muted);font-size:13px;padding:20px}
+</style><script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad:true, theme:"neutral", flowchart:{ htmlLabels:true, curve:"basis", padding:12 } });
+</script></head><body>
+<header><h1>Fitness app · logic</h1><p class="sub">Habit-first training app. How the pieces fit, one visit, the feedback loops, person state, and automations.</p></header>
+<nav><a href="#principles">Principles</a><a href="#1-system-map">System map</a><a href="#2-session-loop">Session loop</a><a href="#3-ladder">The ladder</a><a href="#4-energy-and-time">Energy and time</a><a href="#5-cost-and-decay">Cost drift, decay and timing</a><a href="#6-person-state">Person state</a><a href="#7-automations">Automations</a></nav>
+<main>
+<section id="principles"><h2>Design principles · decided 2026-10-14</h2>
+<ol class="principles"><li>The app optimises for still training a year from now, not for the weight on the bar.</li><li>Undertraining costs a little growth; overtraining costs weeks. Bias toward too easy, ramp slowly.</li><li>The user makes one decision per visit: start or not. Everything else has a default.</li><li>Two questions describe a day: how much energy, and how much time. Nothing else is asked.</li><li>The app may refuse "more". It never refuses "less".</li><li>Progress is earned on a ladder: hit the top of the rep range and the next rung is yours. Step up and step down counts are settings from 1 to 5.</li><li>Every exercise has a cost from 1 to 5. Energy sets the average cost of the session and how hard sets are pushed. Time sets how many exercises and sets fit.</li><li>Energy and time never move a rung. The ladder never changes what is in a session.</li><li>Physical and mental signals are kept apart: a rep count below the top is the only ladder signal; stopping early asks energy, time, or pain.</li><li>Nothing is timed for the user. Seconds per set are learned from the set taps and price the time dial.</li><li>Unused rungs decay gently and re-climb in one clean session. After a week away the day defaults to easy. There is no comeback mode.</li><li>Scheduling is sequence-based: the next session is the next one in the rotation whenever you show up. There is no Tuesday session to miss.</li><li>Cardio and mobility are the floor: deliberately dumb (a duration, a fixed routine) and one tap away.</li><li>Plans think in movement patterns; progress is tracked per exercise; location picks the exercise and how high a bodyweight ladder goes.</li><li>Automations only change defaults and send at most one nudge. They never act for the user.</li><li>Six settings in plain words, plus a cost override per exercise. The guardrails are not settings.</li><li>Progress is shown as sessions per month and rung trend per pattern. Never streaks.</li></ol></section>
+
+<section id="1-system-map">
+  <h2>System map · what feeds what</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: System map · what feeds what
+---
+flowchart TB
+  classDef input fill:#dbeafe,stroke:#60a5fa,color:#1e3a8a
+  classDef ctx fill:#fef3c7,stroke:#f59e0b,color:#78350f
+  classDef engine fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95
+  classDef store fill:#dcfce7,stroke:#22c55e,color:#14532d
+  classDef out fill:#fff,stroke:#111,color:#111,stroke-width:2px
+
+  OB["Onboarding&lt;br/>goal · experience · days per week · locations"]:::input
+  CTRL["Two questions per visit&lt;br/>energy: easy / normal / hard · time: short / normal / long"]:::input
+  TAPS["In-session taps&lt;br/>per set: hit the top, or how many · optional feel tap"]:::input
+  LOC["Current location"]:::ctx
+  GAP["Days since last session"]:::ctx
+  CAL["Calendar availability"]:::ctx
+
+  GT["Goal translator&lt;br/>rep range per pattern"]:::engine
+  SB["Session builder&lt;br/>time → slots · energy → which rungs and variants"]:::engine
+  LAD["Ladder&lt;br/>step up · step down · decay"]:::engine
+  TM["Timing model&lt;br/>seconds per set, learned from taps"]:::engine
+  AU["Automations"]:::engine
+
+  LIB[("Exercise library&lt;br/>pattern → exercises → ladders · cost 1 to 5")]:::store
+  LOCS[("Location profiles")]:::store
+  HIST[("Session history&lt;br/>sets · reps · timestamps")]:::store
+  PLAN[("Plan state&lt;br/>rotation · rung per exercise · cost overrides · time per set")]:::store
+
+  TODAY[/"Today's session"/]:::out
+  NUDGE[/"Reminder or suggestion"/]:::out
+  PROG[/"Progress view"/]:::out
+
+  OB --> GT --> PLAN
+  OB --> LOCS
+  LOCS --> SB
+  LIB --> SB
+  PLAN --> SB
+  LOC --> SB
+  CTRL --> SB
+  SB --> TODAY
+  TODAY --> TAPS --> HIST
+  HIST --> LAD --> PLAN
+  HIST --> TM --> PLAN
+  GAP --> LAD
+  LOC --> AU
+  CAL --> AU
+  GAP --> AU
+  AU --> NUDGE
+  HIST --> PROG
+
+  subgraph KEY["Key"]
+    direction LR
+    K1["User input"]:::input
+    K2["Context signal"]:::ctx
+    K3["Engine"]:::engine
+    K4[("Store")]:::store
+    K5[/"Output"/]:::out
+  end
+</pre></div>
+  <p class="meta"><a href="build/1-system-map.png">PNG</a> · <a href="src/1-system-map.mmd">source</a></p>
+</section>
+<section id="2-session-loop">
+  <h2>Session loop · one visit to the app</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: Session loop · one visit to the app
+---
+flowchart TD
+  A([Open app]) --> B["Detect context&lt;br/>location · days since last session · calendar"]
+  B --> C["Two questions, both defaulted&lt;br/>How much energy? easy / normal / hard&lt;br/>How much time? short / normal / long"]
+  C --> D{"Away 7+ days?"}
+  D -- yes --> E["Energy defaults to easy&lt;br/>decayed rungs already applied"]
+  D -- no --> F["Defaults from last time&lt;br/>and the calendar"]
+  E --> G
+  F --> G["Build the session&lt;br/>time → slots · energy → rungs and variants by cost"]
+  G --> H["Show session&lt;br/>each exercise: rung · sets · aim for the top of the range"]
+  H --> I{"User adjusts?"}
+  I -- "energy or time" --> G
+  I -- "swap" --> K["Movement session&lt;br/>cardio duration or mobility routine"]
+  I -- "no" --> L
+  K --> L["Do session"]
+  L --> M["Per set, one tap&lt;br/>hit the top, or how many you got&lt;br/>timestamps recorded, no timer shown"]
+  M --> S{"Stop early?"}
+  S -- "one tap" --> T["Reason: energy / time / pain&lt;br/>remaining sets = not attempted"]
+  S -- no --> N
+  T --> N(["Finish"])
+  N --> O{"Feel rating?"}
+  O -- "one tap" --> P["Write history&lt;br/>energy · time · who chose them · reps · timestamps"]
+  O -- "skip" --> P
+  P --> Q["Ladder judges each exercise&lt;br/>timing model updates seconds per set"]
+  Q --> R["Rotation advances · one line says what changed"]
+</pre></div>
+  <p class="meta"><a href="build/2-session-loop.png">PNG</a> · <a href="src/2-session-loop.mmd">source</a></p>
+</section>
+<section id="3-ladder">
+  <h2>The ladder · one rule per exercise</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: The ladder · one rule per exercise
+---
+flowchart TB
+  subgraph RUNGS["Every exercise is a ladder of rungs"]
+    direction LR
+    R1["Barbell, machine&lt;br/>next weight step"] ~~~ R2["Dumbbells&lt;br/>next pair"] ~~~ R3["Bodyweight&lt;br/>next variant: wall → incline → knee → floor → feet up → pike → archer"] ~~~ R4["Top rung with no load available&lt;br/>ceiling: beat your best total reps"]
+  end
+  subgraph TARGET["The target always has the same shape"]
+    direction LR
+    T1["This rung"] ~~~ T2["This many sets"] ~~~ T3["Aim for the top of the rep range&lt;br/>strength 4 to 6 · muscle 8 to 12 · fitness 12 to 20"]
+  end
+  subgraph JUDGE["After each normal or hard session"]
+    direction TB
+    J0{"Every set hit the top?"}
+    J0 -- "yes, N sessions in a row&lt;br/>(step up: 1 to 5, default 1)" --> J1["Step up one rung&lt;br/>reps fall back toward the bottom"]
+    J0 -- "no" --> J2{"Any set below the bottom?"}
+    J2 -- "yes, M sessions in a row&lt;br/>(step down: 1 to 5, default 2)" --> J3["Step down one rung"]
+    J2 -- "no" --> J4["Stay on the rung&lt;br/>keep building reps"]
+  end
+  subgraph NEVER["Never judged"]
+    direction LR
+    N1["Easy sessions"] ~~~ N2["Sessions stopped for energy or time"] ~~~ N3["Sets never attempted"]
+  end
+  RUNGS ~~~ TARGET ~~~ JUDGE ~~~ NEVER
+</pre></div>
+  <p class="meta"><a href="build/3-ladder.png">PNG</a> · <a href="src/3-ladder.mmd">source</a></p>
+</section>
+<section id="4-energy-and-time">
+  <h2>Energy and time · how a session is built</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: Energy and time · how a session is built
+---
+flowchart TB
+  subgraph Q["Two questions, defaulted from last time"]
+    direction LR
+    E["Energy&lt;br/>how much do I have to give?"] ~~~ T["Time&lt;br/>how long do I have?"]
+  end
+  subgraph TIME["Time sets the slots"]
+    direction LR
+    T1["Short ≈ 20 min&lt;br/>fewer exercises, fewer sets"] ~~~ T2["Normal ≈ 35 min&lt;br/>the rotation item as written"] ~~~ T3["Long ≈ 50 min&lt;br/>more sets, then a bonus slot"]
+    T4["Slots are priced by the timing model&lt;br/>seconds per set × sets, learned from your taps&lt;br/>trim sets before exercises until it fits"]
+  end
+  subgraph ENERGY["Energy fills the slots by cost"]
+    direction LR
+    E1["Easy&lt;br/>average cost ≤ 2, nothing above 3&lt;br/>one rung down, stop 2 to 3 reps shy&lt;br/>never judged by the ladder"] ~~~ E2["Normal&lt;br/>average about 3, one exercise may be 4 or 5&lt;br/>your rung, aim for the top"] ~~~ E3["Hard&lt;br/>at least half the slots at 4 or 5&lt;br/>your rung, nothing in reserve, +1 set on main lifts"]
+  end
+  subgraph COST["Cost: one number per exercise, 1 to 5, editable"]
+    direction LR
+    C5["5 heavy compound, spine loaded&lt;br/>deadlift · back squat"] ~~~ C4["4 big compound&lt;br/>bench · pull-up · overhead press"] ~~~ C3["3 bodyweight compound&lt;br/>pike push-up · lunge"] ~~~ C2["2 machine compound&lt;br/>leg press · chest press"] ~~~ C1["1 isolation&lt;br/>curl · face pull · dead bug"]
+  end
+  subgraph EX["Same person, same rung positions, same four slots"]
+    direction LR
+    X1["Easy&lt;br/>goblet squat · incline push-up&lt;br/>band row · dead bug"] ~~~ X2["Normal&lt;br/>back squat · floor push-up&lt;br/>dumbbell row · plank"] ~~~ X3["Hard&lt;br/>back squat · pike push-up&lt;br/>weighted pull-up · hanging knee raise"]
+  end
+  Q --> TIME
+  Q --> ENERGY
+  ENERGY --> COST
+  COST --> EX
+  TIME --> EX
+</pre></div>
+  <p class="meta"><a href="build/4-energy-and-time.png">PNG</a> · <a href="src/4-energy-and-time.mmd">source</a></p>
+</section>
+<section id="5-cost-and-decay">
+  <h2>Cost drift, decay and timing · what the app learns over time</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: Cost drift, decay and timing · what the app learns over time
+---
+flowchart TB
+  subgraph DRIFT["Cost in play = default cost, moved by you, clamped 1 to 5"]
+    direction LR
+    D0["Default cost&lt;br/>from the exercise library&lt;br/>override any time in the catalog"] --> D1["Not done for 3+ weeks&lt;br/>cost in play +1&lt;br/>(weeks before decay: 2 to 8, or off)"]
+    D0 --> D2["Bodyweight ceiling cleared&lt;br/>a few sessions in a row&lt;br/>cost in play −1 · the next variant becomes the hard thing"]
+    D0 --> D3["Loaded exercise&lt;br/>cost stays, the weight climbs"]
+  end
+  subgraph DECAY["Rung decay replaces comeback"]
+    direction LR
+    K1["Every 3 weeks an exercise is not done&lt;br/>its rung drops by one&lt;br/>never below where it started"] --> K2["First clean session at the top&lt;br/>steps straight back up&lt;br/>regardless of the step-up setting"]
+    K3["Away 7+ days&lt;br/>next session defaults to easy&lt;br/>cost-5 lifts start one rung down"]
+  end
+  subgraph TIMING["Timing model: seconds per set, per exercise"]
+    direction LR
+    M1["Seeded by cost&lt;br/>cost 5 ≈ 4 min · cost 3 ≈ 2.5 min · cost 1 ≈ 1.5 min&lt;br/>set plus rest"] --> M2["Learned from taps&lt;br/>gap between one set tap and the next&lt;br/>weighted toward recent sessions"] --> M3["Used by the time dial&lt;br/>3 sets of deadlift ≈ 12 min until your history says otherwise"]
+    M4["Rest is never prompted&lt;br/>shown only as history on the exercise card"]
+  end
+  subgraph CARD["The exercise card shows"]
+    direction LR
+    C1["Rung&lt;br/>variant or weight"] ~~~ C2["Average time per set&lt;br/>at your current reps"] ~~~ C3["Best total reps&lt;br/>at this rung"] ~~~ C4["Cost&lt;br/>default and override"]
+  end
+  DRIFT ~~~ DECAY ~~~ TIMING ~~~ CARD
+</pre></div>
+  <p class="meta"><a href="build/5-cost-and-decay.png">PNG</a> · <a href="src/5-cost-and-decay.mmd">source</a></p>
+</section>
+<section id="6-person-state">
+  <h2>Person state · drives defaults and reminder tone</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: Person state · drives defaults and reminder tone
+---
+stateDiagram-v2
+  state "At risk" as AtRisk
+  [*] --> Onboarding
+  Onboarding --> Active: first session logged
+  Active --> AtRisk: 3 days without a session
+  AtRisk --> Active: session logged
+  AtRisk --> Away: 7 days without a session
+  Away --> Active: any session logged
+  note right of Active
+    defaults from last time
+    ladder judges normal and hard sessions
+  end note
+  note right of AtRisk
+    one gentle nudge
+    suggests easy or a movement session
+  end note
+  note left of Away
+    no guilt, reminders go quiet
+    next session defaults to easy
+    decayed rungs already applied
+    one clean session re-climbs a decayed rung
+  end note
+</pre></div>
+  <p class="meta"><a href="build/6-person-state.png">PNG</a> · <a href="src/6-person-state.mmd">source</a></p>
+</section>
+<section id="7-automations">
+  <h2>Automations · triggers and what they change</h2>
+  <div class="diagram"><pre class="mermaid">---
+title: Automations · triggers and what they change
+---
+flowchart LR
+  subgraph LT["Location triggers"]
+    direction LR
+    T1["Arrive at a known gym"] --> A1["Notify: today's session is ready"]
+    T2["Leave gym with nothing logged"] --> A2["Ask: quick log?"]
+    T3["At home on a session day"] --> A3["Offer the home version"]
+    T4["Unknown place for 2+ days"] --> A4["Switch to no-equipment profile"]
+  end
+  subgraph CT["Calendar triggers"]
+    direction LR
+    T5["Free block of 30+ min"] --> A5["Suggest: a session fits here"]
+    T6["Packed day"] --> A6["Default time to short"]
+    T7["Travel event"] --> A7["Pre-switch location profile"]
+    T8["State is At risk"] --> A8["One nudge, never daily"]
+    T9["Short picked most weekdays"] --> A9["Default time to short on weekdays"]
+  end
+  A1 --> SB["Session builder"]
+  A3 --> SB
+  A4 --> SB
+  A5 --> SB
+  A6 --> SB
+  A7 --> SB
+  A9 --> SB
+</pre></div>
+  <p class="meta"><a href="build/7-automations.png">PNG</a> · <a href="src/7-automations.mmd">source</a></p>
+</section>
+</main>
+<footer>Sources in <code>docs/app-logic/src</code>. Rebuild with <code>node docs/app-logic/render.mjs</code>.</footer>
+</body></html>

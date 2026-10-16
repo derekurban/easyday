@@ -1,0 +1,25 @@
+---
+title: The ladder · one rule per exercise
+---
+flowchart TB
+  subgraph RUNGS["Every exercise is a ladder of rungs"]
+    direction LR
+    R1["Barbell, machine<br/>next weight step"] ~~~ R2["Dumbbells<br/>next pair"] ~~~ R3["Bodyweight<br/>next variant: wall → incline → knee → floor → feet up → pike → archer"] ~~~ R4["Top rung with no load available<br/>ceiling: beat your best total reps"]
+  end
+  subgraph TARGET["The target always has the same shape"]
+    direction LR
+    T1["This rung"] ~~~ T2["This many sets"] ~~~ T3["Aim for the top of the rep range<br/>strength 4 to 6 · muscle 8 to 12 · fitness 12 to 20"]
+  end
+  subgraph JUDGE["After each normal or hard session"]
+    direction TB
+    J0{"Every set hit the top?"}
+    J0 -- "yes, N sessions in a row<br/>(step up: 1 to 5, default 1)" --> J1["Step up one rung<br/>reps fall back toward the bottom"]
+    J0 -- "no" --> J2{"Any set below the bottom?"}
+    J2 -- "yes, M sessions in a row<br/>(step down: 1 to 5, default 2)" --> J3["Step down one rung"]
+    J2 -- "no" --> J4["Stay on the rung<br/>keep building reps"]
+  end
+  subgraph NEVER["Never judged"]
+    direction LR
+    N1["Easy sessions"] ~~~ N2["Sessions stopped for energy or time"] ~~~ N3["Sets never attempted"]
+  end
+  RUNGS ~~~ TARGET ~~~ JUDGE ~~~ NEVER

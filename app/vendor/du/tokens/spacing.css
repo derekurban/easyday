@@ -1,0 +1,25 @@
+/* Spacing sits on a 4px base. Small steps inside components, large steps between ideas. */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Radius is modest and hierarchical. Nested corners: inner = outer - padding. */
+  --radius-xs: 6px;    /* chips, indicators, tooltips */
+  --radius-sm: 8px;    /* tags, small buttons, menu items */
+  --radius-md: 10px;   /* buttons, inputs, segmented controls */
+  --radius-lg: 12px;   /* menus, popovers, toasts */
+  --radius-xl: 18px;   /* cards, dialogs, large surfaces */
+  --radius-full: 999px; /* pills, switches */
+
+  /* Control heights (intentional addition; multiples of 4) */
+  --control-sm: 28px;
+  --control-md: 36px;
+  --control-lg: 44px;
+}

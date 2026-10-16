@@ -1,0 +1,36 @@
+/* Type tokens. Albert Sans carries titles; Wix Madefor Text carries everything else. */
+:root {
+  --font-title: "Albert Sans", system-ui, sans-serif;
+  --font-body: "Wix Madefor Text", system-ui, sans-serif;
+
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  --tracking-display: -0.035em;
+  --tracking-title: -0.028em;
+  --tracking-heading: -0.018em;
+  --tracking-subheading: -0.01em;
+
+  --type-display-size: 72px;   --type-display-leading: 72px;
+  --type-title-size: 40px;     --type-title-leading: 44px;
+  --type-heading-size: 24px;   --type-heading-leading: 30px;
+  --type-subheading-size: 18px; --type-subheading-leading: 24px;
+  --type-body-size: 16px;      --type-body-leading: 26px;
+  --type-small-size: 14px;     --type-small-leading: 22px;
+  --type-caption-size: 13px;   --type-caption-leading: 18px;
+  --type-label-size: 13px;     --type-label-leading: 16px;
+
+  /* Shorthands for `font:` */
+  --font-display: 300 72px/72px var(--font-title);
+  --font-title-style: 500 40px/44px var(--font-title);
+  --font-heading: 500 24px/30px var(--font-title);
+  --font-subheading: 500 18px/24px var(--font-title);
+  --font-body-style: 400 16px/26px var(--font-body);
+  --font-small: 400 14px/22px var(--font-body);
+  --font-caption: 400 13px/18px var(--font-body);
+  --font-label: 500 13px/16px var(--font-body);
+
+  --measure: 70ch;
+}

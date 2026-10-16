@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M72 208 V50 H184 V208 M48 208 H96 M160 208 H208 M72 121 H88 V110 M168 110 V121 H184 M25 110 H37 M219 110 H231"/>
+  <path d="M41 86 H49 Q53 86 53 90 V130 Q53 134 49 134 H41 Q37 134 37 130 V90 Q37 86 41 86 Z M207 86 H215 Q219 86 219 90 V130 Q219 134 215 134 H207 Q203 134 203 130 V90 Q203 86 207 86 Z"/>
+  <path class="a" stroke="var(--accent-strong, #456938)" d="M53 110 H203"/>
+</svg>

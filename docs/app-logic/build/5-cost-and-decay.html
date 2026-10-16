@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>body{margin:0;padding:24px;background:#fff;font-family:Segoe UI,system-ui,sans-serif}.d{width:2352px}</style>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad:true, theme:"neutral", flowchart:{ htmlLabels:true, curve:"basis", padding:12 } });
+</script></head><body><div class="d"><pre class="mermaid">---
+title: Cost drift, decay and timing · what the app learns over time
+---
+flowchart TB
+  subgraph DRIFT["Cost in play = default cost, moved by you, clamped 1 to 5"]
+    direction LR
+    D0["Default cost&lt;br/>from the exercise library&lt;br/>override any time in the catalog"] --> D1["Not done for 3+ weeks&lt;br/>cost in play +1&lt;br/>(weeks before decay: 2 to 8, or off)"]
+    D0 --> D2["Bodyweight ceiling cleared&lt;br/>a few sessions in a row&lt;br/>cost in play −1 · the next variant becomes the hard thing"]
+    D0 --> D3["Loaded exercise&lt;br/>cost stays, the weight climbs"]
+  end
+  subgraph DECAY["Rung decay replaces comeback"]
+    direction LR
+    K1["Every 3 weeks an exercise is not done&lt;br/>its rung drops by one&lt;br/>never below where it started"] --> K2["First clean session at the top&lt;br/>steps straight back up&lt;br/>regardless of the step-up setting"]
+    K3["Away 7+ days&lt;br/>next session defaults to easy&lt;br/>cost-5 lifts start one rung down"]
+  end
+  subgraph TIMING["Timing model: seconds per set, per exercise"]
+    direction LR
+    M1["Seeded by cost&lt;br/>cost 5 ≈ 4 min · cost 3 ≈ 2.5 min · cost 1 ≈ 1.5 min&lt;br/>set plus rest"] --> M2["Learned from taps&lt;br/>gap between one set tap and the next&lt;br/>weighted toward recent sessions"] --> M3["Used by the time dial&lt;br/>3 sets of deadlift ≈ 12 min until your history says otherwise"]
+    M4["Rest is never prompted&lt;br/>shown only as history on the exercise card"]
+  end
+  subgraph CARD["The exercise card shows"]
+    direction LR
+    C1["Rung&lt;br/>variant or weight"] ~~~ C2["Average time per set&lt;br/>at your current reps"] ~~~ C3["Best total reps&lt;br/>at this rung"] ~~~ C4["Cost&lt;br/>default and override"]
+  end
+  DRIFT ~~~ DECAY ~~~ TIMING ~~~ CARD
+</pre></div></body></html>

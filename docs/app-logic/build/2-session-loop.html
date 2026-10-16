@@ -1,0 +1,33 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>body{margin:0;padding:24px;background:#fff;font-family:Segoe UI,system-ui,sans-serif}.d{width:2352px}</style>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad:true, theme:"neutral", flowchart:{ htmlLabels:true, curve:"basis", padding:12 } });
+</script></head><body><div class="d"><pre class="mermaid">---
+title: Session loop · one visit to the app
+---
+flowchart TD
+  A([Open app]) --> B["Detect context&lt;br/>location · days since last session · calendar"]
+  B --> C["Two questions, both defaulted&lt;br/>How much energy? easy / normal / hard&lt;br/>How much time? short / normal / long"]
+  C --> D{"Away 7+ days?"}
+  D -- yes --> E["Energy defaults to easy&lt;br/>decayed rungs already applied"]
+  D -- no --> F["Defaults from last time&lt;br/>and the calendar"]
+  E --> G
+  F --> G["Build the session&lt;br/>time → slots · energy → rungs and variants by cost"]
+  G --> H["Show session&lt;br/>each exercise: rung · sets · aim for the top of the range"]
+  H --> I{"User adjusts?"}
+  I -- "energy or time" --> G
+  I -- "swap" --> K["Movement session&lt;br/>cardio duration or mobility routine"]
+  I -- "no" --> L
+  K --> L["Do session"]
+  L --> M["Per set, one tap&lt;br/>hit the top, or how many you got&lt;br/>timestamps recorded, no timer shown"]
+  M --> S{"Stop early?"}
+  S -- "one tap" --> T["Reason: energy / time / pain&lt;br/>remaining sets = not attempted"]
+  S -- no --> N
+  T --> N(["Finish"])
+  N --> O{"Feel rating?"}
+  O -- "one tap" --> P["Write history&lt;br/>energy · time · who chose them · reps · timestamps"]
+  O -- "skip" --> P
+  P --> Q["Ladder judges each exercise&lt;br/>timing model updates seconds per set"]
+  Q --> R["Rotation advances · one line says what changed"]
+</pre></div></body></html>

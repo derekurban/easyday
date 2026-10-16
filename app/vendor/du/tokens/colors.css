@@ -1,0 +1,217 @@
+/* Derek Urban — color tokens.
+   True gray neutrals (zero chroma) plus one accent at OKLCH hue 138 (moss green).
+   --accent is deep moss: the primary fill, with white text in light and dark text in dark.
+   --accent-strong is the same color, used for marks: data points, indicators, checks, the
+   switch, the radio dot and the logo's closing bracket. --accent-text is tuned separately for text.
+   OKLCH is the source of truth; hex values are exact sRGB fallbacks.
+   Light is the default. Dark applies via [data-theme="dark"] on any element, or the system setting.
+   [data-theme] works on subtrees, so light and dark can sit side by side. */
+
+:root, [data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f6f6;
+  --surface: #fcfcfc;
+  --sunk: #ededed;
+  --line: #d4d4d4;
+  --line-strong: #bebebe;
+  --ink: #1b1b1b;
+  --ink-secondary: #555555;
+  --ink-tertiary: #696969;
+  --data-neutral: #c4c4c4;
+  --accent: #456938;
+  --accent-hover: #375b2b;
+  --accent-strong: #456938;
+  --accent-text: #426635;
+  --accent-subtle: #e6f3e2;
+  --accent-line: #aec6a6;
+  --on-accent: #fafafa;
+  --danger: #af3e30;
+  --danger-subtle: #ffebe8;
+  --danger-line: #ecb2a7;
+  --warning: #8b590e;
+  --warning-subtle: #fcedde;
+  --warning-line: #deb990;
+  --info: #326893;
+  --info-subtle: #e6f1fb;
+  --info-line: #a5c3de;
+}
+@supports (color: oklch(0 0 0)) {
+  :root, [data-theme="light"] {
+  --bg: oklch(0.972 0 0);
+  --surface: oklch(0.992 0 0);
+  --sunk: oklch(0.945 0 0);
+  --line: oklch(0.87 0 0);
+  --line-strong: oklch(0.8 0 0);
+  --ink: oklch(0.22 0 0);
+  --ink-secondary: oklch(0.45 0 0);
+  --ink-tertiary: oklch(0.52 0 0);
+  --data-neutral: oklch(0.82 0 0);
+  --accent: oklch(0.48 0.085 138);
+  --accent-hover: oklch(0.43 0.085 138);
+  --accent-strong: oklch(0.48 0.085 138);
+  --accent-text: oklch(0.47 0.085 138);
+  --accent-subtle: oklch(0.95 0.026 138);
+  --accent-line: oklch(0.8 0.051 138);
+  --on-accent: oklch(0.985 0 0);
+  --danger: oklch(0.52 0.15 30);
+  --danger-subtle: oklch(0.956 0.022 30);
+  --danger-line: oklch(0.813 0.07 30);
+  --warning: oklch(0.508 0.105 70);
+  --warning-subtle: oklch(0.954 0.026 70);
+  --warning-line: oklch(0.809 0.07 70);
+  --info: oklch(0.5 0.09 245);
+  --info-subtle: oklch(0.953 0.018 245);
+  --info-line: oklch(0.804 0.05 245);
+  }
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #141414;
+  --surface: #1c1c1c;
+  --sunk: #080808;
+  --line: #383838;
+  --line-strong: #464646;
+  --ink: #eeeeee;
+  --ink-secondary: #9e9e9e;
+  --ink-tertiary: #909090;
+  --data-neutral: #424242;
+  --accent: #86ab7a;
+  --accent-hover: #95ba89;
+  --accent-strong: #86ab7a;
+  --accent-text: #87a87c;
+  --accent-subtle: #1e281a;
+  --accent-line: #394a34;
+  --on-accent: #1b1b1b;
+  --danger: #e07969;
+  --danger-subtle: #35201d;
+  --danger-line: #623c35;
+  --warning: #c38b46;
+  --warning-subtle: #322210;
+  --warning-line: #5a4123;
+  --info: #6b9bc4;
+  --info-subtle: #1a2732;
+  --info-line: #33485a;
+}
+@supports (color: oklch(0 0 0)) {
+  [data-theme="dark"] {
+  --bg: oklch(0.19 0 0);
+  --surface: oklch(0.225 0 0);
+  --sunk: oklch(0.136 0 0);
+  --line: oklch(0.339 0 0);
+  --line-strong: oklch(0.396 0 0);
+  --ink: oklch(0.95 0 0);
+  --ink-secondary: oklch(0.698 0 0);
+  --ink-tertiary: oklch(0.655 0 0);
+  --data-neutral: oklch(0.38 0 0);
+  --accent: oklch(0.7 0.08 138);
+  --accent-hover: oklch(0.75 0.08 138);
+  --accent-strong: oklch(0.7 0.08 138);
+  --accent-text: oklch(0.695 0.072 138);
+  --accent-subtle: oklch(0.263 0.029 138);
+  --accent-line: oklch(0.388 0.043 138);
+  --on-accent: oklch(0.22 0 0);
+  --danger: oklch(0.688 0.13 30);
+  --danger-subtle: oklch(0.269 0.033 30);
+  --danger-line: oklch(0.399 0.056 30);
+  --warning: oklch(0.679 0.11 70);
+  --warning-subtle: oklch(0.268 0.039 70);
+  --warning-line: oklch(0.395 0.056 70);
+  --info: oklch(0.672 0.08 245);
+  --info-subtle: oklch(0.265 0.028 245);
+  --info-line: oklch(0.391 0.04 245);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    color-scheme: dark;
+  --bg: #141414;
+  --surface: #1c1c1c;
+  --sunk: #080808;
+  --line: #383838;
+  --line-strong: #464646;
+  --ink: #eeeeee;
+  --ink-secondary: #9e9e9e;
+  --ink-tertiary: #909090;
+  --data-neutral: #424242;
+  --accent: #86ab7a;
+  --accent-hover: #95ba89;
+  --accent-strong: #86ab7a;
+  --accent-text: #87a87c;
+  --accent-subtle: #1e281a;
+  --accent-line: #394a34;
+  --on-accent: #1b1b1b;
+  --danger: #e07969;
+  --danger-subtle: #35201d;
+  --danger-line: #623c35;
+  --warning: #c38b46;
+  --warning-subtle: #322210;
+  --warning-line: #5a4123;
+  --info: #6b9bc4;
+  --info-subtle: #1a2732;
+  --info-line: #33485a;
+  }
+  @supports (color: oklch(0 0 0)) {
+    [data-theme="system"] {
+  --bg: oklch(0.19 0 0);
+  --surface: oklch(0.225 0 0);
+  --sunk: oklch(0.136 0 0);
+  --line: oklch(0.339 0 0);
+  --line-strong: oklch(0.396 0 0);
+  --ink: oklch(0.95 0 0);
+  --ink-secondary: oklch(0.698 0 0);
+  --ink-tertiary: oklch(0.655 0 0);
+  --data-neutral: oklch(0.38 0 0);
+  --accent: oklch(0.7 0.08 138);
+  --accent-hover: oklch(0.75 0.08 138);
+  --accent-strong: oklch(0.7 0.08 138);
+  --accent-text: oklch(0.695 0.072 138);
+  --accent-subtle: oklch(0.263 0.029 138);
+  --accent-line: oklch(0.388 0.043 138);
+  --on-accent: oklch(0.22 0 0);
+  --danger: oklch(0.688 0.13 30);
+  --danger-subtle: oklch(0.269 0.033 30);
+  --danger-line: oklch(0.399 0.056 30);
+  --warning: oklch(0.679 0.11 70);
+  --warning-subtle: oklch(0.268 0.039 70);
+  --warning-line: oklch(0.395 0.056 70);
+  --info: oklch(0.672 0.08 245);
+  --info-subtle: oklch(0.265 0.028 245);
+  --info-line: oklch(0.391 0.04 245);
+    }
+  }
+}
+
+/* Semantic aliases. Declared on every theme scope so they re-resolve inside [data-theme] subtrees. */
+:root, [data-theme] {
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-secondary);
+  --text-tertiary: var(--ink-tertiary);
+  --text-link: var(--accent-text);
+  --text-selected: var(--accent-text);
+  --text-on-accent: var(--on-accent);
+  --text-danger: var(--danger);
+  --text-warning: var(--warning);
+  --text-info: var(--info);
+  --text-success: var(--accent-text);
+  --surface-page: var(--bg);
+  --surface-card: var(--surface);
+  --surface-raised: var(--surface);
+  --surface-sunk: var(--sunk);
+  --surface-selected: var(--accent-subtle);
+  --surface-danger: var(--danger-subtle);
+  --surface-warning: var(--warning-subtle);
+  --surface-info: var(--info-subtle);
+  --border-hairline: var(--line);
+  --border-control: var(--line-strong);
+  --border-accent: var(--accent-line);
+  --border-danger: var(--danger-line);
+  --border-warning: var(--warning-line);
+  --border-info: var(--info-line);
+  --action-primary: var(--accent);
+  --action-primary-hover: var(--accent-hover);
+  --data-resolved: var(--accent-strong);
+  --data-default: var(--data-neutral);
+  --focus-ring: var(--accent-strong);
+}

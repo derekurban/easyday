@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M48 165 A80 80 0 0 1 208 165 M64 192 H192"/>
+  <path d="M66 126 L73 130 M86 101 L92 107 M128 88 V97 M170 101 L164 107 M190 126 L183 130"/>
+  <circle cx="128" cy="165" r="6"/>
+  <path class="a" stroke="var(--accent-strong, #456938)" d="M128 158 L113 121 C96 123 94 108 99 100 C112 102 123 111 113 121"/>
+</svg>

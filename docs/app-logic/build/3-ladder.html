@@ -1,0 +1,31 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>body{margin:0;padding:24px;background:#fff;font-family:Segoe UI,system-ui,sans-serif}.d{width:2352px}</style>
+<script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+mermaid.initialize({ startOnLoad:true, theme:"neutral", flowchart:{ htmlLabels:true, curve:"basis", padding:12 } });
+</script></head><body><div class="d"><pre class="mermaid">---
+title: The ladder · one rule per exercise
+---
+flowchart TB
+  subgraph RUNGS["Every exercise is a ladder of rungs"]
+    direction LR
+    R1["Barbell, machine&lt;br/>next weight step"] ~~~ R2["Dumbbells&lt;br/>next pair"] ~~~ R3["Bodyweight&lt;br/>next variant: wall → incline → knee → floor → feet up → pike → archer"] ~~~ R4["Top rung with no load available&lt;br/>ceiling: beat your best total reps"]
+  end
+  subgraph TARGET["The target always has the same shape"]
+    direction LR
+    T1["This rung"] ~~~ T2["This many sets"] ~~~ T3["Aim for the top of the rep range&lt;br/>strength 4 to 6 · muscle 8 to 12 · fitness 12 to 20"]
+  end
+  subgraph JUDGE["After each normal or hard session"]
+    direction TB
+    J0{"Every set hit the top?"}
+    J0 -- "yes, N sessions in a row&lt;br/>(step up: 1 to 5, default 1)" --> J1["Step up one rung&lt;br/>reps fall back toward the bottom"]
+    J0 -- "no" --> J2{"Any set below the bottom?"}
+    J2 -- "yes, M sessions in a row&lt;br/>(step down: 1 to 5, default 2)" --> J3["Step down one rung"]
+    J2 -- "no" --> J4["Stay on the rung&lt;br/>keep building reps"]
+  end
+  subgraph NEVER["Never judged"]
+    direction LR
+    N1["Easy sessions"] ~~~ N2["Sessions stopped for energy or time"] ~~~ N3["Sets never attempted"]
+  end
+  RUNGS ~~~ TARGET ~~~ JUDGE ~~~ NEVER
+</pre></div></body></html>
