@@ -33,6 +33,13 @@ void main() {
     test('a staging tag carries its build number, and a later build of the same version is newer', () {
       expect(tagBuild('v0.13.6-staging.20042'), 20042);
       expect(tagBuild('v0.13.6'), isNull);
+      expect(tagBuild('v0.13.7-prod.100043'), 100043);
+      final p = parseRelease('{"tag_name":"v0.13.7-prod.100043","assets":[]}')!;
+      expect(isNewer(p, '0.13.7', 100042), isTrue);
+      expect(isNewer(p, '0.13.7', 100043), isFalse);
+      expect(isNewer(p, '0.13.6', 20), isTrue);
+      expect(releaseLabel(p), '0.13.7 (build 100043)');
+      expect(releaseLabel(parseRelease('{"tag_name":"v0.13.6","assets":[]}')!), '0.13.6');
       final r = parseRelease('{"tag_name":"v0.13.6-staging.20042","assets":[]}')!;
       expect(r.version, '0.13.6-staging.20042');
       expect(r.build, 20042);

@@ -1,0 +1,118 @@
+# Releases. A push to staging (a merge from dev) builds the staging flavour; a push to main (a merge from staging)
+# builds prod. Either way the APK is signed with the release key and published as a GitHub release tagged
+# v<version>-<flavour>.<versionCode> carrying only that flavour's APK (fitness-staging.apk or fitness.apk). Prod
+# releases are marked latest; staging ones never are. Installed apps find the newest release carrying their own APK
+# and update themselves (lib/ui/updates.dart, AutoUpdater).
+#
+# <version> is pubspec.yaml's version name; versionCode = 100000 + this workflow's run number, so every build is
+# higher than the last and than any local build.
+#
+# A pull request into staging or main runs the same build for the target's flavour as a check, without releasing (the
+# APK is kept as a run artifact).
+name: release
+
+on:
+  push:
+    branches: [staging, main]
+  pull_request:
+    branches: [staging, main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    env:
+      TARGET: ${{ github.base_ref || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+
+      - name: Version
+        id: version
+        run: |
+          if [ "$TARGET" = main ]; then flavor=prod; asset=fitness.apk; else flavor=staging; asset=fitness-staging.apk; fi
+          full="$(grep -E '^version:' pubspec.yaml | sed 's/version: *//')"
+          name="${full%%+*}"
+          code=$(( 100000 + GITHUB_RUN_NUMBER ))
+          {
+            echo "flavor=$flavor"
+            echo "asset=$asset"
+            echo "name=$name"
+            echo "code=$code"
+            echo "tag=v$name-$flavor.$code"
+          } >> "$GITHUB_OUTPUT"
+          echo "$flavor $name build $code"
+
+      - name: Signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          [ -n "$KEYSTORE_BASE64" ] || { echo "::error::KEYSTORE_BASE64 secret is missing"; exit 1; }
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Build
+        env:
+          FLAVOR: ${{ steps.version.outputs.flavor }}
+          ASSET: ${{ steps.version.outputs.asset }}
+        run: |
+          flutter build apk --release --flavor "$FLAVOR" --build-name=${{ steps.version.outputs.name }} --build-number=${{ steps.version.outputs.code }}
+          cp "build/app/outputs/flutter-apk/app-$FLAVOR-release.apk" "$RUNNER_TEMP/$ASSET"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.version.outputs.flavor }}-${{ steps.version.outputs.code }}
+          path: ${{ runner.temp }}/${{ steps.version.outputs.asset }}
+
+      - name: Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLAVOR: ${{ steps.version.outputs.flavor }}
+          ASSET: ${{ steps.version.outputs.asset }}
+          TAG: ${{ steps.version.outputs.tag }}
+          CODE: ${{ steps.version.outputs.code }}
+        run: |
+          prev="$(git tag --list "v*-$FLAVOR.*" --sort=-creatordate | head -1)"
+          if [ -n "$prev" ]; then range="$prev..HEAD"; else range="-n 15 HEAD"; fi
+          {
+            echo "$FLAVOR build $CODE from \`${GITHUB_SHA::7}\` on $GITHUB_REF_NAME."
+            echo
+            git log $range --no-merges --format='- %s' | head -30
+          } > "$RUNNER_TEMP/notes.md"
+          if [ "$FLAVOR" = prod ]; then latest=--latest; else latest=--latest=false; fi
+          gh release create "$TAG" "$RUNNER_TEMP/$ASSET" $latest --target "$GITHUB_SHA" \
+            --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"

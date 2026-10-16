@@ -1,5 +1,6 @@
 // Notifications, calendar and location. Each is off until the user turns it on in Settings and grants the permission.
 // Every call here is safe to make on a platform without the capability: it returns false, null or an empty list.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -261,9 +262,23 @@ class AppInfo {
   final String package;
 }
 
-/// The updater: GitHub's latest release, a download into the app cache, and the Android installer.
+/// The updater: the release list on GitHub, a download into the app cache, and an install session over this app.
 class UpdateBridge {
   static const _ch = MethodChannel('fitness/update');
+
+  /// How install sessions end, as Android's PackageInstaller status codes (0 success, -1 waiting on the user's
+  /// confirm, anything else a failure) with Android's message.
+  static Stream<({int status, String? message})> get statuses {
+    _statuses ??= StreamController<({int status, String? message})>.broadcast();
+    _ch.setMethodCallHandler((call) async {
+      if (call.method == 'installStatus') {
+        final m = Map<String, dynamic>.from(call.arguments as Map);
+        _statuses!.add((status: (m['status'] as num?)?.toInt() ?? 1, message: m['message'] as String?));
+      }
+    });
+    return _statuses!.stream;
+  }
+  static StreamController<({int status, String? message})>? _statuses;
 
   static Future<AppInfo?> appInfo() async {
     try {
@@ -279,7 +294,7 @@ class UpdateBridge {
   static Future<({ReleaseInfo? release, bool reachable})> latest(String? flavor) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
-      final req = await client.getUrl(Uri.parse(releasesUrl));
+      final req = await client.getUrl(Uri.parse(updateFeed.isEmpty ? releasesUrl : updateFeed));
       req.headers.set(HttpHeaders.userAgentHeader, 'fitness-app');
       req.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       final res = await req.close();

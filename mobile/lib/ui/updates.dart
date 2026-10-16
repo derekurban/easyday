@@ -1,10 +1,15 @@
-// The Updates panel in Settings: which build this is, whether GitHub has a newer release, and the download and
-// install flow for it. The pure parts live in logic/update.dart; the platform calls in integrations.dart.
+// The Updates panel in Settings (which build this is, whether GitHub has a newer release, and the download and install
+// flow for it) and the AutoUpdater, which does the same on its own whenever the app opens. The pure parts live in
+// logic/update.dart; the platform calls in integrations.dart.
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../integrations.dart';
 import '../logic/update.dart';
+import 'app.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -24,8 +29,20 @@ class _UpdatePanelState extends State<UpdatePanel> {
   String? path;
   String? error;
 
+  StreamSubscription<({int status, String? message})>? _sub;
+
   @override
-  void initState() { super.initState(); _check(); }
+  void initState() {
+    super.initState();
+    _sub = UpdateBridge.statuses.listen((s) {
+      if (!mounted || s.status == 0 || s.status == -1) return;
+      setState(() { phase = _Phase.available; error = 'Android did not install it${s.message == null ? '' : ': ${s.message}'}.'; });
+    });
+    _check();
+  }
+
+  @override
+  void dispose() { _sub?.cancel(); super.dispose(); }
 
   Future<void> _check() async {
     setState(() { phase = _Phase.checking; error = null; });
@@ -77,9 +94,9 @@ class _UpdatePanelState extends State<UpdatePanel> {
       _Phase.upToDate => ('Up to date.${latest?.at == null ? '' : ' Latest release ${_date(latest!.at!)}.'}', OutlinedButton(onPressed: _check, child: const Text('Check'))),
       _Phase.offline => ('Could not reach GitHub.', OutlinedButton(onPressed: _check, child: const Text('Retry'))),
       _Phase.none => ('No release published yet.', OutlinedButton(onPressed: _check, child: const Text('Check'))),
-      _Phase.available => ('${latest!.version} is available.', FilledButton(onPressed: _update, child: const Text('Update'))),
-      _Phase.downloading => ('Downloading ${latest!.version}… ${(progress * 100).round()} %', null),
-      _Phase.ready => ('Downloaded. Android will ask to install ${latest!.version}.', OutlinedButton(onPressed: _install, child: const Text('Install'))),
+      _Phase.available => ('${releaseLabel(latest!)} is available.', FilledButton(onPressed: _update, child: const Text('Update'))),
+      _Phase.downloading => ('Downloading ${releaseLabel(latest!)}… ${(progress * 100).round()} %', null),
+      _Phase.ready => ('Installing ${releaseLabel(latest!)}. The app closes and the new version opens next time.', OutlinedButton(onPressed: _install, child: const Text('Install'))),
       _Phase.installing => ('Opening the installer…', null),
     };
     return Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -100,4 +117,69 @@ class _UpdatePanelState extends State<UpdatePanel> {
   }
 
   String _date(DateTime d) => '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
+}
+
+/// Keeps the app current on its own: on launch, and whenever it comes back to the front (at most every half hour), it
+/// asks GitHub for a newer build of this flavour, downloads it and installs it over itself, closing the app. It waits
+/// while a workout is in progress. It stays off in debug builds (the dev loop's build is signed with the debug key and
+/// cannot take a release build), until installs from this app are allowed (the Settings panel asks for that), and for
+/// the rest of the run once an install has failed.
+class AutoUpdater extends StatefulWidget {
+  const AutoUpdater({super.key, required this.child});
+  final Widget child;
+  @override
+  State<AutoUpdater> createState() => _AutoUpdaterState();
+}
+
+class _AutoUpdaterState extends State<AutoUpdater> with WidgetsBindingObserver {
+  static const every = Duration(minutes: 30);
+  DateTime? checked;
+  bool busy = false, failed = false;
+  StreamSubscription<({int status, String? message})>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _sub = UpdateBridge.statuses.listen((s) { if (s.status != 0 && s.status != -1) failed = true; });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) { if (state == AppLifecycleState.resumed) _run(); }
+
+  bool get _working => context.store.state.active != null;
+
+  Future<void> _run() async {
+    if (!kReleaseMode || busy || failed || !mounted || _working) return;
+    if (checked != null && DateTime.now().difference(checked!) < every) return;
+    busy = true;
+    try {
+      checked = DateTime.now();
+      final info = await UpdateBridge.appInfo();
+      if (info == null) return;
+      final r = (await UpdateBridge.latest(info.flavor)).release;
+      if (r == null || !isNewer(r, info.versionName, info.versionCode)) return;
+      final url = r.assets[assetFor(info.flavor)];
+      if (url == null || !await UpdateBridge.canInstall()) return;
+      final path = await UpdateBridge.download(url, assetFor(info.flavor), (_) {});
+      if (path == null || !mounted || _working) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text('Updating to ${releaseLabel(r)}. The app will close; open it again.')));
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted || _working) return;
+      if (!await UpdateBridge.install(path)) failed = true;
+    } finally {
+      busy = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

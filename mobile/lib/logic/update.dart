@@ -1,13 +1,18 @@
-// In-app updates: the app's releases live on GitHub (derekurban/fitness, public). A prod release (tag v0.13.6, made by
-// tool/publish.sh) carries one APK per flavour. A staging release (tag v0.13.6-staging.20042, made by CI on every push
-// to the staging branch) carries only the staging APK and is never marked latest; its tag ends in the build's
-// versionCode, which is how two staging builds of one version tell apart. Each flavour reads the release list and
-// takes the newest release carrying its own APK, so prod never sees a staging build. This file is the pure part:
-// reading releases, picking one, and comparing versions.
+// In-app updates: the app's releases live on GitHub (derekurban/fitness, public), published by CI
+// (.github/workflows/release.yml). A merge into staging releases v<version>-staging.<versionCode> carrying only
+// fitness-staging.apk; a merge into main releases v<version>-prod.<versionCode> carrying only fitness.apk, marked
+// latest. The tag's last number is the build's versionCode, which is how two builds of one version tell apart. Each
+// flavour reads the release list and takes the newest release carrying its own APK. (Releases made before CI, such as
+// v0.13.6, carry both APKs and no build number.) This file is the pure part: reading releases, picking one, and
+// comparing versions.
 import 'dart:convert';
 
 const updateRepo = 'derekurban/fitness';
 const releasesUrl = 'https://api.github.com/repos/$updateRepo/releases?per_page=30';
+
+/// A test build can read its release list from elsewhere, such as `--dart-define=UPDATE_FEED=http://127.0.0.1:8765/feed.json`
+/// served from the computer through `adb reverse` (a JSON list shaped like GitHub's). Empty in every real build.
+const updateFeed = String.fromEnvironment('UPDATE_FEED');
 
 /// One published build: its version (from the tag), notes, and the download URL per asset name.
 class ReleaseInfo {
@@ -47,19 +52,22 @@ int compareVersions(String a, String b) {
   return 0;
 }
 
-/// The build number in a staging tag: "v0.13.6-staging.20042" -> 20042; null for any other tag.
+/// The build number in a CI tag: "v0.13.7-staging.100042" or "v0.13.7-prod.100043" -> the number; null otherwise.
 int? tagBuild(String tag) {
-  final m = RegExp(r'-staging\.(\d+)$').firstMatch(tag.trim());
+  final m = RegExp(r'-(?:staging|prod)\.(\d+)$').firstMatch(tag.trim());
   return m == null ? null : int.tryParse(m.group(1)!);
 }
 
-/// Whether [r] is newer than the installed build: a higher version, or for a staging build of the same version, a
-/// higher build number than [installedCode].
+/// Whether [r] is newer than the installed build: a higher version, or for a CI build of the same version, a higher
+/// build number than [installedCode].
 bool isNewer(ReleaseInfo r, String installedName, int installedCode) {
   final c = compareVersions(r.version, installedName);
   if (c != 0) return c > 0;
   return r.build != null && r.build! > installedCode;
 }
+
+/// A release as people read it: "0.13.7 (build 100042)", or just "0.13.6" for a release without a build number.
+String releaseLabel(ReleaseInfo r) => '${versionParts(r.version).join('.')}${r.build == null ? '' : ' (build ${r.build})'}';
 
 /// A GitHub release JSON (the /releases/latest shape) as a ReleaseInfo, or null when it has no usable tag.
 ReleaseInfo? parseRelease(String body) {
