@@ -1,5 +1,6 @@
 # Plate -> (muscle, free-exercise-db group). Plate ids refer to v3/<map>_cc.npy (manually verified).
-# group None = shown but never highlighted (no matching dataset group).
+# group None = shown but never highlighted (no matching dataset group). NAMES gives each muscle the everyday name
+# people use for it, which the app tags exercises with, highlights by and shows on a tap.
 def pairs(ids, muscle, group):
     return {i: (muscle, group) for i in ids}
 
@@ -84,3 +85,18 @@ LABELS = {
 }
 GROUPS = ["abdominals", "abductors", "adductors", "biceps", "calves", "chest", "forearms", "glutes", "hamstrings",
           "lats", "lower back", "middle back", "neck", "quadriceps", "shoulders", "traps", "triceps"]
+
+# muscle -> everyday name (the app's standard muscle names, mobile/lib/data/index.dart `muscleNames`)
+NAMES = {
+    "Pectoralis major": "chest",
+    "Anterior deltoid": "front shoulders", "Lateral deltoid": "side shoulders", "Posterior deltoid": "rear shoulders",
+    "Biceps": "biceps", "Triceps (lateral head)": "triceps", "Triceps (long head)": "triceps",
+    "Forearm extensors": "forearms", "Forearm flexors": "forearms",
+    "Rectus abdominis": "abs", "External oblique": "obliques", "Serratus anterior": "obliques", "Obliques & serratus": "obliques",
+    "Trapezius": "traps", "Upper trapezius": "traps", "Latissimus dorsi": "lats", "Infraspinatus & teres": "upper back",
+    "Erector spinae": "lower back",
+    "Gluteus maximus": "glutes", "Gluteus medius": "outer hips", "Tensor fasciae latae": "outer hips", "Adductors": "inner thighs",
+    "Rectus femoris": "quads", "Vastus lateralis": "quads", "Vastus medialis": "quads",
+    "Biceps femoris": "hamstrings", "Semitendinosus": "hamstrings",
+    "Gastrocnemius": "calves", "Soleus": "calves", "Tibialis anterior": "shins",
+}

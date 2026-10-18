@@ -1,0 +1,28 @@
+# Filled in by the app (Settings > Feedback, mobile/lib/logic/feedback.dart): the person writes it in the app and only
+# signs in and sends here. URLs can fill text fields only (not dropdowns), so every field the app fills is an input or
+# a textarea.
+# The app fills fields by id; mobile/test/feedback_test.dart checks every id it fills is here, as a text field.
+name: Suggest a feature
+description: An idea that would make training easier to keep up.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for the idea. Suggestions here are public, so leave out anything personal.
+  - type: textarea
+    id: idea
+    attributes:
+      label: The idea
+      description: What you would like the app to do.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would help
+      description: The moment it would have helped, or what it would make easier.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Filled in when you suggest from the app.

@@ -1,4 +1,5 @@
-// Notifications, calendar and location. Each is off until the user turns it on in Settings and grants the permission.
+// Notifications, calendar and location, plus the updater and opening links. Notifications, calendar and location are
+// off until the user turns them on in Settings and grants the permission.
 // Every call here is safe to make on a platform without the capability: it returns false, null or an empty list.
 import 'dart:async';
 import 'dart:convert';
@@ -253,13 +254,16 @@ class LocationBridge {
   }
 }
 
-/// What build is installed, from the package manager.
+/// What build is installed, from the package manager, and the phone it runs on.
 class AppInfo {
-  const AppInfo({required this.versionName, required this.versionCode, required this.flavor, required this.package});
+  const AppInfo({required this.versionName, required this.versionCode, required this.flavor, required this.package,
+      this.maker = '', this.model = '', this.android = '', this.sdk = 0});
   final String versionName;
   final int versionCode;
   final String flavor;
   final String package;
+  final String maker, model, android;
+  final int sdk;
 }
 
 /// The updater: the release list on GitHub, a download into the app cache, and an install session over this app.
@@ -285,7 +289,8 @@ class UpdateBridge {
       final m = await _ch.invokeMapMethod<String, dynamic>('appInfo');
       if (m == null) return null;
       return AppInfo(versionName: m['versionName'] as String? ?? '', versionCode: (m['versionCode'] as num?)?.toInt() ?? 0,
-          flavor: m['flavor'] as String? ?? 'prod', package: m['package'] as String? ?? '');
+          flavor: m['flavor'] as String? ?? 'prod', package: m['package'] as String? ?? '',
+          maker: m['maker'] as String? ?? '', model: m['model'] as String? ?? '', android: m['android'] as String? ?? '', sdk: (m['sdk'] as num?)?.toInt() ?? 0);
     } catch (_) { return null; }
   }
 
@@ -349,5 +354,15 @@ class UpdateBridge {
 
   static Future<bool> install(String path) async {
     try { return await _ch.invokeMethod<bool>('install', {'path': path}) ?? false; } catch (_) { return false; }
+  }
+}
+
+/// Web pages, opened in the browser.
+class LinkBridge {
+  static const _ch = MethodChannel('fitness/links');
+
+  /// False when nothing on the phone can open [url].
+  static Future<bool> open(Uri url) async {
+    try { return await _ch.invokeMethod<bool>('open', {'url': url.toString()}) ?? false; } catch (_) { return false; }
   }
 }

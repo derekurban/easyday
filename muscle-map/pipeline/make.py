@@ -1,5 +1,5 @@
 # Rebuild the muscle maps end-to-end and verify them.   python make.py
-# source/*.png (renders) -> work/ (segmentation, nipple removal) -> ../assets (shipped maps) -> verify.py
+# source/*.png (renders) -> work/ (segmentation, nipple removal) -> ../assets (shipped maps) -> verify.py -> outlines.py -> check_outlines.py
 import subprocess, sys, os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 PY = sys.executable
@@ -13,6 +13,8 @@ steps = [
     ["segment.py", "male_back"],
     ["build.py"],
     ["verify.py"],
+    ["outlines.py"],         # vector outlines and fills
+    ["check_outlines.py"],   # no notches, full coverage, fills contain outlines and stay off neighbours
 ]
 for s in steps:
     print(">", " ".join(s), flush=True)

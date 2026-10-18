@@ -69,25 +69,25 @@ class ProgressScreen extends StatelessWidget {
         const SectionHeader('Muscles, last two weeks', icon: LucideIcons.personStanding),
         Panel(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Row(children: [
-            MuscleFigure(highlight: byDatasetGroup(worked), height: 190, keyLabels: const ['worked hard', 'worked', 'fading'], expandable: true, title: 'Muscles, last two weeks',
+            MuscleFigure(highlight: worked, height: 190, keyLabels: const ['worked hard', 'worked', 'fading'], expandable: true, title: 'Muscles, last two weeks',
                 detail: (h) => _muscleDetail(h, worked, last, now)),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(_muscleSummary(worked, last, now), style: t.bodyMedium),
               const SizedBox(height: 8),
-              Text('Filled by how much was done and how long ago, fading to nothing over $muscleFadeDays days. A faded group is ready for work.', style: t.bodySmall),
+              Text('Filled by how much was done and how long ago, fading to nothing over $muscleFadeDays days. A faded muscle is ready for work.', style: t.bodySmall),
             ])),
           ])),
           const Divider(),
-          for (final g in muscleGroups)
+          for (final g in trackedMuscles)
             Padding(padding: const EdgeInsets.fromLTRB(16, 7, 16, 7), child: Row(children: [
-              SizedBox(width: 92, child: Text(g, style: t.bodyMedium)),
+              SizedBox(width: 120, child: Text(muscleTitle(g), style: t.bodyMedium)),
               Expanded(child: _Strip(dayStrip(s, g, now, days: days))),
               const SizedBox(width: 10),
               SizedBox(width: 78, child: Text(agoText(last[g], now), style: t.labelSmall?.copyWith(color: (worked[g] ?? 0) > 0 ? du.accentText : null), textAlign: TextAlign.right)),
             ])),
           Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 12), child: Row(children: [
-            const SizedBox(width: 92),
+            const SizedBox(width: 120),
             Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('$days days ago', style: t.labelSmall), Text('today', style: t.labelSmall)])),
             const SizedBox(width: 88),
           ])),
@@ -140,14 +140,13 @@ class ProgressScreen extends StatelessWidget {
     );
   }
 
-  /// For a tapped muscle: when its group was last worked and how far that has faded.
+  /// For a tapped muscle: when it was last worked and how far that has faded.
   String? _muscleDetail(MuscleHit h, Map<String, double> worked, Map<String, DateTime?> last, DateTime now) {
-    final g = appGroupOf(h.dataset);
-    if (g == null) return null;
-    final at = last[g];
-    if (at == null) return '$g · not worked yet.';
-    final w = worked[g] ?? 0;
-    return '$g · last worked ${agoText(at, now)}${w >= 0.5 ? ', still recovering' : w > 0 ? ', mostly faded' : ', ready for work'}.';
+    if (!last.containsKey(h.name)) return null;
+    final at = last[h.name];
+    if (at == null) return 'Not worked yet.';
+    final w = worked[h.name] ?? 0;
+    return 'Last worked ${agoText(at, now)}${w >= 0.5 ? ', still recovering' : w > 0 ? ', mostly faded' : ', ready for work'}.';
   }
 
   String _muscleSummary(Map<String, double> worked, Map<String, DateTime?> last, DateTime now) {
@@ -155,8 +154,8 @@ class ProgressScreen extends StatelessWidget {
     final ready = worked.entries.where((x) => x.value < 0.2).map((x) => x.key.toLowerCase()).toList();
     if (hot.isEmpty && ready.length == worked.length) return 'Everything is rested and ready.';
     final parts = <String>[];
-    if (hot.isNotEmpty) parts.add('${hot.length <= 3 ? hot.join(', ') : '${hot.length} groups'} worked lately');
-    if (ready.isNotEmpty) parts.add('${ready.length <= 3 ? ready.join(', ') : '${ready.length} groups'} ready for work');
+    if (hot.isNotEmpty) parts.add('${hot.length <= 3 ? hot.join(', ') : '${hot.length} muscles'} worked lately');
+    if (ready.isNotEmpty) parts.add('${ready.length <= 3 ? ready.join(', ') : '${ready.length} muscles'} ready for work');
     final line = parts.join('; ');
     return '${line.replaceRange(0, 1, line[0].toUpperCase())}.';
   }

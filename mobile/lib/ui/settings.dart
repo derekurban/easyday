@@ -1,5 +1,5 @@
 // Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
-// settings, breaks, and prototype tools.
+// settings, breaks, updates, feedback, and prototype tools.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -12,9 +12,12 @@ import '../logic/builder.dart';
 import '../logic/rotation.dart';
 import 'app.dart';
 import 'catalog.dart';
+import 'feedback.dart';
 import 'goal_editor.dart';
 import 'how.dart';
 import 'location_editor.dart';
+import 'motion.dart';
+import 'muscle_figure.dart';
 import 'theme.dart';
 import 'updates.dart';
 import 'widgets.dart';
@@ -73,6 +76,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Segmented<String>(value: s.units, options: const {'kg': 'Kilograms', 'lb': 'Pounds'}, icons: const {'kg': LucideIcons.weight, 'lb': LucideIcons.scale}, onChanged: (v) => store.update((x) => x.units = v)),
         ])),
         const SizedBox(height: 20),
+        const SectionHeader('Personalization', icon: LucideIcons.userRound),
+        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Body figure', style: t.labelMedium),
+          Text('The figure that shows which muscles a workout works, on Today and in Progress.', style: t.bodySmall),
+          const SizedBox(height: 10),
+          Row(children: [
+            for (final f in const ['male', 'female']) ...[
+              if (f != 'male') const SizedBox(width: 12),
+              Expanded(child: _FigureChoice(figure: f, selected: st.figure == f, onTap: () => store.update((_) => st.figure = f))),
+            ],
+          ]),
+        ])),
+        const SizedBox(height: 20),
         SectionHeader('Locations', icon: LucideIcons.mapPin, trailing: st.location
             ? TextButton.icon(onPressed: locating ? null : _refreshDistances, icon: Icon(locating ? LucideIcons.loader : LucideIcons.refreshCw, size: 14), label: Text(here == null ? 'Distances' : 'Refresh'), style: TextButton.styleFrom(visualDensity: VisualDensity.compact))
             : null),
@@ -98,16 +114,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onTap: () => pickIndex(context)),
           ListTile(leading: const IconBadge(LucideIcons.bookOpen, size: 36), title: Text('${exercises.length} exercises'), subtitle: const Text('Built in. Loaded ones by weight, bodyweight ones by version.'), trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogScreen()))),
-          const Divider(height: 8),
-          Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 12), child: Row(children: [
-            const IconBadge(LucideIcons.personStanding, size: 36),
-            const SizedBox(width: 16),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Body map figure', style: t.bodyLarge),
-              const SizedBox(height: 6),
-              Segmented<String>(value: st.figure, options: const {'male': 'Male', 'female': 'Female'}, onChanged: (v) => store.update((_) => st.figure = v)),
-            ])),
-          ])),
         ])),
         const SizedBox(height: 20),
         const SectionHeader('Reminder', icon: LucideIcons.bell),
@@ -187,6 +193,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 20),
         const SectionHeader('Updates', icon: LucideIcons.download),
         const UpdatePanel(),
+        const SizedBox(height: 20),
+        const SectionHeader('Feedback', icon: LucideIcons.messageSquareText),
+        const FeedbackPanel(),
         const SizedBox(height: 20),
         const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -373,5 +382,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
     ));
     setState(() {});
+  }
+}
+
+/// One body figure to pick: its front and back, plain, with a selected ring like an option card.
+class _FigureChoice extends StatelessWidget {
+  const _FigureChoice({required this.figure, required this.selected, required this.onTap});
+  final String figure;
+  final bool selected;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final label = figure == 'female' ? 'Female' : 'Male';
+    return Semantics(
+      button: true, selected: selected, label: '$label figure',
+      child: Pressable(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: m(context, durBase),
+          curve: easeOut,
+          padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
+          decoration: BoxDecoration(
+            color: selected ? du.accentSubtle : du.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? du.accentStrong : du.line, width: selected ? 1.5 : 0.6),
+          ),
+          child: ExcludeSemantics(child: Column(children: [
+            IgnorePointer(child: FittedBox(
+              child: MuscleFigure(highlight: const {}, figure: figure, height: 120, interactive: false, tooltip: false, clearAfter: null),
+            )),
+            const SizedBox(height: 8),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              AnimatedSwitcher(
+                duration: m(context, durBase),
+                child: Icon(selected ? LucideIcons.circleCheck : LucideIcons.circle, key: ValueKey(selected), size: 18, color: selected ? du.accentStrong : du.line),
+              ),
+              const SizedBox(width: 6),
+              Text(label, style: t.titleSmall?.copyWith(color: selected ? du.accentText : du.ink)),
+            ]),
+          ])),
+        ),
+      ),
+    );
   }
 }

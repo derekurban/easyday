@@ -237,11 +237,10 @@ class _TodayScreenState extends State<TodayScreen> {
 
   /// For a tapped muscle: which of today's exercises use it.
   String? _muscleDetail(Session x, MuscleHit h) {
-    if (h.dataset.isEmpty) return null;
     final main = <String>[], helping = <String>[];
     for (final e in x.exercises) {
-      if (e.exercise.primary.map(datasetGroupOf).contains(h.dataset)) { main.add(e.exercise.name); }
-      else if (e.exercise.secondary.map(datasetGroupOf).contains(h.dataset)) { helping.add(e.exercise.name); }
+      if (e.exercise.primary.contains(h.name)) { main.add(e.exercise.name); }
+      else if (e.exercise.secondary.contains(h.name)) { helping.add(e.exercise.name); }
     }
     if (main.isEmpty && helping.isEmpty) return 'Not worked today.';
     return [if (main.isNotEmpty) 'Main in ${main.join(', ')}.', if (helping.isNotEmpty) 'Helps in ${helping.join(', ')}.'].join(' ');

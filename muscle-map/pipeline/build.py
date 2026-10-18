@@ -1,4 +1,5 @@
-# Build web assets for the flat muscle map: base RGBA image, plate-id map, metadata. Also writes verification images.
+# Build web assets for the flat muscle map: base RGBA image, plate-id map, metadata (per plate: anatomical muscle, its
+# everyday name, free-exercise-db group, centre). Also writes verification images.
 #   python build.py [out_dir=../assets]   (reads work/ from segment.py + fix_nipples.py, labels from labels.py)
 import sys, os, json
 import os as _os; _os.chdir(_os.path.dirname(_os.path.abspath(__file__)))
@@ -6,7 +7,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy import ndimage as ndi
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from labels import LABELS, GROUPS
+from labels import LABELS, GROUPS, NAMES
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "../assets"; os.makedirs(OUT, exist_ok=True); os.makedirs("verify", exist_ok=True)
 font = ImageFont.truetype("arial.ttf", 18)
@@ -37,6 +38,26 @@ for name, labels in LABELS.items():
     fill[far] = rgba[oy[far], ox[far], :3]
     rgba[fr, :3] = np.clip(fill[fr], 0, 255).astype(np.uint8)
     report.append(f"{name}: de-fringed {int(fr.sum())} edge px")
+    # smooth silhouette: the cutout's alpha steps a pixel at a time, and just inside it the body's 1 px dark outline
+    # steps between light plate pixels with no anti-aliasing, so an enlarged figure shows a serrated edge. Within
+    # EDGE_BAND px of the edge the alpha becomes the anti-aliased half level of the alpha blurred EDGE_BLUR px (about a
+    # pixel of ramp), pixels it newly covers take the nearby body colour, and the colour within EDGE_RIM px inside is
+    # an alpha-weighted blur (EDGE_COLOUR px), fully at the edge and fading out by EDGE_RIM.
+    EDGE_BLUR, EDGE_BAND, EDGE_RIM, EDGE_COLOUR = 1.2, 3, 2.5, 0.8
+    a = rgba[..., 3].astype(float) / 255
+    blur = ndi.gaussian_filter(a, EDGE_BLUR)
+    inside = blur >= 0.5
+    band = (ndi.distance_transform_edt(inside) <= EDGE_BAND) & (ndi.distance_transform_edt(~inside) <= EDGE_BAND)
+    a = np.where(band, np.clip((blur - 0.5) * 3 + 0.5, 0, 1), a)
+    soft = ~opaque & (a > 0)
+    rgba[soft, :3] = np.clip(fill[soft], 0, 255).astype(np.uint8)
+    wa = ndi.gaussian_filter(a, EDGE_COLOUR)
+    col = np.stack([ndi.gaussian_filter(rgba[..., c].astype(float) * a, EDGE_COLOUR) / np.maximum(wa, 1e-6) for c in range(3)], -1)
+    mix = (np.clip(1 - (ndi.distance_transform_edt(inside) - 1) / (EDGE_RIM - 1), 0, 1) * (a > 0))[..., None]
+    rgba[..., :3] = np.clip(rgba[..., :3] * (1 - mix) + col * mix, 0, 255).astype(np.uint8)
+    rgba[..., 3] = np.round(a * 255).astype(np.uint8)
+    rgba[a <= 0, :3] = 0
+    report.append(f"{name}: smoothed the silhouette ({int(band.sum())} px band)")
     g = rgba[..., :3].astype(float).mean(2); fig = rgba[..., 3] > 128
     T = json.load(open(f"work/{name}_seg.json"))["T"]
     cc = np.load(f"work/{name}_cc.npy").astype(np.int32)
@@ -78,7 +99,7 @@ for name, labels in LABELS.items():
     coms = ndi.center_of_mass(cc > 0, cc, range(1, n + 1))
     for i in range(1, n + 1):
         m, grp = labels[i]
-        plates.append({"id": i, "muscle": m, "group": grp, "cx": round(coms[i - 1][1]), "cy": round(coms[i - 1][0])})
+        plates.append({"id": i, "muscle": m, "name": NAMES[m], "group": grp, "cx": round(coms[i - 1][1]), "cy": round(coms[i - 1][0])})
     meta["maps"][name] = {"T": T, "w": rgba.shape[1], "h": rgba.shape[0], "plates": plates}
     # verification 3: every plate painted with its group colour + muscle names, uncovered light px in magenta
     lut = np.zeros((256, 3), np.uint8)

@@ -1,11 +1,13 @@
 // MuscleFigure: the rendered body figures from muscle-map/assets (male or female, front and back), with muscles
-// highlighted by dataset group. The base render keeps its own shading; plates are tinted with the moss accent at one
-// of three opacities, by which third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent,
-// a helping one at 0.5 the middle step, a faded recency the lightest). Tap a plate
-// and every plate of its group is outlined in blue, with a tooltip over the figure naming it (and whatever detail the
-// caller adds). An expand button opens the same figure full screen with pinch zoom. Rendering happens in an isolate,
-// downsampled to about the display size so it stays crisp, and is cached per distinct request. The id maps follow
-// app/js/muscle-map.js and docs/muscle-mapping.md.
+// highlighted by their everyday names (data/index.dart `muscleNames`, each plate's `name` in flat.json). The base render is drawn as it is; each highlighted plate's fill shape
+// (muscle-map/pipeline/outlines.py: the plate's traced edge grown a pixel into the dark groove around it) is filled
+// with the moss accent, multiplied over the render so the plate keeps its shading, at one of three opacities by which
+// third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent, a helping one at 0.5 the
+// middle step, a faded recency the lightest). Tap a plate and every plate of that muscle, on both figures, fills blue
+// instead, with a tooltip over the figure naming it (and whatever detail the caller adds, which is where a selected
+// muscle's strength is told). The fills are vector paths, so they stay crisp at any size and under the full screen's pinch zoom. An
+// expand button opens that full screen. The id maps (used for taps) follow app/js/muscle-map.js and
+// docs/muscle-mapping.md.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -16,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/index.dart';
 import 'app.dart';
 import 'motion.dart';
 import 'theme.dart';
@@ -27,7 +30,8 @@ const secondaryStrength = 0.5;
 /// The fill: the design system's light-theme accent (oklch 0.48 0.085 138), laid over the plate at one of three
 /// opacities, so a strength reads as one of three clear steps rather than a fade. The figure is the same light gray in
 /// both themes, so the accent is fixed rather than a theme token (the dark-theme accent is too pale on gray plates).
-/// Selection is a blue the rest of the app never uses, so it cannot be mistaken for a fill.
+/// Selection is a blue the rest of the app never uses, filled at full strength in place of a plate's step, so a tapped
+/// group stands out from every fill.
 const muscleAccent = Color(0xFF456938);
 const muscleSelect = Color(0xFF2F7BE5);
 /// The plate gray the swatches sit on, the figure's typical plate brightness.
@@ -35,108 +39,115 @@ const musclePlate = Color(0xFFBEBEBE);
 /// The steps' opacities, weakest first.
 const muscleSteps = [1 / 3, 2 / 3, 1.0];
 
+/// What a fill multiplies the render by: its colour over the plates' typical gray (182), so a plate of that gray comes
+/// out that colour at full strength (as near as a multiply reaches) and darker or lighter parts keep their shading.
+Color _overPlate(Color c) => Color.from(
+  alpha: 1, red: (c.r * 255 / 182).clamp(0.0, 1.0), green: (c.g * 255 / 182).clamp(0.0, 1.0), blue: (c.b * 255 / 182).clamp(0.0, 1.0));
+final muscleMultiply = _overPlate(muscleAccent);
+final muscleSelectMultiply = _overPlate(muscleSelect);
+
 /// The opacity a strength draws at: nothing at 0, then the step whose third of the range it falls in.
 double muscleStepOpacity(double strength) {
   if (strength <= 0) return 0;
   return muscleSteps[(strength.clamp(0.0, 1.0) * muscleSteps.length).ceil().clamp(1, muscleSteps.length) - 1];
 }
 
+/// One figure, ready to draw: the render, the box around the body it is drawn through, each plate's fill shape as a
+/// path in that box's coordinates, and the id map cropped to the box for taps.
 class MuscleMapData {
-  MuscleMapData({required this.w, required this.h, required this.base, required this.plate, required this.tint, required this.plateDataset, required this.plateMuscle});
-  final int w, h;                  // cropped size
-  final Uint8List base;            // RGBA, straight alpha
-  final Uint8List plate;           // plate id per pixel
-  final Uint8List tint;            // tint mask 0..255 per pixel
-  final List<String?> plateDataset; // plate id -> dataset group
-  final List<String?> plateMuscle;  // plate id -> muscle name
+  MuscleMapData({required this.w, required this.h, required this.x0, required this.y0, required this.base, required this.plate,
+      required this.plateName, required this.fills});
+  final int w, h;                   // cropped size
+  final int x0, y0;                 // the crop's corner in the asset
+  final ui.Image base;              // the whole asset image
+  final Uint8List plate;            // plate id per cropped pixel
+  final List<String?> plateName;    // plate id -> muscle name
+  final Map<int, ui.Path> fills;    // plate id -> fill shape (its traced edge grown into the groove), cropped coordinates
 
-  /// The plates of a dataset group, or just [plate] when it has no group.
-  Set<int> groupPlates(int plate) {
-    final g = plateDataset[plate];
-    if (g == null) return {plate};
-    return {for (var id = 1; id < 256; id++) if (plateDataset[id] == g) id};
+  Rect get crop => Rect.fromLTWH(x0.toDouble(), y0.toDouble(), w.toDouble(), h.toDouble());
+
+  /// The plates of a muscle.
+  Set<int> platesOf(String name) => {for (var id = 1; id < 256; id++) if (plateName[id] == name) id};
+
+  /// The box around [plates]' fill shapes, in cropped coordinates, or null when none is traced.
+  Rect? bounds(Iterable<int> plates) {
+    Rect? r;
+    for (final id in plates) {
+      final b = fills[id]?.getBounds();
+      if (b != null) r = r == null ? b : r.expandToInclude(b);
+    }
+    return r;
   }
 }
 
 class MuscleRenderer {
   static final _maps = <String, Future<MuscleMapData>>{};
-  static final _images = <String, Future<ui.Image>>{};
-  static final _order = <String>[];
+  static Future<Map<String, dynamic>>? _outlines;
 
   static Future<MuscleMapData> map(String key) => _maps.putIfAbsent(key, () => _load(key));
 
   static Future<MuscleMapData> _load(String key) async {
     final meta = jsonDecode(await rootBundle.loadString('assets/muscle/flat.json')) as Map<String, dynamic>;
     final plates = (meta['maps'][key]['plates'] as List).cast<Map<String, dynamic>>();
-    final dataset = List<String?>.filled(256, null), muscle = List<String?>.filled(256, null);
-    for (final p in plates) { dataset[p['id'] as int] = p['group'] as String?; muscle[p['id'] as int] = p['muscle'] as String?; }
-    final base = await _decode('assets/muscle/$key.png', ui.ImageByteFormat.rawStraightRgba);
-    final ids = await _decode('assets/muscle/${key}_ids.png', ui.ImageByteFormat.rawRgba);
-    return compute(_prepare, _PrepareArgs(base.$1, base.$2, base.$3, ids.$3, dataset, muscle));
+    final name = List<String?>.filled(256, null);
+    for (final p in plates) { name[p['id'] as int] = p['name'] as String?; }
+    // the render is drawn from Flutter's own decode (correct alpha); its raw pixels only find the crop
+    final base = await _image('assets/muscle/$key.png');
+    final baseRaw = (await base.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!.buffer.asUint8List();
+    final idsImage = await _image('assets/muscle/${key}_ids.png');
+    final ids = (await idsImage.toByteData(format: ui.ImageByteFormat.rawRgba))!.buffer.asUint8List();
+    idsImage.dispose();
+    final crop = await compute(_prepare, _PrepareArgs(base.width, base.height, baseRaw, ids));
+    _outlines ??= rootBundle.loadString('assets/muscle/outlines.json').then((s) => jsonDecode(s) as Map<String, dynamic>);
+    // outlines.json also has each plate's tight edge ('plates'); the figure only fills, so it reads the fill shapes
+    final fills = (await _outlines)!['maps'][key]['fills'] as Map<String, dynamic>;
+    return MuscleMapData(w: crop.w, h: crop.h, x0: crop.x0, y0: crop.y0, base: base, plate: crop.plate, plateName: name,
+        fills: {
+          for (final e in fills.entries) int.parse(e.key): _path((e.value as List).cast<List>(), -crop.x0.toDouble(), -crop.y0.toDouble()),
+        });
   }
 
-  static Future<(int, int, Uint8List)> _decode(String asset, ui.ImageByteFormat fmt) async {
+  static Future<ui.Image> _image(String asset) async {
     final bytes = await rootBundle.load(asset);
     final codec = await ui.instantiateImageCodec(bytes.buffer.asUint8List());
-    final frame = await codec.getNextFrame();
-    final data = await frame.image.toByteData(format: fmt);
-    final out = (frame.image.width, frame.image.height, data!.buffer.asUint8List());
-    frame.image.dispose();
-    return out;
+    return (await codec.getNextFrame()).image;
   }
 
-  static int _factor(MuscleMapData m, double targetPx) => max(1, (m.h / max(1.0, targetPx * 1.5)).floor());
-
-  /// A highlighted figure, downsampled so its height is about [targetPx] physical pixels. [highlight] is dataset
-  /// group -> strength 0..1. Cached by request.
-  static Future<ui.Image> render(String key, Map<String, double> highlight, {required double targetPx}) {
-    final hk = (highlight.entries.where((e) => e.value > 0).map((e) => '${e.key}${muscleStepOpacity(e.value).toStringAsFixed(2)}').toList()..sort()).join(',');
-    return _cached('fill|$key|$hk|${targetPx.round()}|${muscleAccent.toARGB32()}', () async {
-      final m = await map(key);
-      final f = _factor(m, targetPx);
-      final pixels = await compute(_tint, _TintArgs(m.w, m.h, m.base, m.plate, m.tint, m.plateDataset, highlight, f));
-      return _image(pixels, m.w ~/ f, m.h ~/ f);
-    });
-  }
-
-  /// A transparent overlay with a blue edge inside each of [plates], matching [render] at the same [targetPx].
-  static Future<ui.Image> outline(String key, Set<int> plates, {required double targetPx}) {
-    final pk = (plates.toList()..sort()).join(',');
-    return _cached('edge|$key|$pk|${targetPx.round()}|${muscleSelect.toARGB32()}', () async {
-      final m = await map(key);
-      final f = _factor(m, targetPx);
-      final edge = max(3, (m.h / targetPx * 5).round());
-      final pixels = await compute(_outline, _OutlineArgs(m.w, m.h, m.base, m.plate, Uint8List.fromList([for (var id = 0; id < 256; id++) plates.contains(id) ? 1 : 0]), muscleSelect.toARGB32(), edge, f));
-      return _image(pixels, m.w ~/ f, m.h ~/ f);
-    });
-  }
-
-  static Future<ui.Image> _cached(String ck, Future<ui.Image> Function() make) {
-    final hit = _images[ck];
-    if (hit != null) return hit;
-    final fut = make();
-    _images[ck] = fut;
-    _order.add(ck);
-    if (_order.length > 32) { final old = _order.removeAt(0); _images.remove(old)?.then((img) => img.dispose()); }
-    return fut;
-  }
-
-  static Future<ui.Image> _image(Uint8List pixels, int w, int h) {
-    final c = Completer<ui.Image>();
-    ui.decodeImageFromPixels(pixels, w, h, ui.PixelFormat.rgba8888, c.complete);
-    return c.future;
+  /// A plate's polygons as one smooth closed path: quadratic curves through the midpoints of the traced edges, each
+  /// traced point the control between them, so the shape has no corners at any zoom.
+  static ui.Path _path(List<List> polygons, double dx, double dy) {
+    final path = ui.Path()..fillType = ui.PathFillType.evenOdd;
+    for (final flat in polygons) {
+      final n = flat.length ~/ 2;
+      if (n < 3) continue;
+      Offset p(int i) => Offset((flat[(i % n) * 2] as num).toDouble() + dx, (flat[(i % n) * 2 + 1] as num).toDouble() + dy);
+      Offset mid(Offset a, Offset b) => (a + b) / 2;
+      final start = mid(p(n - 1), p(0));
+      path.moveTo(start.dx, start.dy);
+      for (var i = 0; i < n; i++) {
+        final c = p(i), e = mid(c, p(i + 1));
+        path.quadraticBezierTo(c.dx, c.dy, e.dx, e.dy);
+      }
+      path.close();
+    }
+    return path;
   }
 }
 
 class _PrepareArgs {
-  const _PrepareArgs(this.w, this.h, this.base, this.ids, this.dataset, this.muscle);
+  const _PrepareArgs(this.w, this.h, this.base, this.ids);
   final int w, h;
   final Uint8List base, ids;
-  final List<String?> dataset, muscle;
 }
 
-/// Crop to the figure and split the id map into plate and tint arrays. Runs in an isolate once per map.
-MuscleMapData _prepare(_PrepareArgs a) {
+class _Crop {
+  const _Crop(this.x0, this.y0, this.w, this.h, this.plate);
+  final int x0, y0, w, h;
+  final Uint8List plate;
+}
+
+/// The box around the body (with a small margin) and the id map cropped to it. Runs in an isolate once per map.
+_Crop _prepare(_PrepareArgs a) {
   var x0 = a.w, y0 = a.h, x1 = 0, y1 = 0;
   for (var y = 0; y < a.h; y++) {
     for (var x = 0; x < a.w; x++) {
@@ -145,133 +156,77 @@ MuscleMapData _prepare(_PrepareArgs a) {
   }
   x0 = (x0 - 8).clamp(0, a.w - 1); y0 = (y0 - 8).clamp(0, a.h - 1); x1 = (x1 + 8).clamp(0, a.w - 1); y1 = (y1 + 8).clamp(0, a.h - 1);
   final w = x1 - x0 + 1, h = y1 - y0 + 1;
-  final base = Uint8List(w * h * 4), plate = Uint8List(w * h), tint = Uint8List(w * h);
+  final plate = Uint8List(w * h);
   for (var y = 0; y < h; y++) {
-    for (var x = 0; x < w; x++) {
-      final src = ((y + y0) * a.w + (x + x0)) * 4, dst = (y * w + x) * 4, i = y * w + x;
-      base[dst] = a.base[src]; base[dst + 1] = a.base[src + 1]; base[dst + 2] = a.base[src + 2]; base[dst + 3] = a.base[src + 3];
-      plate[i] = a.ids[src];
-      tint[i] = (a.ids[src + 1] * a.base[src + 3]) ~/ 255;
+    for (var x = 0; x < w; x++) { plate[y * w + x] = a.ids[((y + y0) * a.w + (x + x0)) * 4]; }
+  }
+  return _Crop(x0, y0, w, h, plate);
+}
+
+/// Draws one figure into its box: the render scaled to fit, the highlighted plates filled with the accent, the
+/// selected ones with the selection blue. [zoom] is the full screen's pinch scale, so an enlarged render resamples sharply.
+class _FigurePainter extends CustomPainter {
+  _FigurePainter(this.m, this.opacity, this.selected, this.zoom) : super(repaint: zoom);
+  final MuscleMapData m;
+  final Map<int, double> opacity;   // plate id -> fill opacity
+  final Set<int> selected;
+  final ValueListenable<double>? zoom;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = min(size.width / m.w, size.height / m.h);
+    final dx = (size.width - m.w * s) / 2, dy = (size.height - m.h * s) / 2;
+    final z = zoom?.value ?? 1.0;
+    // mipmapped bilinear when shrinking, bicubic when the render is enlarged (full screen, pinch zoom)
+    final quality = s * z > 1 ? FilterQuality.high : FilterQuality.medium;
+    final dst = Rect.fromLTWH(dx, dy, m.w * s, m.h * s);
+    canvas.drawImageRect(m.base, m.crop, dst, Paint()..filterQuality = quality);
+    // Paths are scaled into the box's coordinates rather than through a canvas transform.
+    final toBox = Float64List.fromList([s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1]);
+    // Each filled plate: clip to its fill shape and draw the render again through a modulate filter of the multiply
+    // colour at the step's opacity. Over the render already there that comes out render × (1 − o·(1 − c)), a
+    // multiply that keeps the plate's shading, done as plain source-over drawing (BlendMode.multiply reads the
+    // framebuffer back, which Impeller on GLES does through a blurred, offset copy; an image shader there ignored
+    // its matrix). A selected plate fills with the selection blue at full strength in place of its step.
+    final fill = Paint()..filterQuality = quality;
+    void fillPlate(int id, Color multiply, double o) {
+      final path = m.fills[id];
+      if (path == null || o <= 0) return;
+      fill.colorFilter = ColorFilter.mode(multiply.withValues(alpha: o), BlendMode.modulate);
+      canvas.save();
+      canvas.clipPath(path.transform(toBox));
+      canvas.drawImageRect(m.base, m.crop, dst, fill);
+      canvas.restore();
+    }
+    for (final e in opacity.entries) {
+      if (!selected.contains(e.key)) fillPlate(e.key, muscleMultiply, e.value);
+    }
+    for (final id in selected) {
+      fillPlate(id, muscleSelectMultiply, 1);
     }
   }
-  return MuscleMapData(w: w, h: h, base: base, plate: plate, tint: tint, plateDataset: a.dataset, plateMuscle: a.muscle);
-}
 
-class _TintArgs {
-  const _TintArgs(this.w, this.h, this.base, this.plate, this.tint, this.plateDataset, this.highlight, this.factor);
-  final int w, h;
-  final Uint8List base, plate, tint;
-  final List<String?> plateDataset;
-  final Map<String, double> highlight;
-  final int factor;
-}
-
-/// Tint the plates, then box-downsample by [factor]. Runs in an isolate per distinct request.
-Uint8List _tint(_TintArgs a) {
-  final w = a.w, h = a.h;
-  final full = Uint8List.fromList(a.base);
-  final opacity = List<double>.filled(256, 0);
-  for (var id = 1; id < 256; id++) {
-    final g = a.plateDataset[id];
-    if (g != null) opacity[id] = muscleStepOpacity(a.highlight[g] ?? 0);
-  }
-  int ch(int c, int shift) => (c >> shift) & 255;
-  final p = muscleAccent.toARGB32();
-  final pr = ch(p, 16), pg = ch(p, 8), pb = ch(p, 0);
-  for (var y = 0; y < h; y++) {
-    for (var x = 0; x < w; x++) {
-      final i = y * w + x;
-      final id = a.plate[i];
-      if (id == 0) continue;
-      final t = a.tint[i] / 255;
-      if (t <= 0) continue;
-      final o = opacity[id];
-      if (o <= 0) continue;
-      final k = i * 4;
-      // the accent, shaded by the plate's own brightness, over the plate at the step's opacity
-      final lum = (full[k] + full[k + 1] + full[k + 2]) / 3;
-      final sh = (lum / 182).clamp(0.0, 1.12);
-      final r = (pr * sh).clamp(0, 255).round();
-      final g = (pg * sh).clamp(0, 255).round();
-      final b = (pb * sh).clamp(0, 255).round();
-      final alpha = t * o;
-      full[k] = (full[k] + (r - full[k]) * alpha).round();
-      full[k + 1] = (full[k + 1] + (g - full[k + 1]) * alpha).round();
-      full[k + 2] = (full[k + 2] + (b - full[k + 2]) * alpha).round();
-    }
-  }
-  return _downsample(full, w, h, a.factor);
-}
-
-class _OutlineArgs {
-  const _OutlineArgs(this.w, this.h, this.base, this.plate, this.inGroup, this.color, this.edge, this.factor);
-  final int w, h;
-  final Uint8List base, plate, inGroup;
-  final int color, edge, factor;
-}
-
-/// A blue edge just inside the chosen plates, on a transparent image, then box-downsampled. Runs in an isolate.
-Uint8List _outline(_OutlineArgs a) {
-  final w = a.w, h = a.h, e = a.edge;
-  final out = Uint8List(w * h * 4);
-  int ch(int c, int shift) => (c >> shift) & 255;
-  final r = ch(a.color, 16), g = ch(a.color, 8), b = ch(a.color, 0);
-  bool inside(int x, int y) => x >= 0 && y >= 0 && x < w && y < h && a.inGroup[a.plate[y * w + x]] == 1;
-  for (var y = 0; y < h; y++) {
-    for (var x = 0; x < w; x++) {
-      final i = y * w + x;
-      if (a.inGroup[a.plate[i]] == 0) continue;
-      final edge = !inside(x - e, y) || !inside(x + e, y) || !inside(x, y - e) || !inside(x, y + e)
-          || !inside(x - e ~/ 2, y - e ~/ 2) || !inside(x + e ~/ 2, y + e ~/ 2) || !inside(x - e ~/ 2, y + e ~/ 2) || !inside(x + e ~/ 2, y - e ~/ 2);
-      if (!edge) continue;
-      final k = i * 4;
-      out[k] = r; out[k + 1] = g; out[k + 2] = b; out[k + 3] = a.base[k + 3];
-    }
-  }
-  return _downsample(out, w, h, a.factor);
-}
-
-/// Alpha-weighted box downsample by [f].
-Uint8List _downsample(Uint8List full, int w, int h, int f) {
-  if (f <= 1) return full;
-  final ow = w ~/ f, oh = h ~/ f;
-  final out = Uint8List(ow * oh * 4);
-  final n = f * f;
-  for (var y = 0; y < oh; y++) {
-    for (var x = 0; x < ow; x++) {
-      var r = 0, g = 0, b = 0, al = 0;
-      for (var dy = 0; dy < f; dy++) {
-        var k = ((y * f + dy) * w + x * f) * 4;
-        for (var dx = 0; dx < f; dx++) {
-          final av = full[k + 3];
-          r += full[k] * av; g += full[k + 1] * av; b += full[k + 2] * av; al += av;
-          k += 4;
-        }
-      }
-      final o = (y * ow + x) * 4;
-      if (al > 0) { out[o] = r ~/ al; out[o + 1] = g ~/ al; out[o + 2] = b ~/ al; }
-      out[o + 3] = al ~/ n;
-    }
-  }
-  return out;
+  @override
+  bool shouldRepaint(_FigurePainter old) =>
+      old.m != m || old.zoom != zoom || !mapEquals(old.opacity, opacity) || !setEquals(old.selected, selected);
 }
 
 /// What a tap landed on.
 class MuscleHit {
-  const MuscleHit({required this.key, required this.plate, required this.muscle, required this.dataset});
+  const MuscleHit({required this.key, required this.plate, required this.name});
   final String key;
   final int plate;
-  final String muscle;
-  final String dataset;   // '' for the one unmapped muscle
+  final String name;   // the muscle's everyday name
 }
 
-/// The figures side by side. [highlight] is dataset group -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
-/// Tap a plate to outline its group and see a tooltip: the muscle, its group, and [detail] if the caller has one.
+/// The figures side by side. [highlight] is muscle name -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
+/// Tap a plate to fill that muscle blue and see a tooltip: its name and [detail] if the caller has one.
 /// [keyLabels] names the steps under the figures, strongest first; [expandable] adds a button that opens [MuscleFigureScreen].
 class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
     super.key, required this.highlight, this.height = 170, this.sides = const ['front', 'back'], this.interactive = true,
     this.keyLabels, this.detail, this.onTap, this.tooltip = true, this.expandable = false, this.title, this.clearAfter = const Duration(seconds: 6),
+    this.zoom, this.figure,
   });
   final Map<String, double> highlight;
   final double height;
@@ -284,6 +239,10 @@ class MuscleFigure extends StatefulWidget {
   final bool expandable;
   final String? title;
   final Duration? clearAfter;
+  /// The full screen's pinch scale, so the render resamples sharply when zoomed.
+  final ValueListenable<double>? zoom;
+  /// 'male' or 'female' to show that figure whatever the setting (the setting's own picker); null follows the setting.
+  final String? figure;
 
   /// The width the two figures take at [height].
   static double widthFor(double height, {int sides = 2}) => height * 0.5 * sides + 4 * (sides - 1);
@@ -295,15 +254,15 @@ class MuscleFigure extends StatefulWidget {
 class _MuscleFigureState extends State<MuscleFigure> {
   MuscleHit? hit;
   Offset? anchor;                     // where the tap landed, in the row's coordinates
-  Rect? avoid;                        // the outlined plates' box on the tapped side, in the row's coordinates
-  var outlined = <String, Set<int>>{}; // per side key, the plates to edge
+  Rect? avoid;                        // the selected plates' box on the tapped side, in the row's coordinates
+  var selected = <String, Set<int>>{}; // per side key, the plates filled blue
   Timer? clear;
 
   @override
   void dispose() { clear?.cancel(); super.dispose(); }
 
   Future<void> _tap(String key, Offset local, Size box, double rowOffset) async {
-    final sex = context.store.state.settings.figure;
+    final sex = widget.figure ?? context.store.state.settings.figure;
     final m = await MuscleRenderer.map(key);
     final scale = min(box.width / m.w, box.height / m.h);
     final dx = (box.width - m.w * scale) / 2, dy = (box.height - m.h * scale) / 2;
@@ -315,42 +274,33 @@ class _MuscleFigureState extends State<MuscleFigure> {
         for (final o in [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r)]) {
           final px = (x + o.$1).clamp(0, m.w - 1), py = (y + o.$2).clamp(0, m.h - 1);
           final id = m.plate[py * m.w + px];
-          if (id != 0 && m.plateMuscle[id] != null) { found = MuscleHit(key: key, plate: id, muscle: m.plateMuscle[id]!, dataset: m.plateDataset[id] ?? ''); break; }
+          if (id != 0 && m.plateName[id] != null) { found = MuscleHit(key: key, plate: id, name: m.plateName[id]!); break; }
         }
         if (found != null) break;
       }
     }
-    final same = found != null && hit != null && hit!.dataset == found.dataset && (found.dataset.isNotEmpty || hit!.plate == found.plate);
+    final same = found != null && hit != null && hit!.name == found.name;
     final next = (found == null || same) ? null : found;
-    final edges = <String, Set<int>>{};
+    final group = <String, Set<int>>{};
     if (next != null) {
       for (final side in widget.sides) {
         final k = '${sex}_$side';
         final sm = await MuscleRenderer.map(k);
-        edges[k] = next.dataset.isEmpty ? (k == key ? {next.plate} : <int>{}) : {for (var id = 1; id < 256; id++) if (sm.plateDataset[id] == next.dataset) id};
+        group[k] = sm.platesOf(next.name);
       }
     }
     Rect? box2;
     if (next != null) {
-      // the box of the outlined plates on the tapped side, so the tooltip can keep clear of them
-      final mask = Uint8List(256);
-      for (final id in edges[key] ?? const <int>{}) { mask[id] = 1; }
-      var bx0 = m.w, by0 = m.h, bx1 = -1, by1 = -1;
-      for (var py = 0; py < m.h; py++) {
-        final row = py * m.w;
-        for (var px = 0; px < m.w; px++) {
-          if (mask[m.plate[row + px]] == 0) continue;
-          if (px < bx0) bx0 = px; if (px > bx1) bx1 = px; if (py < by0) by0 = py; if (py > by1) by1 = py;
-        }
-      }
-      if (bx1 >= 0) box2 = Rect.fromLTRB(dx + bx0 * scale + rowOffset, dy + by0 * scale, dx + (bx1 + 1) * scale + rowOffset, dy + (by1 + 1) * scale);
+      // the box of the selected plates on the tapped side, so the tooltip can keep clear of them
+      final b = m.bounds(group[key] ?? const <int>{});
+      if (b != null) box2 = Rect.fromLTRB(dx + b.left * scale + rowOffset, dy + b.top * scale, dx + b.right * scale + rowOffset, dy + b.bottom * scale);
     }
     if (!mounted) return;
-    setState(() { hit = next; outlined = edges; anchor = next == null ? null : Offset(local.dx + rowOffset, local.dy); avoid = box2; });
+    setState(() { hit = next; selected = group; anchor = next == null ? null : Offset(local.dx + rowOffset, local.dy); avoid = box2; });
     widget.onTap?.call(hit);
     clear?.cancel();
     final after = widget.clearAfter;
-    if (hit != null && after != null) clear = Timer(after, () { if (mounted) setState(() { hit = null; outlined = {}; anchor = null; avoid = null; }); });
+    if (hit != null && after != null) clear = Timer(after, () { if (mounted) setState(() { hit = null; selected = {}; anchor = null; avoid = null; }); });
   }
 
   void _expand() {
@@ -366,11 +316,10 @@ class _MuscleFigureState extends State<MuscleFigure> {
   @override
   Widget build(BuildContext context) {
     final du = context.du;
-    final sex = context.store.state.settings.figure;
-    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final sex = widget.figure ?? context.store.state.settings.figure;
     final box = Size(widget.height * 0.5, widget.height);
     final rowWidth = MuscleFigure.widthFor(widget.height, sides: widget.sides.length);
-    final targetPx = widget.height * dpr;
+    final opacity = <String, double>{for (final e in widget.highlight.entries) e.key: muscleStepOpacity(e.value)};
     final detail = hit == null ? null : widget.detail?.call(hit!);
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       SizedBox(width: rowWidth, height: box.height, child: Stack(clipBehavior: Clip.none, children: [
@@ -379,33 +328,30 @@ class _MuscleFigureState extends State<MuscleFigure> {
             if (i > 0) const SizedBox(width: 4),
             Builder(builder: (context) {
               final key = '${sex}_${widget.sides[i]}';
-              final edges = outlined[key] ?? const <int>{};
+              final picked = selected[key] ?? const <int>{};
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapUp: widget.interactive ? (d) => _tap(key, d.localPosition, box, i * (box.width + 4)) : null,
                 child: SizedBox(
                   height: box.height,
                   width: box.width,
-                  child: Stack(fit: StackFit.expand, children: [
-                    FutureBuilder<ui.Image>(
-                      future: MuscleRenderer.render(key, widget.highlight, targetPx: targetPx),
-                      builder: (context, snap) => AnimatedSwitcher(
+                  child: FutureBuilder<MuscleMapData>(
+                    future: MuscleRenderer.map(key),
+                    builder: (context, snap) {
+                      final md = snap.data;
+                      return AnimatedOpacity(
                         duration: m(context, durFast),
-                        child: snap.data == null
-                            ? const SizedBox.expand()
-                            : RawImage(key: ValueKey(snap.data), image: snap.data, fit: BoxFit.contain, filterQuality: FilterQuality.high),
-                      ),
-                    ),
-                    if (edges.isNotEmpty)
-                      FutureBuilder<ui.Image>(
-                        future: MuscleRenderer.outline(key, edges, targetPx: targetPx),
-                        builder: (context, snap) => AnimatedOpacity(
-                          duration: m(context, durFast),
-                          opacity: snap.data == null ? 0 : 1,
-                          child: snap.data == null ? const SizedBox.expand() : RawImage(image: snap.data, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+                        opacity: md == null ? 0 : 1,
+                        child: md == null ? const SizedBox.expand() : CustomPaint(
+                          size: box,
+                          painter: _FigurePainter(md, {
+                            for (var id = 1; id < 256; id++)
+                              if ((opacity[md.plateName[id]] ?? 0) > 0) id: opacity[md.plateName[id]]!,
+                          }, picked, widget.zoom),
                         ),
-                      ),
-                  ]),
+                      );
+                    },
+                  ),
                 ),
               );
             }),
@@ -448,7 +394,7 @@ class MuscleKey extends StatelessWidget {
   }
 }
 
-/// Places the tooltip clear of the outlined plates: under them, else above, else beside; kept near the row, with a
+/// Places the tooltip clear of the selected plates: under them, else above, else beside; kept near the row, with a
 /// little overflow allowed on the right where there is usually text, and almost none on the left.
 class _TipLayout extends SingleChildLayoutDelegate {
   const _TipLayout(this.anchor, this.avoid);
@@ -484,15 +430,14 @@ class _Tip extends StatelessWidget {
     return Material(
       color: du.ink, elevation: 3, shadowColor: Colors.black38, borderRadius: BorderRadius.circular(10),
       child: Padding(padding: const EdgeInsets.fromLTRB(11, 8, 11, 9), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(hit.muscle, style: t.labelLarge?.copyWith(color: du.bg)),
-        if (hit.dataset.isNotEmpty) Text(hit.dataset, style: t.labelSmall?.copyWith(color: du.bg.withValues(alpha: 0.7))),
+        Text(muscleTitle(hit.name), style: t.labelLarge?.copyWith(color: du.bg)),
         if (detail != null) Padding(padding: const EdgeInsets.only(top: 5), child: Text(detail!, style: t.bodySmall?.copyWith(color: du.bg))),
       ])),
     );
   }
 }
 
-/// The figure full screen: as large as the width allows, pinch to zoom, tap to outline a group, with the details in
+/// The figure full screen: as large as the width allows, pinch to zoom, tap to fill a muscle blue, with the details in
 /// a panel under it instead of a tooltip.
 class MuscleFigureScreen extends StatefulWidget {
   const MuscleFigureScreen({super.key, required this.highlight, this.sides = const ['front', 'back'], this.keyLabels, this.detail, this.title});
@@ -508,6 +453,17 @@ class MuscleFigureScreen extends StatefulWidget {
 class _MuscleFigureScreenState extends State<MuscleFigureScreen> {
   MuscleHit? hit;
   String view = 'both';
+  final zoom = TransformationController();
+  late final scale = ValueNotifier(1.0);
+
+  @override
+  void initState() {
+    super.initState();
+    zoom.addListener(() => scale.value = zoom.value.getMaxScaleOnAxis());
+  }
+
+  @override
+  void dispose() { zoom.dispose(); scale.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
     final du = context.du;
@@ -531,17 +487,18 @@ class _MuscleFigureScreenState extends State<MuscleFigureScreen> {
               onChanged: (v) => setState(() => view = v),
             )),
           Expanded(child: InteractiveViewer(
-            minScale: 1, maxScale: 5, clipBehavior: Clip.none,
+            transformationController: zoom, minScale: 1, maxScale: 5, clipBehavior: Clip.none,
             child: Center(child: MuscleFigure(
               key: ValueKey(view),
-              highlight: widget.highlight, sides: sides, height: height, tooltip: false, clearAfter: null,
+              highlight: widget.highlight, sides: sides, height: height, tooltip: false, clearAfter: null, zoom: scale,
               onTap: (h) => setState(() => hit = h),
             )),
           )),
           Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            AnimatedSwitcher(duration: m(context, durBase), child: Column(key: ValueKey(hit?.muscle), crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(hit?.muscle ?? 'Tap a muscle to name it', style: t.titleMedium),
-              Text(hit == null ? 'Pinch to zoom. Tapping outlines every muscle in the group.' : (detail == null ? hit!.dataset : [if (hit!.dataset.isNotEmpty) hit!.dataset, detail].join(' · ')), style: t.bodySmall),
+            AnimatedSwitcher(duration: m(context, durBase), child: Column(key: ValueKey(hit?.name), crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(hit == null ? 'Tap a muscle to name it' : muscleTitle(hit!.name), style: t.titleMedium),
+              if (hit == null || detail != null)
+                Text(hit == null ? 'Pinch to zoom. Tapping a muscle shows it in blue on both figures.' : detail!, style: t.bodySmall),
             ])),
             if (widget.keyLabels != null) ...[const SizedBox(height: 10), MuscleKey(labels: widget.keyLabels!)],
           ])),
