@@ -54,6 +54,10 @@ For each of `male_front`, `male_back`, `female_front`, `female_back` (1254×1254
   already groove-, seam- and edge-aware, so a renderer just does, per pixel:
   `alpha = G/255 × baseAlpha/255`; `colour = groupColour × (luminance / 182)` (keeps the plate's shading).
 - `flat.json`: per view, every plate's `id`, `muscle` name, dataset `group` (or `null` = never highlighted) and centre.
+- `outlines.json`: per view, every plate's visible surface (where G is half on) as smooth sub-pixel polygons, from
+  `pipeline/outlines.py`. The Android app fills and outlines these as vector paths, so highlights and selection
+  outlines stay crisp at any zoom: it draws the render, then per highlighted plate clips to its path and draws the
+  render again × `accent × 255/182` at the step's opacity. Copy it to `mobile/assets/muscle/` with the other files.
 
 ## References
 - `references/style/`: StrengthLog 2D diagrams, the plate-style sheets, MoveKit (look we liked).
