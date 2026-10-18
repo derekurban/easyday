@@ -4,15 +4,15 @@ Diagrams of how the habit-first training app is meant to work. Sources are Merma
 rendered PNGs are in `build/`, and `index.html` is the site.
 
 ## Viewing over Tailscale
-The `fitness-logic-site` scheduled task (per-user, runs at logon) serves the repo on port 5180 via `site.ps1`.
+The `easyday-logic-site` scheduled task (per-user, runs at logon) serves the repo on port 5180 via `site.ps1`.
 The root redirects to the app:
 - App: http://derek-desktop.tail546211.ts.net:5180/app/ (or http://100.105.54.16:5180/app/)
 - Diagrams: http://derek-desktop.tail546211.ts.net:5180/docs/app-logic/
 - Inspiration board (exercise image styles): http://derek-desktop.tail546211.ts.net:5180/docs/inspiration/
 
-Restart it with `Start-ScheduledTask fitness-logic-site`; run it by hand with `powershell -File docs/app-logic/site.ps1`.
+Restart it with `Start-ScheduledTask easyday-logic-site`; run it by hand with `powershell -File docs/app-logic/site.ps1`.
 To get HTTPS and a cleaner URL instead, enable Tailscale Serve for the tailnet (the CLI prints an approval link) and run
-`tailscale serve --bg D:/Working/fitness/docs/app-logic`.
+`tailscale serve --bg D:/Working/easyday/docs/app-logic`.
 
 ```
 node docs/app-logic/render.mjs                                   # renders src/*.mmd -> build/*.png (headless Edge)

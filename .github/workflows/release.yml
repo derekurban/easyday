@@ -1,6 +1,6 @@
 # Releases. A push to staging (a merge from dev) builds the staging flavour; a push to main (a merge from staging)
 # builds prod. Either way the APK is signed with the release key and published as a GitHub release tagged
-# v<version>-<flavour>.<versionCode> carrying only that flavour's APK (fitness-staging.apk or fitness.apk). Prod
+# v<version>-<flavour>.<versionCode> carrying only that flavour's APK (easyday-staging.apk or easyday.apk). Prod
 # releases are marked latest; staging ones never are. Installed apps find the newest release carrying their own APK
 # and update themselves (lib/ui/updates.dart, AutoUpdater).
 #
@@ -51,7 +51,7 @@ jobs:
       - name: Version
         id: version
         run: |
-          if [ "$TARGET" = main ]; then flavor=prod; asset=fitness.apk; else flavor=staging; asset=fitness-staging.apk; fi
+          if [ "$TARGET" = main ]; then flavor=prod; asset=easyday.apk; else flavor=staging; asset=easyday-staging.apk; fi
           full="$(grep -E '^version:' pubspec.yaml | sed 's/version: *//')"
           name="${full%%+*}"
           code=$(( 100000 + GITHUB_RUN_NUMBER ))

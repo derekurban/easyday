@@ -1,4 +1,4 @@
-/* Fitness app styles. Every value traces to a token in vendor/du (derekurban/design-system).
+/* Easyday styles. Every value traces to a token in vendor/du (derekurban/design-system).
    Components mirror the system's React primitives in plain CSS: Button, Card, SegmentedControl, Tag, Input, Select, Tabs, Stat, BarChart, Sparkline, Dialog.
    Deliberate mobile departure: the two in-session buttons are 56px tall (control-lg + space-3) for sweaty-hand tapping. */
 

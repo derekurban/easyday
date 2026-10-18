@@ -1,4 +1,4 @@
-package dev.derekurban.fitness
+package app.easyday
 
 import android.content.BroadcastReceiver
 import android.content.Context

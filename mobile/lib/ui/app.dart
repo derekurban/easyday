@@ -21,14 +21,14 @@ extension StoreContext on BuildContext {
   Store get store => StoreScope.of(this);
 }
 
-class FitnessApp extends StatelessWidget {
-  const FitnessApp(this.store, {super.key});
+class EasydayApp extends StatelessWidget {
+  const EasydayApp(this.store, {super.key});
   final Store store;
   @override
   Widget build(BuildContext context) => StoreScope(
         store: store,
         child: MaterialApp(
-          title: 'Fitness',
+          title: 'Easyday',
           debugShowCheckedModeBanner: false,
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),

@@ -1,4 +1,4 @@
-package dev.derekurban.fitness
+package app.easyday
 
 import android.app.PendingIntent
 import android.content.ActivityNotFoundException
@@ -28,7 +28,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "fitness/calendar").setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "easyday/calendar").setMethodCallHandler { call, result ->
             when (call.method) {
                 "hasPermission" -> result.success(hasReadPermission())
                 "requestPermission" -> {
@@ -53,7 +53,7 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
-        val update = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "fitness/update")
+        val update = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "easyday/update")
         UpdateReceiver.onStatus = { status, message -> runOnUiThread { update.invokeMethod("installStatus", mapOf("status" to status, "message" to message)) } }
         update.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -74,7 +74,7 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "fitness/links").setMethodCallHandler { call, result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "easyday/links").setMethodCallHandler { call, result ->
             when (call.method) {
                 "open" -> result.success(try {
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(call.argument<String>("url")!!)).addCategory(Intent.CATEGORY_BROWSABLE))

@@ -1,13 +1,13 @@
-// In-app updates: the app's releases live on GitHub (derekurban/fitness, public), published by CI
+// In-app updates: the app's releases live on GitHub (derekurban/easyday, public), published by CI
 // (.github/workflows/release.yml). A merge into staging releases v<version>-staging.<versionCode> carrying only
-// fitness-staging.apk; a merge into main releases v<version>-prod.<versionCode> carrying only fitness.apk, marked
+// easyday-staging.apk; a merge into main releases v<version>-prod.<versionCode> carrying only easyday.apk, marked
 // latest. The tag's last number is the build's versionCode, which is how two builds of one version tell apart. Each
 // flavour reads the release list and takes the newest release carrying its own APK. (Releases made before CI, such as
 // v0.13.6, carry both APKs and no build number.) This file is the pure part: reading releases, picking one, and
 // comparing versions.
 import 'dart:convert';
 
-const updateRepo = 'derekurban/fitness';
+const updateRepo = 'derekurban/easyday';
 const releasesUrl = 'https://api.github.com/repos/$updateRepo/releases?per_page=30';
 
 /// A test build can read its release list from elsewhere, such as `--dart-define=UPDATE_FEED=http://127.0.0.1:8765/feed.json`
@@ -27,7 +27,7 @@ class ReleaseInfo {
 }
 
 /// The asset a flavour installs.
-String assetFor(String? flavor) => flavor == 'staging' ? 'fitness-staging.apk' : 'fitness.apk';
+String assetFor(String? flavor) => flavor == 'staging' ? 'easyday-staging.apk' : 'easyday.apk';
 
 /// "v0.13.5", "0.13.5+19" or "0.13.5-staging" -> [0, 13, 5]. Anything unparsable is an empty list.
 List<int> versionParts(String v) {

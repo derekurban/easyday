@@ -67,7 +67,7 @@ function cue(kind = "done") {
   notes.forEach((f, i) => { const o = audio.createOscillator(), g = audio.createGain(); o.type = "sine"; o.frequency.value = f; g.gain.value = 0.0001; o.connect(g); g.connect(audio.destination); const t = audio.currentTime + i * 0.18; o.start(t); g.gain.exponentialRampToValueAtTime(0.2, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.stop(t + 0.18); });
 }
 
-const MARK = `<span class="mark" aria-label="Fitness"><svg viewBox="10 10 80 80" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path class="l" d="M28 18 L18 18 L18 82 L28 82"/><path class="l" d="M34 50 H66 M34 42 V58 M42 37 V63 M58 37 V63 M66 42 V58" stroke-width="5.5"/><path class="r" d="M72 18 L82 18 L82 82 L72 82"/></svg><span>Fitness</span></span>`;
+const MARK = `<span class="mark" aria-label="Easyday"><svg viewBox="10 10 80 80" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path class="l" d="M28 18 L18 18 L18 82 L28 82"/><path class="l" d="M34 50 H66 M34 42 V58 M42 37 V63 M58 37 V63 M66 42 V58" stroke-width="5.5"/><path class="r" d="M72 18 L82 18 L82 82 L72 82"/></svg><span>Easyday</span></span>`;
 
 // ---------- render
 function render() {
