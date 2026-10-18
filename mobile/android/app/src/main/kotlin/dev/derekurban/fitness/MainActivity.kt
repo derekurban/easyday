@@ -1,6 +1,7 @@
 package dev.derekurban.fitness
 
 import android.app.PendingIntent
+import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Intent
 import android.content.pm.PackageInstaller
@@ -18,8 +19,9 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
 import java.util.TimeZone
 
-/// Hosts two small channels: the calendar (permissions, today's events, the writable calendars, writing one event)
-/// and the updater (what build this is, the install permission, and installing a downloaded APK over this app).
+/// Hosts three small channels: the calendar (permissions, today's events, the writable calendars, writing one event),
+/// the updater (what build and phone this is, the install permission, and installing a downloaded APK over this app),
+/// and links (opening a web page in the browser).
 class MainActivity : FlutterActivity() {
     private var pendingPermission: MethodChannel.Result? = null
     private var pendingWrite: MethodChannel.Result? = null
@@ -58,7 +60,8 @@ class MainActivity : FlutterActivity() {
                 "appInfo" -> {
                     val pi = packageManager.getPackageInfo(packageName, 0)
                     val code = if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode else @Suppress("DEPRECATION") pi.versionCode.toLong()
-                    result.success(mapOf("versionName" to (pi.versionName ?: ""), "versionCode" to code, "flavor" to BuildConfig.FLAVOR, "package" to packageName))
+                    result.success(mapOf("versionName" to (pi.versionName ?: ""), "versionCode" to code, "flavor" to BuildConfig.FLAVOR, "package" to packageName,
+                        "maker" to Build.MANUFACTURER, "model" to Build.MODEL, "android" to Build.VERSION.RELEASE, "sdk" to Build.VERSION.SDK_INT))
                 }
                 "canInstall" -> result.success(Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls())
                 "openInstallSettings" -> {
@@ -68,6 +71,15 @@ class MainActivity : FlutterActivity() {
                 // not the cache: Android empties that when storage runs low, which can take the APK mid-update
                 "cacheDir" -> result.success(File(noBackupFilesDir, "updates").apply { mkdirs() }.absolutePath)
                 "install" -> result.success(installApk(call.argument<String>("path")!!))
+                else -> result.notImplemented()
+            }
+        }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "fitness/links").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "open" -> result.success(try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(call.argument<String>("url")!!)).addCategory(Intent.CATEGORY_BROWSABLE))
+                    true
+                } catch (e: ActivityNotFoundException) { false })
                 else -> result.notImplemented()
             }
         }

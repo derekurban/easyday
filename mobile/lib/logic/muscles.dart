@@ -8,50 +8,33 @@ import '../data/library.dart';
 import '../data/model.dart';
 import 'ladder.dart';
 
-/// The muscle-map dataset's 17 groups folded onto the app's eleven. The shin (tibialis) has no group and never highlights.
-const datasetToAppGroup = {
-  'abdominals': 'Core', 'abductors': 'Glutes', 'adductors': 'Quads', 'biceps': 'Biceps', 'calves': 'Calves', 'chest': 'Chest',
-  'forearms': 'Forearms', 'glutes': 'Glutes', 'hamstrings': 'Hamstrings', 'lats': 'Back', 'lower back': 'Core', 'middle back': 'Back',
-  'quadriceps': 'Quads', 'shoulders': 'Shoulders', 'traps': 'Back', 'triceps': 'Triceps',
-};
-
-String? appGroupOf(String datasetGroup) => datasetToAppGroup[datasetGroup];
-
-/// A library muscle name as the dataset spells it.
-String datasetGroupOf(String libraryMuscle) => switch (libraryMuscle) { 'middleback' => 'middle back', 'lowerback' => 'lower back', _ => libraryMuscle };
-
-/// The muscles a workout uses, by dataset group: the exercises' primary muscles strong, their secondary ones light.
+/// The muscles a workout uses, by name: the exercises' primary muscles strong, their secondary ones light.
 Map<String, double> workoutMuscles(Session x) {
   final out = <String, double>{};
   if (x.type != 'lift') return out;
   for (final e in x.exercises) {
-    for (final m in e.exercise.primary) { out[datasetGroupOf(m)] = 1.0; }
-    for (final m in e.exercise.secondary) { final g = datasetGroupOf(m); out[g] = max(out[g] ?? 0, 0.5); }
+    for (final m in e.exercise.primary) { out[m] = 1.0; }
+    for (final m in e.exercise.secondary) { out[m] = max(out[m] ?? 0, 0.5); }
   }
   return out;
 }
 
-/// An app-group map spread over the dataset groups it folds, for the figure.
-Map<String, double> byDatasetGroup(Map<String, double> byApp) =>
-    {for (final e in datasetToAppGroup.entries) if ((byApp[e.value] ?? 0) > 0) e.key: byApp[e.value]!};
-
-/// A muscle group's work fades to nothing over this many days.
+/// A muscle's work fades to nothing over this many days.
 const muscleFadeDays = 5;
-/// Credits that count as fully worked: about two exercises of three sets on the group.
+/// Credits that count as fully worked: about two exercises of three sets on the muscle.
 const muscleFullCredits = 6.0;
 
-/// Credits per muscle group for one exercise: a set credits the first primary group one point and each secondary
-/// group half a point; light sets credit half of that. [planned] counts every set, otherwise the attempted ones.
+/// Credits per muscle for one exercise, to the muscles doing the work: a set credits each primary muscle one point
+/// and each secondary muscle half a point (a row: the upper back one, the lats, biceps and rear shoulders half each);
+/// light sets credit half of that. [planned] counts every set, otherwise the attempted ones.
 Map<String, double> exerciseCredits(SessionExercise e, {bool planned = false}) {
   final ex = e.exercise;
   final sets = planned ? e.sets.length : e.attempted.length;
   if (sets == 0) return const {};
   final weight = e.intent == 'light' ? 0.5 : 1.0;
-  final out = <String, double>{};
-  if (ex.primary.isNotEmpty) out[muscleGroup(ex.primary.first)] = sets * weight;
+  final out = <String, double>{for (final m in ex.primary) m: sets * weight};
   for (final m in ex.secondary) {
-    final g = muscleGroup(m);
-    out[g] = (out[g] ?? 0) + sets * weight * 0.5;
+    out.putIfAbsent(m, () => sets * weight * 0.5);
   }
   return out;
 }
@@ -69,7 +52,7 @@ double _fade(int daysAgo) => max(0, 1 - daysAgo / muscleFadeDays);
 
 int daysAgo(DateTime at, DateTime now) => DateTime(now.year, now.month, now.day).difference(DateTime(at.year, at.month, at.day)).inDays;
 
-/// How worked each group is right now, 0 to 1: recent credits, faded by the days since, against a full day's work.
+/// How worked each muscle is right now, 0 to 1: recent credits, faded by the days since, against a full day's work.
 Map<String, double> recentWork(AppState s, DateTime now) {
   final sum = <String, double>{};
   for (final x in s.sessions) {
@@ -78,12 +61,12 @@ Map<String, double> recentWork(AppState s, DateTime now) {
     if (d < 0 || d >= muscleFadeDays) continue;
     for (final c in sessionCredits(x).entries) { sum[c.key] = (sum[c.key] ?? 0) + c.value * _fade(d); }
   }
-  return {for (final g in muscleGroups) g: ((sum[g] ?? 0) / muscleFullCredits).clamp(0.0, 1.0)};
+  return {for (final m in trackedMuscles) m: ((sum[m] ?? 0) / muscleFullCredits).clamp(0.0, 1.0)};
 }
 
-/// When each group was last worked, or null.
+/// When each muscle was last worked, or null.
 Map<String, DateTime?> lastWorked(AppState s) {
-  final out = <String, DateTime?>{for (final g in muscleGroups) g: null};
+  final out = <String, DateTime?>{for (final m in trackedMuscles) m: null};
   for (final x in s.sessions) {
     if (x.endedAt == null) continue;
     for (final g in sessionCredits(x).keys) {
@@ -93,21 +76,21 @@ Map<String, DateTime?> lastWorked(AppState s) {
   return out;
 }
 
-/// What a planned workout targets, 0 to 1 per group.
+/// What a planned workout targets, 0 to 1 per muscle.
 Map<String, double> plannedTargets(Session x) {
   final c = sessionCredits(x, planned: true);
   final top = c.values.fold(0.0, max);
   return {for (final e in c.entries) e.key: top == 0 ? 0 : (e.value / top).clamp(0.0, 1.0)};
 }
 
-/// Credits per day for one group over the last [days] days, oldest first. The timeline strip.
-List<double> dayStrip(AppState s, String group, DateTime now, {int days = 14}) {
+/// Credits per day for one muscle over the last [days] days, oldest first. The timeline strip.
+List<double> dayStrip(AppState s, String muscle, DateTime now, {int days = 14}) {
   final out = List<double>.filled(days, 0);
   for (final x in s.sessions) {
     if (x.endedAt == null) continue;
     final d = daysAgo(x.endedAt!, now);
     if (d < 0 || d >= days) continue;
-    out[days - 1 - d] += sessionCredits(x)[group] ?? 0;
+    out[days - 1 - d] += sessionCredits(x)[muscle] ?? 0;
   }
   return out;
 }

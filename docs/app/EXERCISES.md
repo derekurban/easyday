@@ -54,10 +54,13 @@ all group by it. The exercise itself never changes; only the headings do. Pre-ma
 | **Progression type** | by weight, by version | seeing which exercises have written levels |
 | **Difficulty** | easy, medium, hard | what a hard day will push, what an easy day keeps at full |
 
-Muscle group is the index people expect, so it is the default. The eleven groups fold the library's fifteen
-muscle names: **back** is lats, middle back and traps; **core** is abdominals and lower back; **quads**
-includes adductors. An exercise sits under its first primary muscle, so nothing appears twice; the card and
-the search also know every group it works.
+Muscle group is the index people expect, so it is the default. Exercises are tagged with twenty muscles by
+their everyday names (chest; front, side and rear shoulders; biceps; triceps; forearms; abs; obliques; traps;
+lats; upper back; lower back; glutes; outer hips; inner thighs; quads; hamstrings; calves; shins), the same
+names the body map shows, and the eleven groups fold them: **shoulders** is all three heads; **back** is
+lats, upper back and traps; **core** is abs, obliques and lower back; **glutes** includes the outer hips;
+**quads** includes the inner thighs. An exercise sits under its first primary muscle, so nothing appears
+twice; the card and the search also know every group it works.
 
 A user-made index, picking any grouping of their own, is possible later: an index is a name plus a function
 from exercise to group, and the data for all five above already exists on every exercise.
