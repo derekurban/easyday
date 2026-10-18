@@ -200,7 +200,7 @@ Uint8List _tint(_TintArgs a) {
       full[k + 2] = (full[k + 2] + (b - full[k + 2]) * alpha).round();
     }
   }
-  return _downsample(full, w, h, a.factor);
+  return _premultiply(_downsample(full, w, h, a.factor));
 }
 
 class _OutlineArgs {
@@ -228,10 +228,22 @@ Uint8List _outline(_OutlineArgs a) {
       out[k] = r; out[k + 1] = g; out[k + 2] = b; out[k + 3] = a.base[k + 3];
     }
   }
-  return _downsample(out, w, h, a.factor);
+  return _premultiply(_downsample(out, w, h, a.factor));
 }
 
-/// Alpha-weighted box downsample by [f].
+/// Straight alpha to premultiplied, in place: decodeImageFromPixels reads rgba8888 as premultiplied, and straight
+/// pixels at the silhouette's soft edge (dark colour, alpha near 0) would otherwise draw as a light fringe, which shows
+/// on a dark background.
+Uint8List _premultiply(Uint8List px) {
+  for (var k = 0; k < px.length; k += 4) {
+    final al = px[k + 3];
+    if (al == 255) continue;
+    px[k] = px[k] * al ~/ 255; px[k + 1] = px[k + 1] * al ~/ 255; px[k + 2] = px[k + 2] * al ~/ 255;
+  }
+  return px;
+}
+
+/// Alpha-weighted box downsample by [f], straight alpha in and out.
 Uint8List _downsample(Uint8List full, int w, int h, int f) {
   if (f <= 1) return full;
   final ow = w ~/ f, oh = h ~/ f;
