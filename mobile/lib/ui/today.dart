@@ -143,7 +143,7 @@ class _TodayScreenState extends State<TodayScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        MuscleFigure(highlight: muscles, height: 170, keyLabels: const ('main', 'helping'), expandable: true, title: session.name,
+                        MuscleFigure(highlight: muscles, height: 170, keyLabels: const ['main', 'helping'], expandable: true, title: session.name,
                             detail: (h) => _muscleDetail(session, h)),
                         const SizedBox(width: 14),
                         Expanded(child: Padding(padding: const EdgeInsets.only(top: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

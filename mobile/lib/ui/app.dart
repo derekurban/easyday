@@ -10,6 +10,7 @@ import 'session.dart';
 import 'settings.dart';
 import 'theme.dart';
 import 'today.dart';
+import 'updates.dart';
 
 class StoreScope extends InheritedNotifier<Store> {
   const StoreScope({super.key, required Store store, required super.child}) : super(notifier: store);
@@ -32,7 +33,7 @@ class FitnessApp extends StatelessWidget {
           theme: buildTheme(Brightness.light),
           darkTheme: buildTheme(Brightness.dark),
           themeMode: ThemeMode.system,
-          home: const Shell(),
+          home: const AutoUpdater(child: Shell()),
         ),
       );
 }

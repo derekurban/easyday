@@ -62,18 +62,45 @@ Release builds are signed with the keystore named in `android/key.properties` (i
 `~/.keys/fitness/`). Without that file a checkout still builds, signed with the debug key, but such a build cannot update
 an install signed with the release key.
 
-```
-bash tool/publish.sh                      # build both flavours, copy to ../dist/, publish GitHub release v<version>
-NOTES="what changed" bash tool/publish.sh # with release notes, shown in the app under Update
-bash tool/publish.sh staging              # one flavour, no GitHub release
-```
+### Branches and releases
 
-The version is `pubspec.yaml`'s `version:`; bump it before publishing (the tag is `v<version without build number>`,
-and a tag that exists gets its assets replaced). The app's Settings → Updates panel asks
-`api.github.com/repos/derekurban/fitness/releases/latest`, compares the tag with the installed version, downloads its
-flavour's APK into the app cache and opens the Android installer. The first time, Android asks to allow installs from
-the app, and on a phone with Play services Play Protect may ask to scan the app: "More details" offers "Install without
-scanning". Verified 0.13.5 to 0.13.6 on the emulator. `../dist/index.html` is the fallback install page over Tailscale.
+Work lands on `dev`. Releases come from CI (`../.github/workflows/release.yml`), never from a laptop:
+
+| Merge | Builds | GitHub release |
+|---|---|---|
+| `dev` → `staging` | staging flavour | `v<version>-staging.<versionCode>` with `fitness-staging.apk` |
+| `staging` → `main` | prod flavour | `v<version>-prod.<versionCode>` with `fitness.apk`, marked latest |
+
+Each run analyzes, tests, builds the flavour signed with the release key and publishes the release. `<version>` is
+`pubspec.yaml`'s version name (bump it for a new version); the versionCode is 100000 + the workflow's run number, so
+every build installs over the last. A pull request into `staging` or `main` runs the same build as a check without
+releasing (the APK is kept as a run artifact): open the PR, let it go green, merge, and the merge publishes. The
+signing key reaches CI as repo secrets `KEYSTORE_BASE64` (the keystore, base64), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and
+`KEY_PASSWORD`.
+
+### Updates in the app
+
+Installed apps update themselves (`AutoUpdater` in `lib/ui/updates.dart`). On launch, and on coming back to the front
+at most every half hour, the app reads `api.github.com/repos/derekurban/fitness/releases`, takes the newest release
+carrying its own flavour's APK, and if it is a higher version (or the same version with a higher build number) it
+downloads it, shows "Updating to …", and installs it over itself through a PackageInstaller session; Android closes
+the app and the new version opens next time. It waits while a workout is in progress, stays off in debug builds, and
+needs "install unknown apps" allowed for the app once (Settings → Updates asks for it and still offers a manual check
+and Update button). On Android 12+ Android installs without a prompt once the app is its own installer of record,
+that is from the second self-update on; the first one (and every one before Android 12) shows Android's confirm
+screen (the manifest's `UPDATE_PACKAGES_WITHOUT_USER_ACTION` is what lets Android skip it). On a phone with Play
+services, Play Protect may still stop a new APK it has not seen to recommend a scan: "More details" offers "Install
+without scanning"; turning off "Scan apps with Play Protect" in the Play Store removes that too. Verified on the
+emulator (Android 16): the first self-update asked once, a later one installed with no Android prompt, Play Protect
+asked each time.
+
+A test build can read its release list from somewhere other than GitHub:
+`--dart-define=UPDATE_FEED=http://127.0.0.1:8765/feed.json`, a JSON list shaped like GitHub's whose asset URL points
+at an APK served beside it, from the computer through `adb reverse tcp:8765 tcp:8765`. (Files pushed with adb into the
+app's external storage belong to the shell user, so the app cannot read them.)
+
+`bash tool/publish.sh [prod|staging|--no-build]` still builds release APKs locally into `../dist/` for the Tailscale
+install page (`../dist/index.html`); it no longer makes GitHub releases.
 
 ## Words
 

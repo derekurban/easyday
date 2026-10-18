@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+    <!-- Android 12+: with this, an update this app installs over itself needs no confirm once it is the installer of record -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION"/>
     <application
         android:label="@string/app_name"
         android:name="${applicationName}"
@@ -50,14 +52,8 @@
 
         </receiver>
 
-        <!-- Lets the package installer read an APK the app downloaded into its cache (the in-app update). -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.files"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths"/>
-        </provider>
+        <!-- Hears how an in-app update's install session ended (UpdateReceiver.kt). -->
+        <receiver android:name=".UpdateReceiver" android:exported="false"/>
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

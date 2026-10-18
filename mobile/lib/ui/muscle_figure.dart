@@ -1,6 +1,7 @@
 // MuscleFigure: the rendered body figures from muscle-map/assets (male or female, front and back), with muscles
-// highlighted by dataset group. The base render keeps its own shading; plates are tinted a vivid green for a primary
-// muscle, a pale green for a secondary one, and anywhere between for a 0 to 1 strength such as recency. Tap a plate
+// highlighted by dataset group. The base render keeps its own shading; plates are tinted with the moss accent at one
+// of three opacities, by which third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent,
+// a helping one at 0.5 the middle step, a faded recency the lightest). Tap a plate
 // and every plate of its group is outlined in blue, with a tooltip over the figure naming it (and whatever detail the
 // caller adds). An expand button opens the same figure full screen with pinch zoom. Rendering happens in an isolate,
 // downsampled to about the display size so it stays crisp, and is cached per distinct request. The id maps follow
@@ -19,18 +20,26 @@ import 'app.dart';
 import 'motion.dart';
 import 'theme.dart';
 
-/// A plate's muscle: the primary tint at 1, the secondary tint at 0.5, the secondary tint fading out below.
+/// A workout's main muscles come in at 1, its helping ones at 0.5.
 const primaryStrength = 1.0;
 const secondaryStrength = 0.5;
 
-/// The fills, both from the design system's moss hue: the mid accent (its dark-theme accent, oklch 0.7 0.08 138) for
-/// the main muscles and the accent line (oklch 0.8 0.051 138) for the helping ones, drawn lighter. The figure is the
-/// same light gray in both themes, so the fills are fixed rather than theme tokens. Selection is a blue the rest of
-/// the app never uses, so it cannot be mistaken for a fill.
-const musclePrimary = Color(0xFF86AB7A);
-const muscleSecondary = Color(0xFFAEC6A6);
+/// The fill: the design system's light-theme accent (oklch 0.48 0.085 138), laid over the plate at one of three
+/// opacities, so a strength reads as one of three clear steps rather than a fade. The figure is the same light gray in
+/// both themes, so the accent is fixed rather than a theme token (the dark-theme accent is too pale on gray plates).
+/// Selection is a blue the rest of the app never uses, so it cannot be mistaken for a fill.
+const muscleAccent = Color(0xFF456938);
 const muscleSelect = Color(0xFF2F7BE5);
-const _secondaryAlpha = 0.72;
+/// The plate gray the swatches sit on, the figure's typical plate brightness.
+const musclePlate = Color(0xFFBEBEBE);
+/// The steps' opacities, weakest first.
+const muscleSteps = [1 / 3, 2 / 3, 1.0];
+
+/// The opacity a strength draws at: nothing at 0, then the step whose third of the range it falls in.
+double muscleStepOpacity(double strength) {
+  if (strength <= 0) return 0;
+  return muscleSteps[(strength.clamp(0.0, 1.0) * muscleSteps.length).ceil().clamp(1, muscleSteps.length) - 1];
+}
 
 class MuscleMapData {
   MuscleMapData({required this.w, required this.h, required this.base, required this.plate, required this.tint, required this.plateDataset, required this.plateMuscle});
@@ -81,8 +90,8 @@ class MuscleRenderer {
   /// A highlighted figure, downsampled so its height is about [targetPx] physical pixels. [highlight] is dataset
   /// group -> strength 0..1. Cached by request.
   static Future<ui.Image> render(String key, Map<String, double> highlight, {required double targetPx}) {
-    final hk = (highlight.entries.where((e) => e.value > 0).map((e) => '${e.key}${(e.value * 20).round()}').toList()..sort()).join(',');
-    return _cached('fill|$key|$hk|${targetPx.round()}|${musclePrimary.toARGB32()}|${muscleSecondary.toARGB32()}|$_secondaryAlpha', () async {
+    final hk = (highlight.entries.where((e) => e.value > 0).map((e) => '${e.key}${muscleStepOpacity(e.value).toStringAsFixed(2)}').toList()..sort()).join(',');
+    return _cached('fill|$key|$hk|${targetPx.round()}|${muscleAccent.toARGB32()}', () async {
       final m = await map(key);
       final f = _factor(m, targetPx);
       final pixels = await compute(_tint, _TintArgs(m.w, m.h, m.base, m.plate, m.tint, m.plateDataset, highlight, f));
@@ -161,15 +170,14 @@ class _TintArgs {
 Uint8List _tint(_TintArgs a) {
   final w = a.w, h = a.h;
   final full = Uint8List.fromList(a.base);
-  final strength = List<double>.filled(256, 0);
+  final opacity = List<double>.filled(256, 0);
   for (var id = 1; id < 256; id++) {
     final g = a.plateDataset[id];
-    if (g != null) strength[id] = (a.highlight[g] ?? 0).clamp(0.0, 1.0);
+    if (g != null) opacity[id] = muscleStepOpacity(a.highlight[g] ?? 0);
   }
   int ch(int c, int shift) => (c >> shift) & 255;
-  final p = musclePrimary.toARGB32(), s2 = muscleSecondary.toARGB32();
+  final p = muscleAccent.toARGB32();
   final pr = ch(p, 16), pg = ch(p, 8), pb = ch(p, 0);
-  final sr = ch(s2, 16), sg = ch(s2, 8), sb = ch(s2, 0);
   for (var y = 0; y < h; y++) {
     for (var x = 0; x < w; x++) {
       final i = y * w + x;
@@ -177,17 +185,16 @@ Uint8List _tint(_TintArgs a) {
       if (id == 0) continue;
       final t = a.tint[i] / 255;
       if (t <= 0) continue;
-      final s = strength[id];
-      if (s <= 0) continue;
+      final o = opacity[id];
+      if (o <= 0) continue;
       final k = i * 4;
-      // the secondary tint at 0.5, the primary one at 1, blending between; below 0.5 the secondary tint fades out
-      final mix = ((s - secondaryStrength) / (1 - secondaryStrength)).clamp(0.0, 1.0);
+      // the accent, shaded by the plate's own brightness, over the plate at the step's opacity
       final lum = (full[k] + full[k + 1] + full[k + 2]) / 3;
       final sh = (lum / 182).clamp(0.0, 1.12);
-      final r = ((sr + (pr - sr) * mix) * sh).clamp(0, 255).round();
-      final g = ((sg + (pg - sg) * mix) * sh).clamp(0, 255).round();
-      final b = ((sb + (pb - sb) * mix) * sh).clamp(0, 255).round();
-      final alpha = (235 / 255) * t * (s < secondaryStrength ? 0.45 + 1.1 * s : _secondaryAlpha + (1 - _secondaryAlpha) * mix);
+      final r = (pr * sh).clamp(0, 255).round();
+      final g = (pg * sh).clamp(0, 255).round();
+      final b = (pb * sh).clamp(0, 255).round();
+      final alpha = t * o;
       full[k] = (full[k] + (r - full[k]) * alpha).round();
       full[k + 1] = (full[k + 1] + (g - full[k + 1]) * alpha).round();
       full[k + 2] = (full[k + 2] + (b - full[k + 2]) * alpha).round();
@@ -260,7 +267,7 @@ class MuscleHit {
 
 /// The figures side by side. [highlight] is dataset group -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
 /// Tap a plate to outline its group and see a tooltip: the muscle, its group, and [detail] if the caller has one.
-/// [keyLabels] draws the two swatches under the figures; [expandable] adds a button that opens [MuscleFigureScreen].
+/// [keyLabels] names the steps under the figures, strongest first; [expandable] adds a button that opens [MuscleFigureScreen].
 class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
     super.key, required this.highlight, this.height = 170, this.sides = const ['front', 'back'], this.interactive = true,
@@ -270,7 +277,7 @@ class MuscleFigure extends StatefulWidget {
   final double height;
   final List<String> sides;
   final bool interactive;
-  final (String strong, String light)? keyLabels;
+  final List<String>? keyLabels;
   final String? Function(MuscleHit hit)? detail;
   final ValueChanged<MuscleHit?>? onTap;
   final bool tooltip;
@@ -421,10 +428,10 @@ class _MuscleFigureState extends State<MuscleFigure> {
   }
 }
 
-/// The two swatches: the primary fill and the secondary one, named by the caller.
+/// The steps' swatches, strongest first, one per label: the accent over the plate gray at each step's opacity.
 class MuscleKey extends StatelessWidget {
   const MuscleKey({super.key, required this.labels});
-  final (String strong, String light) labels;
+  final List<String> labels;
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -434,7 +441,10 @@ class MuscleKey extends StatelessWidget {
       const SizedBox(width: 5),
       Text(text, style: t.labelSmall),
     ]);
-    return Wrap(spacing: 12, runSpacing: 4, children: [swatch(musclePrimary, labels.$1), swatch(Color.lerp(du.surface, muscleSecondary, _secondaryAlpha)!, labels.$2)]);
+    final steps = muscleSteps.reversed.toList();
+    return Wrap(spacing: 12, runSpacing: 4, children: [
+      for (var i = 0; i < labels.length && i < steps.length; i++) swatch(Color.lerp(musclePlate, muscleAccent, steps[i])!, labels[i]),
+    ]);
   }
 }
 
@@ -488,7 +498,7 @@ class MuscleFigureScreen extends StatefulWidget {
   const MuscleFigureScreen({super.key, required this.highlight, this.sides = const ['front', 'back'], this.keyLabels, this.detail, this.title});
   final Map<String, double> highlight;
   final List<String> sides;
-  final (String strong, String light)? keyLabels;
+  final List<String>? keyLabels;
   final String? Function(MuscleHit hit)? detail;
   final String? title;
   @override
