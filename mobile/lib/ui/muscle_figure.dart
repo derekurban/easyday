@@ -226,7 +226,7 @@ class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
     super.key, required this.highlight, this.height = 170, this.sides = const ['front', 'back'], this.interactive = true,
     this.keyLabels, this.detail, this.onTap, this.tooltip = true, this.expandable = false, this.title, this.clearAfter = const Duration(seconds: 6),
-    this.zoom,
+    this.zoom, this.figure,
   });
   final Map<String, double> highlight;
   final double height;
@@ -241,6 +241,8 @@ class MuscleFigure extends StatefulWidget {
   final Duration? clearAfter;
   /// The full screen's pinch scale, so the render resamples sharply when zoomed.
   final ValueListenable<double>? zoom;
+  /// 'male' or 'female' to show that figure whatever the setting (the setting's own picker); null follows the setting.
+  final String? figure;
 
   /// The width the two figures take at [height].
   static double widthFor(double height, {int sides = 2}) => height * 0.5 * sides + 4 * (sides - 1);
@@ -260,7 +262,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
   void dispose() { clear?.cancel(); super.dispose(); }
 
   Future<void> _tap(String key, Offset local, Size box, double rowOffset) async {
-    final sex = context.store.state.settings.figure;
+    final sex = widget.figure ?? context.store.state.settings.figure;
     final m = await MuscleRenderer.map(key);
     final scale = min(box.width / m.w, box.height / m.h);
     final dx = (box.width - m.w * scale) / 2, dy = (box.height - m.h * scale) / 2;
@@ -314,7 +316,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
   @override
   Widget build(BuildContext context) {
     final du = context.du;
-    final sex = context.store.state.settings.figure;
+    final sex = widget.figure ?? context.store.state.settings.figure;
     final box = Size(widget.height * 0.5, widget.height);
     final rowWidth = MuscleFigure.widthFor(widget.height, sides: widget.sides.length);
     final opacity = <String, double>{for (final e in widget.highlight.entries) e.key: muscleStepOpacity(e.value)};

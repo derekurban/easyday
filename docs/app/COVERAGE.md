@@ -62,7 +62,7 @@ cardio or mobility, stay as they are: the alternative to lifting, one tap away.
 ## Built so far
 
 As of 0.13.4 the muscle side is shown, not yet used to choose. One component, `MuscleFigure`, draws the
-rendered maps from `muscle-map/` (male or female, a setting; front and back). Muscles are named the way
+rendered maps from `muscle-map/` (male or female, picked in Settings → Personalization; front and back). Muscles are named the way
 people say them, twenty in all: chest; front, side and rear shoulders; biceps, triceps, forearms; abs and
 obliques; traps, lats, upper back, lower back; glutes, outer hips, inner thighs, quads, hamstrings, calves;
 and the shins, which no exercise works. Exercises are tagged with these names, the figure highlights by them

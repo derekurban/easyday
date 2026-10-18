@@ -49,7 +49,8 @@ Plate -> muscle assignments live in `muscle-map/pipeline/labels.py`.
 
 ## Muscle map format (`muscle-map/assets/`)
 For each of `male_front`, `male_back`, `female_front`, `female_back` (1254×1254):
-- `<view>.png`: the body render (RGBA, transparent background, nipples removed, edge halo cleaned).
+- `<view>.png`: the body render (RGBA, transparent background, nipples removed, edge halo cleaned, silhouette
+  smoothed so an enlarged figure has no serrated edge; `pipeline/verify.py` checks it).
 - `<view>_ids.png`: **R** = plate id (0 = not a plate), **G** = tint strength 0–255. The tint strength is
   already groove-, seam- and edge-aware, so a renderer just does, per pixel:
   `alpha = G/255 × baseAlpha/255`; `colour = groupColour × (luminance / 182)` (keeps the plate's shading).
