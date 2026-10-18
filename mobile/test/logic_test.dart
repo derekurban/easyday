@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:fitness/data/library.dart';
 import 'package:fitness/data/model.dart';
+import 'package:fitness/data/store.dart';
 import 'package:fitness/logic/after.dart';
 import 'package:fitness/logic/builder.dart';
 import 'package:fitness/logic/ladder.dart';
@@ -624,6 +625,24 @@ void main() {
       final st = ensureState(s, ex);
       expect(stepKg(s, ex), closeTo(5 / lbPerKg, 0.001));
       expect(rungLabel(s, ex, st, 0), endsWith('lb'));
+    });
+  });
+
+  group('your data', () {
+    test('a copy restores into another install, and anything else changes nothing', () {
+      final s = fresh();
+      run(s, t0);
+      final from = Store(s, null);
+      final to = Store(AppState(), null);
+      expect(Store.looksLikeData(from.exportJson()), isTrue);
+      expect(to.importJson(from.exportJson()), isTrue);
+      final copied = jsonEncode(to.state.toJson());
+      expect(copied, jsonEncode(s.toJson()));
+      for (final junk in ['', 'hello', '{}', '[]', '{"profile": 1, "plan": 2}', jsonEncode(AppState().toJson())]) {
+        expect(Store.looksLikeData(junk), isFalse, reason: junk);
+        expect(to.importJson(junk), isFalse, reason: junk);
+      }
+      expect(jsonEncode(to.state.toJson()), copied);
     });
   });
 }

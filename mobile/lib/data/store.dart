@@ -49,4 +49,28 @@ class Store extends ChangeNotifier {
   }
 
   String exportJson() => const JsonEncoder.withIndent('  ').convert(state.toJson());
+
+  /// Whether [raw] is a copy made by [exportJson]: JSON with a profile and a plan, not just any text on the clipboard.
+  static bool looksLikeData(String raw) {
+    try {
+      final j = jsonDecode(raw);
+      return j is Map<String, dynamic> && j['profile'] is Map && j['plan'] is Map;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Replaces everything with a copy made by [exportJson], from this install or another. False, with nothing changed,
+  /// when [raw] is not one.
+  bool importJson(String raw) {
+    if (!looksLikeData(raw)) return false;
+    try {
+      state = AppState.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('store: import failed ($e)');
+      return false;
+    }
+    save();
+    return true;
+  }
 }
