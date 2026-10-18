@@ -102,6 +102,13 @@ app's external storage belong to the shell user, so the app cannot read them.)
 `bash tool/publish.sh [prod|staging|--no-build]` still builds release APKs locally into `../dist/` for the Tailscale
 install page (`../dist/index.html`); it no longer makes GitHub releases.
 
+### Feedback
+
+Settings → Feedback: people write a problem or an idea in the app, and the repo's issue form
+(`../.github/ISSUE_TEMPLATE/`) opens in the browser with all of it filled in, plus the version and phone; they sign in
+and send. `lib/logic/feedback.dart` builds the links, and `test/feedback_test.dart` fails if a field the app fills is
+renamed, relabelled or made a dropdown in a form. See `../docs/app/FEEDBACK.md`.
+
 ## Words
 
 The spec and the UI say **progression** and **level**; the code still says ladder and rung in a few places (`ladder.dart`,

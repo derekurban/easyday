@@ -1,0 +1,46 @@
+# Filled in by the app (Settings > Feedback, mobile/lib/logic/feedback.dart): the person writes it in the app and only
+# signs in and sends here. URLs can fill text fields only (not dropdowns), so every field the app fills is an input or
+# a textarea.
+# The app fills fields by id; mobile/test/feedback_test.dart checks every id it fills is here, as a text field.
+name: Report a problem
+description: Something broke, looks wrong, or got in the way.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time. Reports here are public, so leave out anything personal.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw. A screenshot helps; drag it into this box.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: The screens and taps that lead to it, if you know them.
+      placeholder: |
+        1. Open Today
+        2. Pick Hard and 30 minutes
+        3. ...
+  - type: input
+    id: often
+    attributes:
+      label: How often
+      placeholder: Every time, sometimes, or once so far
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Filled in when you report from the app. Otherwise, Settings > Updates shows it.
+  - type: input
+    id: device
+    attributes:
+      label: Phone
+      description: Model and Android version.

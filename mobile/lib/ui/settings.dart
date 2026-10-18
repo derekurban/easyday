@@ -1,5 +1,5 @@
 // Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
-// settings, breaks, and prototype tools.
+// settings, breaks, updates, feedback, and prototype tools.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -12,6 +12,7 @@ import '../logic/builder.dart';
 import '../logic/rotation.dart';
 import 'app.dart';
 import 'catalog.dart';
+import 'feedback.dart';
 import 'goal_editor.dart';
 import 'how.dart';
 import 'location_editor.dart';
@@ -187,6 +188,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 20),
         const SectionHeader('Updates', icon: LucideIcons.download),
         const UpdatePanel(),
+        const SizedBox(height: 20),
+        const SectionHeader('Feedback', icon: LucideIcons.messageSquareText),
+        const FeedbackPanel(),
         const SizedBox(height: 20),
         const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
