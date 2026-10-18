@@ -84,7 +84,7 @@ Installed apps update themselves (`AutoUpdater` in `lib/ui/updates.dart`). On la
 at most every half hour, the app reads `api.github.com/repos/derekurban/fitness/releases`, takes the newest release
 carrying its own flavour's APK, and if it is a higher version (or the same version with a higher build number) it
 downloads it, shows "Updating to …", and installs it over itself through a PackageInstaller session; Android closes
-the app and the new version opens next time. It waits while a workout is in progress, stays off in debug builds, and
+the app and the new version opens next time. It waits while a workout is in progress, installs nothing in debug builds, and
 needs "install unknown apps" allowed for the app once (Settings → Updates asks for it and still offers a manual check
 and Update button). On Android 12+ Android installs without a prompt once the app is its own installer of record,
 that is from the second self-update on; the first one (and every one before Android 12) shows Android's confirm
@@ -94,10 +94,16 @@ without scanning"; turning off "Scan apps with Play Protect" in the Play Store r
 emulator (Android 16): the first self-update asked once, a later one installed with no Android prompt, Play Protect
 asked each time.
 
+Every check also feeds a trail to the waiting update, for whenever the install does not happen on its own (installs
+not allowed yet, a failed install, a debug build): an amber dot on the Settings tab, an amber banner at the top of
+Settings ("A new update is available") whose "Go to update" button scrolls to the Updates section, and a dot on that
+section's header. All three go away once a check finds the app current.
+
 A test build can read its release list from somewhere other than GitHub:
 `--dart-define=UPDATE_FEED=http://127.0.0.1:8765/feed.json`, a JSON list shaped like GitHub's whose asset URL points
 at an APK served beside it, from the computer through `adb reverse tcp:8765 tcp:8765`. (Files pushed with adb into the
-app's external storage belong to the shell user, so the app cannot read them.)
+app's external storage belong to the shell user, so the app cannot read them.) The dev loop takes the same feed as
+`UPDATE_FEED=http://127.0.0.1:8765/feed.json node tool/dev.mjs`.
 
 `bash tool/publish.sh [prod|staging|--no-build]` still builds release APKs locally into `../dist/` for the Tailscale
 install page (`../dist/index.html`); it no longer makes GitHub releases.

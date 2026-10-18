@@ -62,10 +62,12 @@ IconData moveIcon(String? kind) => kind == 'cardio' ? LucideIcons.footprints : L
 
 /// Eyebrow with an icon.
 class SectionHeader extends StatelessWidget {
-  const SectionHeader(this.text, {super.key, this.icon, this.trailing});
+  const SectionHeader(this.text, {super.key, this.icon, this.trailing, this.marker});
   final String text;
   final IconData? icon;
   final Widget? trailing;
+  /// A small mark right after the label, such as the dot for a waiting update.
+  final Widget? marker;
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -74,7 +76,10 @@ class SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8, top: 4),
       child: Row(children: [
         if (icon != null) Padding(padding: const EdgeInsets.only(right: 6), child: Icon(icon, size: 14, color: du.inkTertiary)),
-        Expanded(child: Text(text.toUpperCase(), style: t.labelSmall)),
+        Expanded(child: Row(children: [
+          Flexible(child: Text(text.toUpperCase(), style: t.labelSmall)),
+          if (marker != null) ...[const SizedBox(width: 6), marker!],
+        ])),
         ?trailing,
       ]),
     );
