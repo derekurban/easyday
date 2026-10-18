@@ -29,6 +29,9 @@ const muscleNames = [
   'traps', 'lats', 'upper back', 'lower back', 'glutes', 'outer hips', 'inner thighs', 'quads', 'hamstrings', 'calves', 'shins',
 ];
 
+/// The muscles exercises work, whose work is tracked over time: all but the shins.
+final trackedMuscles = [for (final m in muscleNames) if (m != 'shins') m];
+
 /// A muscle name as a title: "Front shoulders".
 String muscleTitle(String muscle) => muscle.isEmpty ? muscle : muscle[0].toUpperCase() + muscle.substring(1);
 

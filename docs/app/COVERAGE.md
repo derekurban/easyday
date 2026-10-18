@@ -8,9 +8,11 @@ the end of the workout is spent.
 
 ## What it is
 
-- **Credits.** Every working or extra set credits its exercise's first primary muscle group one point and
-  each other group its secondary muscles fold onto half a point, once per group however many of its muscles
-  help. Light sets credit half of that. Groups are the eleven of the muscle index in `EXERCISES.md`.
+- **Credits.** Credits go to the muscles doing the work, by the twenty everyday names: every working or
+  extra set credits each of its exercise's primary muscles one point and each secondary muscle half a point
+  (a row: the upper back one, the lats, biceps and rear shoulders half each). Light sets credit half of
+  that. Where coverage weighs groups (the eleven of the muscle index in `EXERCISES.md`), a group is read
+  from its muscles.
 - **A window.** The last rotation: as many workouts as the rotation is long, so a four-workout rotation
   looks back four workouts. Movement workouts are in the window but credit nothing.
 - **A target share.** Even across the eleven groups by default, then tilted by the user's emphasis: "20 %
@@ -70,10 +72,10 @@ of that muscle blue in place of its step, on both figures, and floats a tooltip 
 name and a line from the screen: on Today which exercises use it as main or helper, on Progress when its
 group was last worked. An expand button opens the figure full screen with pinch zoom, a Both / Front / Back
 toggle and the same tap details in a panel. On Today it shows only the planned workout: the exercises'
-primary and secondary muscles. On Progress it shows recency: each group tinted
+primary and secondary muscles. On Progress it shows recency: each muscle tinted
 by how worked it is, from the sets of the last five days faded by the days since,
-one point per set on the first primary group and half on each secondary, light sets half of that. Progress
-also shows a fourteen-day strip and "last worked" per group. The
+one point per set on each primary muscle and half on each secondary, light sets half of that; a tap tells
+when that muscle was last worked. Progress also shows a fourteen-day strip and "last worked" per muscle. The
 credits, window and deficit that would choose exercises are not built; the builder still takes the usual
 pick for a pattern.
 

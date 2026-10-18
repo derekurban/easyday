@@ -120,23 +120,23 @@ void main() {
   });
 
   group('muscles', () {
-    test('sets credit the primary group fully and secondary groups by half; light sets by half of that', () {
+    test('sets credit each primary muscle fully and each secondary muscle by half; light sets by half of that', () {
       final s = fresh(template: 'gym');
       final session = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45), t0);
       startSession(s, session, t0);
       final e = session.exercises[0];
       for (var k = 0; k < e.sets.length; k++) { logSet(session, 0, e.target, t0.add(Duration(minutes: 2 * (k + 1)))); }
       final c = exerciseCredits(e);
-      expect(c[muscleGroup(e.exercise.primary.first)], e.sets.length.toDouble());
-      for (final m in e.exercise.secondary) { expect(c[muscleGroup(m)], greaterThanOrEqualTo(e.sets.length * 0.5)); }
+      for (final m in e.exercise.primary) { expect(c[m], e.sets.length.toDouble(), reason: m); }
+      for (final m in e.exercise.secondary.where((m) => !e.exercise.primary.contains(m))) { expect(c[m], e.sets.length * 0.5, reason: m); }
       expect(exerciseCredits(session.exercises[1]), isEmpty, reason: 'nothing attempted yet');
       expect(exerciseCredits(session.exercises[1], planned: true), isNotEmpty);
       final light = SessionExercise.fromJson(e.toJson())..intent = intentLight;
-      expect(exerciseCredits(light)[muscleGroup(e.exercise.primary.first)], e.sets.length * 0.5);
-      // a group counts once: the overhead press's helping side shoulders add nothing more to Shoulders
-      final press = SessionExercise.fromJson(e.toJson())..exId = 'ohp';
-      expect(press.exercise.secondary, contains('side shoulders'));
-      expect(exerciseCredits(press), {'Shoulders': e.sets.length.toDouble(), 'Triceps': e.sets.length * 0.5});
+      expect(exerciseCredits(light)[e.exercise.primary.first], e.sets.length * 0.5);
+      // the work goes to the muscles doing it: a row credits the upper back fully and each helper by half
+      final row = SessionExercise.fromJson(e.toJson())..exId = 'bb_row';
+      final n = e.sets.length.toDouble();
+      expect(exerciseCredits(row), {'upper back': n, 'lats': n / 2, 'biceps': n / 2, 'rear shoulders': n / 2});
     });
 
     test('recent work fades over the fade days, and the strip and last-worked follow the sessions', () {
@@ -150,7 +150,8 @@ void main() {
       final later = recentWork(s, t0.add(const Duration(days: 3)));
       expect(later[g], lessThan(sameDay[g]!));
       expect(recentWork(s, t0.add(Duration(days: muscleFadeDays)))[g], 0);
-      expect(recentWork(s, t0.add(Duration(days: muscleFadeDays)))['Chest'], 0);
+      expect(recentWork(s, t0.add(Duration(days: muscleFadeDays)))['chest'], 0);
+      expect(recentWork(s, t0).keys, trackedMuscles);
       expect(lastWorked(s)[g], session.endedAt);
       final strip = dayStrip(s, g, t0.add(const Duration(days: 2)));
       expect(strip.length, 14);
@@ -168,11 +169,6 @@ void main() {
       final secondaryOnly = session.exercises.expand((e) => e.exercise.secondary).where((g) => !session.exercises.any((e) => e.exercise.primary.contains(g)));
       for (final g in secondaryOnly) { expect(m[g], secondaryStrength, reason: g); }
       for (final g in m.keys) { expect(muscleNames, contains(g), reason: g); }
-      final spread = byMuscle({'Back': 0.8, 'Core': 0.2});
-      for (final g in ['lats', 'traps', 'upper back']) { expect(spread[g], 0.8, reason: g); }
-      for (final g in ['abs', 'obliques', 'lower back']) { expect(spread[g], 0.2, reason: g); }
-      expect(spread.containsKey('chest'), isFalse);
-      expect(spread.containsKey('shins'), isFalse);
     });
 
     test('a strength draws at one of three accent steps: main full, helping the middle one, a trace the lightest', () {
