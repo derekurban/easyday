@@ -32,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool syncing = false;
   Position2? here;          // after a refresh: distances to every saved place
   bool locating = false;
+  final _updates = GlobalKey();   // the Updates section, which the update banner scrolls to
 
   @override
   void initState() {
@@ -52,7 +53,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings'), actions: [
         TextButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HowItWorks())), icon: const Icon(LucideIcons.circleHelp, size: 18), label: const Text('How it works')),
       ]),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), children: [
+      // Not a lazy ListView: the banner scrolls to the Updates section, which has to be built to be found.
+      body: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        UpdateBanner(onGo: _goToUpdate),
         const SectionHeader('Goal', icon: LucideIcons.target),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
@@ -191,7 +194,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ValueSlider(label: 'Days an exercise rests after pain', value: st.painRestDays, min: 3, max: 28, unit: ' days', icon: LucideIcons.bandage, onChanged: (v) => store.update((_) => st.painRestDays = v)),
         ])),
         const SizedBox(height: 20),
-        const SectionHeader('Updates', icon: LucideIcons.download),
+        ValueListenableBuilder(valueListenable: updateAvailable, builder: (_, r, _) =>
+            SectionHeader('Updates', key: _updates, icon: LucideIcons.download, marker: r == null ? null : const UpdateDot())),
         const UpdatePanel(),
         const SizedBox(height: 20),
         const SectionHeader('Feedback', icon: LucideIcons.messageSquareText),
@@ -222,8 +226,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           TextButton.icon(onPressed: () => _confirmReset(context), style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error), icon: const Icon(LucideIcons.trash2, size: 16), label: const Text('Erase everything')),
           Text('${exercises.length} exercises built in', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
         ])),
-      ]),
+      ])),
     );
+  }
+
+  void _goToUpdate() {
+    final c = _updates.currentContext;
+    if (c != null) Scrollable.ensureVisible(c, duration: m(context, durSlow), curve: easeInOut, alignment: 0.1);
   }
 
   /// A plain readout of today as the app sees it: free, busy and workout minutes, with "last synced" and sync now.

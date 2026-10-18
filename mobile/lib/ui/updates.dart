@@ -1,6 +1,7 @@
 // The Updates panel in Settings (which build this is, whether GitHub has a newer release, and the download and install
-// flow for it) and the AutoUpdater, which does the same on its own whenever the app opens. The pure parts live in
-// logic/update.dart; the platform calls in integrations.dart.
+// flow for it), the AutoUpdater, which does the same on its own whenever the app opens, and the trail that points at a
+// waiting update: a dot on the Settings tab, a banner at the top of Settings, and a dot on the Updates section. The
+// pure parts live in logic/update.dart; the platform calls in integrations.dart.
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,10 @@ import '../logic/update.dart';
 import 'app.dart';
 import 'theme.dart';
 import 'widgets.dart';
+
+/// The newer release waiting to be installed, or null when the app is current or nothing has been checked yet. Set by
+/// the AutoUpdater on launch and resume and by the Updates panel; the tab dot, the banner and the section dot follow it.
+final updateAvailable = ValueNotifier<ReleaseInfo?>(null);
 
 enum _Phase { checking, upToDate, available, downloading, ready, installing, offline, none }
 
@@ -50,9 +55,14 @@ class _UpdatePanelState extends State<UpdatePanel> {
     final got = await UpdateBridge.latest(info?.flavor);
     if (!mounted) return;
     final r = got.release;
-    if (r == null) { setState(() => phase = got.reachable ? _Phase.none : _Phase.offline); return; }
+    if (r == null) {
+      if (got.reachable) updateAvailable.value = null;
+      setState(() => phase = got.reachable ? _Phase.none : _Phase.offline);
+      return;
+    }
     latest = r;
     final newer = info != null && isNewer(r, info!.versionName, info!.versionCode);
+    updateAvailable.value = newer ? r : null;
     setState(() => phase = newer ? _Phase.available : _Phase.upToDate);
   }
 
@@ -121,9 +131,10 @@ class _UpdatePanelState extends State<UpdatePanel> {
 
 /// Keeps the app current on its own: on launch, and whenever it comes back to the front (at most every half hour), it
 /// asks GitHub for a newer build of this flavour, downloads it and installs it over itself, closing the app. It waits
-/// while a workout is in progress. It stays off in debug builds (the dev loop's build is signed with the debug key and
-/// cannot take a release build), until installs from this app are allowed (the Settings panel asks for that), and for
-/// the rest of the run once an install has failed.
+/// while a workout is in progress. Every check also sets [updateAvailable], so the trail shows whenever the install
+/// does not happen on its own. Installing stays off in debug builds (the dev loop's build is signed with the debug key
+/// and cannot take a release build), until installs from this app are allowed (the Settings panel asks for that), and
+/// for the rest of the run once an install has failed.
 class AutoUpdater extends StatefulWidget {
   const AutoUpdater({super.key, required this.child});
   final Widget child;
@@ -158,15 +169,21 @@ class _AutoUpdaterState extends State<AutoUpdater> with WidgetsBindingObserver {
   bool get _working => context.store.state.active != null;
 
   Future<void> _run() async {
-    if (!kReleaseMode || busy || failed || !mounted || _working) return;
+    if (busy || !mounted || _working) return;
     if (checked != null && DateTime.now().difference(checked!) < every) return;
     busy = true;
     try {
       checked = DateTime.now();
       final info = await UpdateBridge.appInfo();
       if (info == null) return;
-      final r = (await UpdateBridge.latest(info.flavor)).release;
-      if (r == null || !isNewer(r, info.versionName, info.versionCode)) return;
+      final got = await UpdateBridge.latest(info.flavor);
+      final r = got.release;
+      if (r == null || !isNewer(r, info.versionName, info.versionCode)) {
+        if (got.reachable) updateAvailable.value = null;
+        return;
+      }
+      updateAvailable.value = r;
+      if (!kReleaseMode || failed) return;
       final url = r.assets[assetFor(info.flavor)];
       if (url == null || !await UpdateBridge.canInstall()) return;
       final path = await UpdateBridge.download(url, assetFor(info.flavor), (_) {});
@@ -182,4 +199,61 @@ class _AutoUpdaterState extends State<AutoUpdater> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// The small warning-coloured dot that marks each step of the trail to a waiting update.
+class UpdateDot extends StatelessWidget {
+  const UpdateDot({super.key, this.size = 8});
+  final double size;
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size, height: size,
+        decoration: BoxDecoration(color: context.du.warning, shape: BoxShape.circle),
+      );
+}
+
+/// The top of Settings while a newer build waits: what it is, and a button that scrolls down to the Updates panel.
+class UpdateBanner extends StatelessWidget {
+  const UpdateBanner({super.key, required this.onGo});
+  final VoidCallback onGo;
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<ReleaseInfo?>(
+        valueListenable: updateAvailable,
+        builder: (context, r, _) {
+          if (r == null) return const SizedBox.shrink();
+          final du = context.du;
+          final t = Theme.of(context).textTheme;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: du.warningSubtle,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: du.warningLine, width: 0.6),
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Icon(LucideIcons.circleArrowUp, size: 22, color: du.warning),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('A new update is available', style: t.titleMedium?.copyWith(color: du.warning)),
+                    Text('Version ${releaseLabel(r)} is ready. Update now to get the latest changes.', style: t.bodySmall?.copyWith(color: du.ink)),
+                  ])),
+                ]),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onGo,
+                    style: FilledButton.styleFrom(backgroundColor: du.warning, foregroundColor: du.surface, minimumSize: const Size(64, 44)),
+                    icon: const Icon(LucideIcons.arrowDown, size: 18),
+                    label: const Text('Go to update'),
+                  ),
+                ),
+              ]),
+            ),
+          );
+        },
+      );
 }
