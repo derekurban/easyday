@@ -8,40 +8,30 @@ import '../data/library.dart';
 import '../data/model.dart';
 import 'ladder.dart';
 
-/// The muscle-map dataset's 17 groups folded onto the app's eleven. The shin (tibialis) has no group and never highlights.
-const datasetToAppGroup = {
-  'abdominals': 'Core', 'abductors': 'Glutes', 'adductors': 'Quads', 'biceps': 'Biceps', 'calves': 'Calves', 'chest': 'Chest',
-  'forearms': 'Forearms', 'glutes': 'Glutes', 'hamstrings': 'Hamstrings', 'lats': 'Back', 'lower back': 'Core', 'middle back': 'Back',
-  'quadriceps': 'Quads', 'shoulders': 'Shoulders', 'traps': 'Back', 'triceps': 'Triceps',
-};
-
-String? appGroupOf(String datasetGroup) => datasetToAppGroup[datasetGroup];
-
-/// A library muscle name as the dataset spells it.
-String datasetGroupOf(String libraryMuscle) => switch (libraryMuscle) { 'middleback' => 'middle back', 'lowerback' => 'lower back', _ => libraryMuscle };
-
-/// The muscles a workout uses, by dataset group: the exercises' primary muscles strong, their secondary ones light.
+/// The muscles a workout uses, by name: the exercises' primary muscles strong, their secondary ones light.
 Map<String, double> workoutMuscles(Session x) {
   final out = <String, double>{};
   if (x.type != 'lift') return out;
   for (final e in x.exercises) {
-    for (final m in e.exercise.primary) { out[datasetGroupOf(m)] = 1.0; }
-    for (final m in e.exercise.secondary) { final g = datasetGroupOf(m); out[g] = max(out[g] ?? 0, 0.5); }
+    for (final m in e.exercise.primary) { out[m] = 1.0; }
+    for (final m in e.exercise.secondary) { out[m] = max(out[m] ?? 0, 0.5); }
   }
   return out;
 }
 
-/// An app-group map spread over the dataset groups it folds, for the figure.
-Map<String, double> byDatasetGroup(Map<String, double> byApp) =>
-    {for (final e in datasetToAppGroup.entries) if ((byApp[e.value] ?? 0) > 0) e.key: byApp[e.value]!};
+/// A map by group spread over the muscles each group folds, for the figure.
+Map<String, double> byMuscle(Map<String, double> byGroup) =>
+    {for (final m in muscleNames) if ((byGroup[muscleGroup(m)] ?? 0) > 0) m: byGroup[muscleGroup(m)]!};
 
 /// A muscle group's work fades to nothing over this many days.
 const muscleFadeDays = 5;
 /// Credits that count as fully worked: about two exercises of three sets on the group.
 const muscleFullCredits = 6.0;
 
-/// Credits per muscle group for one exercise: a set credits the first primary group one point and each secondary
-/// group half a point; light sets credit half of that. [planned] counts every set, otherwise the attempted ones.
+/// Credits per muscle group for one exercise: a set credits the first primary muscle's group one point and each
+/// other group a secondary muscle folds onto half a point, once however many of its muscles help (a press helped by
+/// the side shoulders adds nothing more to Shoulders); light sets credit half of that. [planned] counts every set,
+/// otherwise the attempted ones.
 Map<String, double> exerciseCredits(SessionExercise e, {bool planned = false}) {
   final ex = e.exercise;
   final sets = planned ? e.sets.length : e.attempted.length;
@@ -50,8 +40,7 @@ Map<String, double> exerciseCredits(SessionExercise e, {bool planned = false}) {
   final out = <String, double>{};
   if (ex.primary.isNotEmpty) out[muscleGroup(ex.primary.first)] = sets * weight;
   for (final m in ex.secondary) {
-    final g = muscleGroup(m);
-    out[g] = (out[g] ?? 0) + sets * weight * 0.5;
+    out.putIfAbsent(muscleGroup(m), () => sets * weight * 0.5);
   }
   return out;
 }

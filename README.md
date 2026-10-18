@@ -53,7 +53,9 @@ For each of `male_front`, `male_back`, `female_front`, `female_back` (1254×1254
 - `<view>_ids.png`: **R** = plate id (0 = not a plate), **G** = tint strength 0–255. The tint strength is
   already groove-, seam- and edge-aware, so a renderer just does, per pixel:
   `alpha = G/255 × baseAlpha/255`; `colour = groupColour × (luminance / 182)` (keeps the plate's shading).
-- `flat.json`: per view, every plate's `id`, `muscle` name, dataset `group` (or `null` = never highlighted) and centre.
+- `flat.json`: per view, every plate's `id`, anatomical `muscle`, everyday `name` (what the Android app tags exercises
+  with, highlights by and shows on a tap; `pipeline/labels.py` `NAMES`), dataset `group` (or `null` = never
+  highlighted; what the playground uses) and centre.
 - `outlines.json`: per view and plate, two smooth sub-pixel polygon sets from `pipeline/outlines.py`. `plates` is
   the plate's visible edge (for a renderer that outlines plates; the fills are grown from it): it runs out to where the render drops into the groove,
   measured against the plate's own nearby brightness so shaded rims (the outer calves) are in; light strips and tips

@@ -9,8 +9,8 @@ the end of the workout is spent.
 ## What it is
 
 - **Credits.** Every working or extra set credits its exercise's first primary muscle group one point and
-  each secondary group half a point. Light sets credit half of that. Groups are the eleven of the muscle
-  index in `EXERCISES.md`.
+  each other group its secondary muscles fold onto half a point, once per group however many of its muscles
+  help. Light sets credit half of that. Groups are the eleven of the muscle index in `EXERCISES.md`.
 - **A window.** The last rotation: as many workouts as the rotation is long, so a four-workout rotation
   looks back four workouts. Movement workouts are in the window but credit nothing.
 - **A target share.** Even across the eleven groups by default, then tilted by the user's emphasis: "20 %
@@ -27,7 +27,7 @@ the end of the workout is spent.
 
 - **Which exercise fills a pattern.** When the builder has more than one candidate for a pattern at this
   location, it takes the one whose primary group has the largest deficit; ties go to the practised one,
-  then the goal's order. Pull becomes a row when middle back is behind, a pulldown when lats are.
+  then the goal's order. Pull becomes a row when the upper back is behind, a pulldown when lats are.
 - **Which exercises do the work on an easy day.** Easy gives two exercises a working turn; they are the
   two whose primary groups have the largest deficit, among the easy and medium ones. An easy day is a
   catch-up day for whatever has been missed, without the hard lifts.
@@ -60,13 +60,17 @@ cardio or mobility, stay as they are: the alternative to lifting, one tap away.
 ## Built so far
 
 As of 0.13.4 the muscle side is shown, not yet used to choose. One component, `MuscleFigure`, draws the
-rendered maps from `muscle-map/` (male or female, a setting; front and back). Primary muscles fill with a
-the design system's mid moss accent, secondary ones with its pale accent line, with a two-swatch key under the figures. Tapping a plate
-fills every plate of its dataset group blue in place of its step, on both figures, and floats a tooltip over the render
-with the muscle, its group and a line from the screen: on Today which exercises use it as main or helper,
-on Progress when the group was last worked. An expand button opens the figure full screen with pinch
-zoom, a Both / Front / Back toggle and the same tap details in a panel. On Today it shows only the planned
-workout: the exercises' primary and secondary muscles by the dataset's seventeen groups. On Progress it shows recency: each group tinted
+rendered maps from `muscle-map/` (male or female, a setting; front and back). Muscles are named the way
+people say them, twenty in all: chest; front, side and rear shoulders; biceps, triceps, forearms; abs and
+obliques; traps, lats, upper back, lower back; glutes, outer hips, inner thighs, quads, hamstrings, calves;
+and the shins, which no exercise works. Exercises are tagged with these names, the figure highlights by them
+and a tap shows one as the title. Primary muscles fill with the design system's moss accent at full
+strength, secondary ones at a lighter step, with a key under the figures. Tapping a plate fills every plate
+of that muscle blue in place of its step, on both figures, and floats a tooltip over the render with its
+name and a line from the screen: on Today which exercises use it as main or helper, on Progress when its
+group was last worked. An expand button opens the figure full screen with pinch zoom, a Both / Front / Back
+toggle and the same tap details in a panel. On Today it shows only the planned workout: the exercises'
+primary and secondary muscles. On Progress it shows recency: each group tinted
 by how worked it is, from the sets of the last five days faded by the days since,
 one point per set on the first primary group and half on each secondary, light sets half of that. Progress
 also shows a fourteen-day strip and "last worked" per group. The

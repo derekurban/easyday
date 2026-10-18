@@ -69,7 +69,7 @@ class ProgressScreen extends StatelessWidget {
         const SectionHeader('Muscles, last two weeks', icon: LucideIcons.personStanding),
         Panel(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Row(children: [
-            MuscleFigure(highlight: byDatasetGroup(worked), height: 190, keyLabels: const ['worked hard', 'worked', 'fading'], expandable: true, title: 'Muscles, last two weeks',
+            MuscleFigure(highlight: byMuscle(worked), height: 190, keyLabels: const ['worked hard', 'worked', 'fading'], expandable: true, title: 'Muscles, last two weeks',
                 detail: (h) => _muscleDetail(h, worked, last, now)),
             const SizedBox(width: 16),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -142,8 +142,8 @@ class ProgressScreen extends StatelessWidget {
 
   /// For a tapped muscle: when its group was last worked and how far that has faded.
   String? _muscleDetail(MuscleHit h, Map<String, double> worked, Map<String, DateTime?> last, DateTime now) {
-    final g = appGroupOf(h.dataset);
-    if (g == null) return null;
+    final g = muscleGroup(h.name);
+    if (!muscleGroups.contains(g)) return null;
     final at = last[g];
     if (at == null) return '$g · not worked yet.';
     final w = worked[g] ?? 0;

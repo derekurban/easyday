@@ -1,4 +1,5 @@
-# Build web assets for the flat muscle map: base RGBA image, plate-id map, metadata. Also writes verification images.
+# Build web assets for the flat muscle map: base RGBA image, plate-id map, metadata (per plate: anatomical muscle, its
+# everyday name, free-exercise-db group, centre). Also writes verification images.
 #   python build.py [out_dir=../assets]   (reads work/ from segment.py + fix_nipples.py, labels from labels.py)
 import sys, os, json
 import os as _os; _os.chdir(_os.path.dirname(_os.path.abspath(__file__)))
@@ -6,7 +7,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from scipy import ndimage as ndi
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from labels import LABELS, GROUPS
+from labels import LABELS, GROUPS, NAMES
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "../assets"; os.makedirs(OUT, exist_ok=True); os.makedirs("verify", exist_ok=True)
 font = ImageFont.truetype("arial.ttf", 18)
@@ -78,7 +79,7 @@ for name, labels in LABELS.items():
     coms = ndi.center_of_mass(cc > 0, cc, range(1, n + 1))
     for i in range(1, n + 1):
         m, grp = labels[i]
-        plates.append({"id": i, "muscle": m, "group": grp, "cx": round(coms[i - 1][1]), "cy": round(coms[i - 1][0])})
+        plates.append({"id": i, "muscle": m, "name": NAMES[m], "group": grp, "cx": round(coms[i - 1][1]), "cy": round(coms[i - 1][0])})
     meta["maps"][name] = {"T": T, "w": rgba.shape[1], "h": rgba.shape[0], "plates": plates}
     # verification 3: every plate painted with its group colour + muscle names, uncovered light px in magenta
     lut = np.zeros((256, 3), np.uint8)

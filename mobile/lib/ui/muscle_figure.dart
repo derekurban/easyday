@@ -1,11 +1,11 @@
 // MuscleFigure: the rendered body figures from muscle-map/assets (male or female, front and back), with muscles
-// highlighted by dataset group. The base render is drawn as it is; each highlighted plate's fill shape
+// highlighted by their everyday names (data/index.dart `muscleNames`, each plate's `name` in flat.json). The base render is drawn as it is; each highlighted plate's fill shape
 // (muscle-map/pipeline/outlines.py: the plate's traced edge grown a pixel into the dark groove around it) is filled
 // with the moss accent, multiplied over the render so the plate keeps its shading, at one of three opacities by which
 // third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent, a helping one at 0.5 the
-// middle step, a faded recency the lightest). Tap a plate and every plate of its group fills blue instead, with a
-// tooltip over the figure naming it (and whatever detail the caller adds, which is where a selected group's strength
-// is told). The fills are vector paths, so they stay crisp at any size and under the full screen's pinch zoom. An
+// middle step, a faded recency the lightest). Tap a plate and every plate of that muscle, on both figures, fills blue
+// instead, with a tooltip over the figure naming it (and whatever detail the caller adds, which is where a selected
+// muscle's strength is told). The fills are vector paths, so they stay crisp at any size and under the full screen's pinch zoom. An
 // expand button opens that full screen. The id maps (used for taps) follow app/js/muscle-map.js and
 // docs/muscle-mapping.md.
 import 'dart:async';
@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/index.dart';
 import 'app.dart';
 import 'motion.dart';
 import 'theme.dart';
@@ -55,19 +56,18 @@ double muscleStepOpacity(double strength) {
 /// path in that box's coordinates, and the id map cropped to the box for taps.
 class MuscleMapData {
   MuscleMapData({required this.w, required this.h, required this.x0, required this.y0, required this.base, required this.plate,
-      required this.plateDataset, required this.plateMuscle, required this.fills});
+      required this.plateName, required this.fills});
   final int w, h;                   // cropped size
   final int x0, y0;                 // the crop's corner in the asset
   final ui.Image base;              // the whole asset image
   final Uint8List plate;            // plate id per cropped pixel
-  final List<String?> plateDataset; // plate id -> dataset group
-  final List<String?> plateMuscle;  // plate id -> muscle name
+  final List<String?> plateName;    // plate id -> muscle name
   final Map<int, ui.Path> fills;    // plate id -> fill shape (its traced edge grown into the groove), cropped coordinates
 
   Rect get crop => Rect.fromLTWH(x0.toDouble(), y0.toDouble(), w.toDouble(), h.toDouble());
 
-  /// The plates of a dataset group.
-  Set<int> groupPlates(String dataset) => {for (var id = 1; id < 256; id++) if (plateDataset[id] == dataset) id};
+  /// The plates of a muscle.
+  Set<int> platesOf(String name) => {for (var id = 1; id < 256; id++) if (plateName[id] == name) id};
 
   /// The box around [plates]' fill shapes, in cropped coordinates, or null when none is traced.
   Rect? bounds(Iterable<int> plates) {
@@ -89,8 +89,8 @@ class MuscleRenderer {
   static Future<MuscleMapData> _load(String key) async {
     final meta = jsonDecode(await rootBundle.loadString('assets/muscle/flat.json')) as Map<String, dynamic>;
     final plates = (meta['maps'][key]['plates'] as List).cast<Map<String, dynamic>>();
-    final dataset = List<String?>.filled(256, null), muscle = List<String?>.filled(256, null);
-    for (final p in plates) { dataset[p['id'] as int] = p['group'] as String?; muscle[p['id'] as int] = p['muscle'] as String?; }
+    final name = List<String?>.filled(256, null);
+    for (final p in plates) { name[p['id'] as int] = p['name'] as String?; }
     // the render is drawn from Flutter's own decode (correct alpha); its raw pixels only find the crop
     final base = await _image('assets/muscle/$key.png');
     final baseRaw = (await base.toByteData(format: ui.ImageByteFormat.rawStraightRgba))!.buffer.asUint8List();
@@ -101,8 +101,8 @@ class MuscleRenderer {
     _outlines ??= rootBundle.loadString('assets/muscle/outlines.json').then((s) => jsonDecode(s) as Map<String, dynamic>);
     // outlines.json also has each plate's tight edge ('plates'); the figure only fills, so it reads the fill shapes
     final fills = (await _outlines)!['maps'][key]['fills'] as Map<String, dynamic>;
-    return MuscleMapData(w: crop.w, h: crop.h, x0: crop.x0, y0: crop.y0, base: base, plate: crop.plate, plateDataset: dataset,
-        plateMuscle: muscle, fills: {
+    return MuscleMapData(w: crop.w, h: crop.h, x0: crop.x0, y0: crop.y0, base: base, plate: crop.plate, plateName: name,
+        fills: {
           for (final e in fills.entries) int.parse(e.key): _path((e.value as List).cast<List>(), -crop.x0.toDouble(), -crop.y0.toDouble()),
         });
   }
@@ -213,15 +213,14 @@ class _FigurePainter extends CustomPainter {
 
 /// What a tap landed on.
 class MuscleHit {
-  const MuscleHit({required this.key, required this.plate, required this.muscle, required this.dataset});
+  const MuscleHit({required this.key, required this.plate, required this.name});
   final String key;
   final int plate;
-  final String muscle;
-  final String dataset;   // '' for the one unmapped muscle
+  final String name;   // the muscle's everyday name
 }
 
-/// The figures side by side. [highlight] is dataset group -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
-/// Tap a plate to fill its group blue and see a tooltip: the muscle, its group, and [detail] if the caller has one.
+/// The figures side by side. [highlight] is muscle name -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
+/// Tap a plate to fill that muscle blue and see a tooltip: its name and [detail] if the caller has one.
 /// [keyLabels] names the steps under the figures, strongest first; [expandable] adds a button that opens [MuscleFigureScreen].
 class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
@@ -273,19 +272,19 @@ class _MuscleFigureState extends State<MuscleFigure> {
         for (final o in [(0, 0), (r, 0), (-r, 0), (0, r), (0, -r)]) {
           final px = (x + o.$1).clamp(0, m.w - 1), py = (y + o.$2).clamp(0, m.h - 1);
           final id = m.plate[py * m.w + px];
-          if (id != 0 && m.plateMuscle[id] != null) { found = MuscleHit(key: key, plate: id, muscle: m.plateMuscle[id]!, dataset: m.plateDataset[id] ?? ''); break; }
+          if (id != 0 && m.plateName[id] != null) { found = MuscleHit(key: key, plate: id, name: m.plateName[id]!); break; }
         }
         if (found != null) break;
       }
     }
-    final same = found != null && hit != null && hit!.dataset == found.dataset && (found.dataset.isNotEmpty || hit!.plate == found.plate);
+    final same = found != null && hit != null && hit!.name == found.name;
     final next = (found == null || same) ? null : found;
     final group = <String, Set<int>>{};
     if (next != null) {
       for (final side in widget.sides) {
         final k = '${sex}_$side';
         final sm = await MuscleRenderer.map(k);
-        group[k] = next.dataset.isEmpty ? (k == key ? {next.plate} : <int>{}) : sm.groupPlates(next.dataset);
+        group[k] = sm.platesOf(next.name);
       }
     }
     Rect? box2;
@@ -345,7 +344,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
                           size: box,
                           painter: _FigurePainter(md, {
                             for (var id = 1; id < 256; id++)
-                              if ((opacity[md.plateDataset[id]] ?? 0) > 0) id: opacity[md.plateDataset[id]]!,
+                              if ((opacity[md.plateName[id]] ?? 0) > 0) id: opacity[md.plateName[id]]!,
                           }, picked, widget.zoom),
                         ),
                       );
@@ -429,15 +428,14 @@ class _Tip extends StatelessWidget {
     return Material(
       color: du.ink, elevation: 3, shadowColor: Colors.black38, borderRadius: BorderRadius.circular(10),
       child: Padding(padding: const EdgeInsets.fromLTRB(11, 8, 11, 9), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(hit.muscle, style: t.labelLarge?.copyWith(color: du.bg)),
-        if (hit.dataset.isNotEmpty) Text(hit.dataset, style: t.labelSmall?.copyWith(color: du.bg.withValues(alpha: 0.7))),
+        Text(muscleTitle(hit.name), style: t.labelLarge?.copyWith(color: du.bg)),
         if (detail != null) Padding(padding: const EdgeInsets.only(top: 5), child: Text(detail!, style: t.bodySmall?.copyWith(color: du.bg))),
       ])),
     );
   }
 }
 
-/// The figure full screen: as large as the width allows, pinch to zoom, tap to fill a group blue, with the details in
+/// The figure full screen: as large as the width allows, pinch to zoom, tap to fill a muscle blue, with the details in
 /// a panel under it instead of a tooltip.
 class MuscleFigureScreen extends StatefulWidget {
   const MuscleFigureScreen({super.key, required this.highlight, this.sides = const ['front', 'back'], this.keyLabels, this.detail, this.title});
@@ -495,9 +493,10 @@ class _MuscleFigureScreenState extends State<MuscleFigureScreen> {
             )),
           )),
           Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            AnimatedSwitcher(duration: m(context, durBase), child: Column(key: ValueKey(hit?.muscle), crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(hit?.muscle ?? 'Tap a muscle to name it', style: t.titleMedium),
-              Text(hit == null ? 'Pinch to zoom. Tapping a muscle shows its whole group in blue.' : (detail == null ? hit!.dataset : [if (hit!.dataset.isNotEmpty) hit!.dataset, detail].join(' · ')), style: t.bodySmall),
+            AnimatedSwitcher(duration: m(context, durBase), child: Column(key: ValueKey(hit?.name), crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(hit == null ? 'Tap a muscle to name it' : muscleTitle(hit!.name), style: t.titleMedium),
+              if (hit == null || detail != null)
+                Text(hit == null ? 'Pinch to zoom. Tapping a muscle shows it in blue on both figures.' : detail!, style: t.bodySmall),
             ])),
             if (widget.keyLabels != null) ...[const SizedBox(height: 10), MuscleKey(labels: widget.keyLabels!)],
           ])),

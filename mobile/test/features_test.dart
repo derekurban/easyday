@@ -133,6 +133,10 @@ void main() {
       expect(exerciseCredits(session.exercises[1], planned: true), isNotEmpty);
       final light = SessionExercise.fromJson(e.toJson())..intent = intentLight;
       expect(exerciseCredits(light)[muscleGroup(e.exercise.primary.first)], e.sets.length * 0.5);
+      // a group counts once: the overhead press's helping side shoulders add nothing more to Shoulders
+      final press = SessionExercise.fromJson(e.toJson())..exId = 'ohp';
+      expect(press.exercise.secondary, contains('side shoulders'));
+      expect(exerciseCredits(press), {'Shoulders': e.sets.length.toDouble(), 'Triceps': e.sets.length * 0.5});
     });
 
     test('recent work fades over the fade days, and the strip and last-worked follow the sessions', () {
@@ -155,20 +159,20 @@ void main() {
       expect(agoText(session.endedAt, t0.add(const Duration(days: 1))), 'yesterday');
     });
 
-    test('a workout highlights its exercises\' primary muscles strong and secondary ones light, by dataset group', () {
+    test('a workout highlights its exercises\' primary muscles strong and secondary ones light, by muscle', () {
       final s = fresh(template: 'gym');
       final session = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45), t0);
       final m = workoutMuscles(session);
       final first = session.exercises[0].exercise;
-      expect(m[datasetGroupOf(first.primary.first)], primaryStrength);
-      final secondaryOnly = session.exercises.expand((e) => e.exercise.secondary).map(datasetGroupOf).where((g) => !session.exercises.any((e) => e.exercise.primary.map(datasetGroupOf).contains(g)));
+      expect(m[first.primary.first], primaryStrength);
+      final secondaryOnly = session.exercises.expand((e) => e.exercise.secondary).where((g) => !session.exercises.any((e) => e.exercise.primary.contains(g)));
       for (final g in secondaryOnly) { expect(m[g], secondaryStrength, reason: g); }
-      for (final g in m.keys) { expect(datasetToAppGroup.keys, contains(g), reason: g); }
-      final spread = byDatasetGroup({'Back': 0.8, 'Core': 0.2});
-      expect(spread['lats'], 0.8);
-      expect(spread['traps'], 0.8);
-      expect(spread['lower back'], 0.2);
+      for (final g in m.keys) { expect(muscleNames, contains(g), reason: g); }
+      final spread = byMuscle({'Back': 0.8, 'Core': 0.2});
+      for (final g in ['lats', 'traps', 'upper back']) { expect(spread[g], 0.8, reason: g); }
+      for (final g in ['abs', 'obliques', 'lower back']) { expect(spread[g], 0.2, reason: g); }
       expect(spread.containsKey('chest'), isFalse);
+      expect(spread.containsKey('shins'), isFalse);
     });
 
     test('a strength draws at one of three accent steps: main full, helping the middle one, a trace the lightest', () {
@@ -201,19 +205,36 @@ void main() {
   });
 
   group('body map', () {
-    test('every plate group in the shipped maps folds onto an app group, or is the one deliberately unmapped muscle', () {
+    Set<String> mapNames() {
       final meta = jsonDecode(File('assets/muscle/flat.json').readAsStringSync()) as Map<String, dynamic>;
+      final names = <String>{};
       for (final key in ['male_front', 'male_back', 'female_front', 'female_back']) {
         final plates = (meta['maps'][key]['plates'] as List).cast<Map<String, dynamic>>();
         expect(plates, isNotEmpty, reason: key);
-        for (final p in plates) {
-          final g = p['group'] as String?;
-          if (g == null) { expect(p['muscle'], 'Tibialis anterior', reason: '$key plate ${p['id']}'); continue; }
-          expect(muscleGroups, contains(appGroupOf(g)), reason: '$key: $g');
-        }
+        for (final p in plates) { names.add(p['name'] as String); }
       }
+      return names;
+    }
+
+    test('every plate is named with a standard muscle name, and every name but the shins folds onto a group', () {
+      final names = mapNames();
+      expect(names, unorderedEquals(muscleNames), reason: 'the map shows every muscle and only those');
+      for (final n in names.where((n) => n != 'shins')) { expect(muscleGroups, contains(muscleGroup(n)), reason: n); }
       expect(File('assets/muscle/male_front.png').existsSync(), isTrue);
       expect(File('assets/muscle/female_back_ids.png').existsSync(), isTrue);
+    });
+
+    test('exercises are tagged only with standard muscle names, and every muscle on the map but the shins can light up', () {
+      final tagged = <String>{};
+      for (final e in exercises) {
+        expect(e.primary, isNotEmpty, reason: e.id);
+        for (final m in [...e.primary, ...e.secondary]) { expect(muscleNames, contains(m), reason: '${e.id}: $m'); tagged.add(m); }
+      }
+      for (final n in mapNames().where((n) => n != 'shins')) { expect(tagged, contains(n), reason: 'no exercise works $n'); }
+      expect(exerciseById['hip_abduction']!.primary, ['outer hips']);
+      expect(exerciseById['face_pull']!.primary, ['rear shoulders']);
+      expect(exerciseById['lat_raise']!.primary, ['side shoulders']);
+      expect(exerciseById['russian_twist']!.primary, ['obliques']);
     });
   });
 
@@ -326,10 +347,15 @@ void main() {
         }
       }
     });
-    test('muscle groups fold the fifteen muscle names into eleven', () {
+    test('muscle groups fold the twenty muscle names into eleven', () {
       expect(muscleGroup('lats'), 'Back');
-      expect(muscleGroup('quadriceps'), 'Quads');
-      expect(muscleGroup('lowerback'), 'Core');
+      expect(muscleGroup('quads'), 'Quads');
+      expect(muscleGroup('lower back'), 'Core');
+      expect(muscleGroup('rear shoulders'), 'Shoulders');
+      expect(muscleGroup('obliques'), 'Core');
+      expect(muscleGroup('outer hips'), 'Glutes');
+      expect(muscleGroup('shins'), 'Other');
+      expect(muscleTitle('front shoulders'), 'Front shoulders');
       expect(indexGroup(exerciseById['pushup']!, ExerciseIndex.muscle), 'Chest');
       expect(indexGroup(exerciseById['pushup']!, ExerciseIndex.region), 'Upper body');
       expect(indexGroup(exerciseById['pushup']!, ExerciseIndex.equipment), 'Bodyweight');

@@ -21,15 +21,28 @@ const indexBlurb = {
   ExerciseIndex.difficulty: 'Easy, medium, hard: how much one hard set takes out of you.',
 };
 
-/// The eleven muscle groups people actually say, folded from the library's fifteen muscle names.
+/// The muscles by the names people use for them: what exercises are tagged with, what the body map highlights and
+/// names on a tap (each plate's `name` in assets/muscle/flat.json), what the workout's "works" line says. Shins are on
+/// the map but no exercise works them.
+const muscleNames = [
+  'chest', 'front shoulders', 'side shoulders', 'rear shoulders', 'biceps', 'triceps', 'forearms', 'abs', 'obliques',
+  'traps', 'lats', 'upper back', 'lower back', 'glutes', 'outer hips', 'inner thighs', 'quads', 'hamstrings', 'calves', 'shins',
+];
+
+/// A muscle name as a title: "Front shoulders".
+String muscleTitle(String muscle) => muscle.isEmpty ? muscle : muscle[0].toUpperCase() + muscle.substring(1);
+
+/// The eleven groups the muscles fold onto, for browsing and for tracking work over time.
 const muscleGroups = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Forearms', 'Core', 'Glutes', 'Quads', 'Hamstrings', 'Calves'];
 
 const _muscleFold = {
-  'chest': 'Chest', 'lats': 'Back', 'middleback': 'Back', 'traps': 'Back', 'shoulders': 'Shoulders',
-  'biceps': 'Biceps', 'triceps': 'Triceps', 'forearms': 'Forearms', 'abdominals': 'Core', 'lowerback': 'Core',
-  'glutes': 'Glutes', 'quadriceps': 'Quads', 'adductors': 'Quads', 'hamstrings': 'Hamstrings', 'calves': 'Calves',
+  'chest': 'Chest', 'front shoulders': 'Shoulders', 'side shoulders': 'Shoulders', 'rear shoulders': 'Shoulders',
+  'biceps': 'Biceps', 'triceps': 'Triceps', 'forearms': 'Forearms', 'abs': 'Core', 'obliques': 'Core',
+  'traps': 'Back', 'lats': 'Back', 'upper back': 'Back', 'lower back': 'Core', 'glutes': 'Glutes', 'outer hips': 'Glutes',
+  'inner thighs': 'Quads', 'quads': 'Quads', 'hamstrings': 'Hamstrings', 'calves': 'Calves',
 };
 
+/// The group a muscle folds onto, or 'Other' (the shins).
 String muscleGroup(String muscle) => _muscleFold[muscle] ?? 'Other';
 
 const _regionOf = {
