@@ -55,15 +55,15 @@ For each of `male_front`, `male_back`, `female_front`, `female_back` (1254×1254
   `alpha = G/255 × baseAlpha/255`; `colour = groupColour × (luminance / 182)` (keeps the plate's shading).
 - `flat.json`: per view, every plate's `id`, `muscle` name, dataset `group` (or `null` = never highlighted) and centre.
 - `outlines.json`: per view and plate, two smooth sub-pixel polygon sets from `pipeline/outlines.py`. `plates` is
-  the plate's visible edge (what a selection outline strokes): it runs out to where the render drops into the groove,
+  the plate's visible edge (for a renderer that outlines plates; the fills are grown from it): it runs out to where the render drops into the groove,
   measured against the plate's own nearby brightness so shaded rims (the outer calves) are in; light strips and tips
   beside the plate are taken in, narrow creases inside it closed, and the curve smoothed along its length (lightly at
   tips, more along the silhouette). `fills` is that edge grown a pixel into the groove, never onto another plate
   (what a highlight fills: multiplying the near-black groove changes nothing visible, so the fill covers the edge's
   anti-aliasing completely). `pipeline/check_outlines.py` gates both: no notches, every light pixel of a plate
   covered, each outline inside its fill, no fill on a neighbour. The Android app draws the render, then per
-  highlighted plate clips to its fill and draws the render again × `accent × 255/182` at the step's opacity, and
-  strokes the outline for a selection. Copy it to `mobile/assets/muscle/` with the other files.
+  highlighted plate clips to its fill and draws the render again × `accent × 255/182` at the step's opacity; a
+  tapped group fills the same way in blue at full strength, in place of its step. Copy it to `mobile/assets/muscle/` with the other files.
 
 ## References
 - `references/style/`: StrengthLog 2D diagrams, the plate-style sheets, MoveKit (look we liked).

@@ -1,6 +1,6 @@
 # Trace every plate's visible surface as smooth sub-pixel polygons, so an app can fill and outline muscles as vector
 # paths (crisp at any zoom) instead of tinting pixels. Two shapes per plate:
-#   outline  the plate's visible edge, smoothed: what a selection outline strokes
+#   outline  the plate's visible edge, smoothed: what a renderer would stroke to outline a plate (the fill grows from it)
 #   fill     the outline grown GROW px into the groove around it, stopping at other plates: what a highlight fills.
 #            A highlight multiplies the render, which leaves the near-black grooves near-black, so a fill that runs a
 #            little past the edge is invisible there and covers the edge's anti-aliasing and bright tips completely.

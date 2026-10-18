@@ -3,10 +3,11 @@
 // (muscle-map/pipeline/outlines.py: the plate's traced edge grown a pixel into the dark groove around it) is filled
 // with the moss accent, multiplied over the render so the plate keeps its shading, at one of three opacities by which
 // third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent, a helping one at 0.5 the
-// middle step, a faded recency the lightest). Tap a plate and every plate of its group is outlined in blue along its
-// traced edge, with a tooltip over the figure naming it (and whatever detail the caller adds). Fills and outlines are vector paths, so they stay crisp at any size and under the full
-// screen's pinch zoom. An expand button opens that full screen. The id maps (used for taps) follow
-// app/js/muscle-map.js and docs/muscle-mapping.md.
+// middle step, a faded recency the lightest). Tap a plate and every plate of its group fills blue instead, with a
+// tooltip over the figure naming it (and whatever detail the caller adds, which is where a selected group's strength
+// is told). The fills are vector paths, so they stay crisp at any size and under the full screen's pinch zoom. An
+// expand button opens that full screen. The id maps (used for taps) follow app/js/muscle-map.js and
+// docs/muscle-mapping.md.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -28,7 +29,8 @@ const secondaryStrength = 0.5;
 /// The fill: the design system's light-theme accent (oklch 0.48 0.085 138), laid over the plate at one of three
 /// opacities, so a strength reads as one of three clear steps rather than a fade. The figure is the same light gray in
 /// both themes, so the accent is fixed rather than a theme token (the dark-theme accent is too pale on gray plates).
-/// Selection is a blue the rest of the app never uses, so it cannot be mistaken for a fill.
+/// Selection is a blue the rest of the app never uses, filled at full strength in place of a plate's step, so a tapped
+/// group stands out from every fill.
 const muscleAccent = Color(0xFF456938);
 const muscleSelect = Color(0xFF2F7BE5);
 /// The plate gray the swatches sit on, the figure's typical plate brightness.
@@ -36,13 +38,12 @@ const musclePlate = Color(0xFFBEBEBE);
 /// The steps' opacities, weakest first.
 const muscleSteps = [1 / 3, 2 / 3, 1.0];
 
-/// What the fill multiplies the render by: the accent over the plates' typical gray (182), so a plate of that gray
-/// comes out exactly the accent at full strength and darker or lighter parts of it keep their shading.
-final muscleMultiply = Color.from(
-  alpha: 1, red: (muscleAccent.r * 255 / 182).clamp(0.0, 1.0), green: (muscleAccent.g * 255 / 182).clamp(0.0, 1.0), blue: (muscleAccent.b * 255 / 182).clamp(0.0, 1.0));
-
-/// The selection outline's width in logical pixels, whatever the size or zoom.
-const muscleOutlineWidth = 2.0;
+/// What a fill multiplies the render by: its colour over the plates' typical gray (182), so a plate of that gray comes
+/// out that colour at full strength (as near as a multiply reaches) and darker or lighter parts keep their shading.
+Color _overPlate(Color c) => Color.from(
+  alpha: 1, red: (c.r * 255 / 182).clamp(0.0, 1.0), green: (c.g * 255 / 182).clamp(0.0, 1.0), blue: (c.b * 255 / 182).clamp(0.0, 1.0));
+final muscleMultiply = _overPlate(muscleAccent);
+final muscleSelectMultiply = _overPlate(muscleSelect);
 
 /// The opacity a strength draws at: nothing at 0, then the step whose third of the range it falls in.
 double muscleStepOpacity(double strength) {
@@ -50,34 +51,29 @@ double muscleStepOpacity(double strength) {
   return muscleSteps[(strength.clamp(0.0, 1.0) * muscleSteps.length).ceil().clamp(1, muscleSteps.length) - 1];
 }
 
-/// One figure, ready to draw: the render, the box around the body it is drawn through, each plate's traced edge and
-/// fill shape as paths in that box's coordinates, and the id map cropped to the box for taps.
+/// One figure, ready to draw: the render, the box around the body it is drawn through, each plate's fill shape as a
+/// path in that box's coordinates, and the id map cropped to the box for taps.
 class MuscleMapData {
   MuscleMapData({required this.w, required this.h, required this.x0, required this.y0, required this.base, required this.plate,
-      required this.plateDataset, required this.plateMuscle, required this.paths, required this.fills});
+      required this.plateDataset, required this.plateMuscle, required this.fills});
   final int w, h;                   // cropped size
   final int x0, y0;                 // the crop's corner in the asset
   final ui.Image base;              // the whole asset image
   final Uint8List plate;            // plate id per cropped pixel
   final List<String?> plateDataset; // plate id -> dataset group
   final List<String?> plateMuscle;  // plate id -> muscle name
-  final Map<int, ui.Path> paths;    // plate id -> traced edge (the selection outline), cropped coordinates
-  final Map<int, ui.Path> fills;    // plate id -> fill shape (the edge grown into the groove), cropped coordinates
+  final Map<int, ui.Path> fills;    // plate id -> fill shape (its traced edge grown into the groove), cropped coordinates
 
   Rect get crop => Rect.fromLTWH(x0.toDouble(), y0.toDouble(), w.toDouble(), h.toDouble());
 
-  /// The plates of a dataset group, or just [plate] when it has no group.
-  Set<int> groupPlates(int plate) {
-    final g = plateDataset[plate];
-    if (g == null) return {plate};
-    return {for (var id = 1; id < 256; id++) if (plateDataset[id] == g) id};
-  }
+  /// The plates of a dataset group.
+  Set<int> groupPlates(String dataset) => {for (var id = 1; id < 256; id++) if (plateDataset[id] == dataset) id};
 
-  /// The box around [plates]' surfaces, in cropped coordinates, or null when none is traced.
+  /// The box around [plates]' fill shapes, in cropped coordinates, or null when none is traced.
   Rect? bounds(Iterable<int> plates) {
     Rect? r;
     for (final id in plates) {
-      final b = paths[id]?.getBounds();
+      final b = fills[id]?.getBounds();
       if (b != null) r = r == null ? b : r.expandToInclude(b);
     }
     return r;
@@ -103,13 +99,12 @@ class MuscleRenderer {
     idsImage.dispose();
     final crop = await compute(_prepare, _PrepareArgs(base.width, base.height, baseRaw, ids));
     _outlines ??= rootBundle.loadString('assets/muscle/outlines.json').then((s) => jsonDecode(s) as Map<String, dynamic>);
-    final traced = (await _outlines)!['maps'][key] as Map<String, dynamic>;
-    Map<int, ui.Path> paths(String kind) => {
-      for (final e in (traced[kind] as Map<String, dynamic>).entries)
-        int.parse(e.key): _path((e.value as List).cast<List>(), -crop.x0.toDouble(), -crop.y0.toDouble()),
-    };
+    // outlines.json also has each plate's tight edge ('plates'); the figure only fills, so it reads the fill shapes
+    final fills = (await _outlines)!['maps'][key]['fills'] as Map<String, dynamic>;
     return MuscleMapData(w: crop.w, h: crop.h, x0: crop.x0, y0: crop.y0, base: base, plate: crop.plate, plateDataset: dataset,
-        plateMuscle: muscle, paths: paths('plates'), fills: paths('fills'));
+        plateMuscle: muscle, fills: {
+          for (final e in fills.entries) int.parse(e.key): _path((e.value as List).cast<List>(), -crop.x0.toDouble(), -crop.y0.toDouble()),
+        });
   }
 
   static Future<ui.Image> _image(String asset) async {
@@ -119,7 +114,7 @@ class MuscleRenderer {
   }
 
   /// A plate's polygons as one smooth closed path: quadratic curves through the midpoints of the traced edges, each
-  /// traced point the control between them, so the outline has no corners at any zoom.
+  /// traced point the control between them, so the shape has no corners at any zoom.
   static ui.Path _path(List<List> polygons, double dx, double dy) {
     final path = ui.Path()..fillType = ui.PathFillType.evenOdd;
     for (final flat in polygons) {
@@ -168,8 +163,8 @@ _Crop _prepare(_PrepareArgs a) {
   return _Crop(x0, y0, w, h, plate);
 }
 
-/// Draws one figure into its box: the render scaled to fit, the highlighted plates filled, the selected ones outlined.
-/// [zoom] is the full screen's pinch scale, so the outline keeps its width on screen.
+/// Draws one figure into its box: the render scaled to fit, the highlighted plates filled with the accent, the
+/// selected ones with the selection blue. [zoom] is the full screen's pinch scale, so an enlarged render resamples sharply.
 class _FigurePainter extends CustomPainter {
   _FigurePainter(this.m, this.opacity, this.selected, this.zoom) : super(repaint: zoom);
   final MuscleMapData m;
@@ -184,33 +179,30 @@ class _FigurePainter extends CustomPainter {
     final z = zoom?.value ?? 1.0;
     // mipmapped bilinear when shrinking, bicubic when the render is enlarged (full screen, pinch zoom)
     final quality = s * z > 1 ? FilterQuality.high : FilterQuality.medium;
-    canvas.drawImageRect(m.base, m.crop, Rect.fromLTWH(dx, dy, m.w * s, m.h * s), Paint()..filterQuality = quality);
     final dst = Rect.fromLTWH(dx, dy, m.w * s, m.h * s);
+    canvas.drawImageRect(m.base, m.crop, dst, Paint()..filterQuality = quality);
     // Paths are scaled into the box's coordinates rather than through a canvas transform.
     final toBox = Float64List.fromList([s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1]);
-    // Each highlighted plate: clip to its fill shape and draw the render again through a modulate filter of the multiply
+    // Each filled plate: clip to its fill shape and draw the render again through a modulate filter of the multiply
     // colour at the step's opacity. Over the render already there that comes out render × (1 − o·(1 − c)), a
     // multiply that keeps the plate's shading, done as plain source-over drawing (BlendMode.multiply reads the
     // framebuffer back, which Impeller on GLES does through a blurred, offset copy; an image shader there ignored
-    // its matrix).
+    // its matrix). A selected plate fills with the selection blue at full strength in place of its step.
     final fill = Paint()..filterQuality = quality;
-    for (final e in opacity.entries) {
-      final path = m.fills[e.key];
-      if (path == null || e.value <= 0) continue;
-      fill.colorFilter = ColorFilter.mode(muscleMultiply.withValues(alpha: e.value), BlendMode.modulate);
+    void fillPlate(int id, Color multiply, double o) {
+      final path = m.fills[id];
+      if (path == null || o <= 0) return;
+      fill.colorFilter = ColorFilter.mode(multiply.withValues(alpha: o), BlendMode.modulate);
       canvas.save();
       canvas.clipPath(path.transform(toBox));
       canvas.drawImageRect(m.base, m.crop, dst, fill);
       canvas.restore();
     }
-    if (selected.isNotEmpty) {
-      final edge = Paint()
-        ..style = PaintingStyle.stroke..strokeWidth = muscleOutlineWidth / z..color = muscleSelect
-        ..strokeJoin = StrokeJoin.round..isAntiAlias = true;
-      for (final id in selected) {
-        final path = m.paths[id];
-        if (path != null) canvas.drawPath(path.transform(toBox), edge);
-      }
+    for (final e in opacity.entries) {
+      if (!selected.contains(e.key)) fillPlate(e.key, muscleMultiply, e.value);
+    }
+    for (final id in selected) {
+      fillPlate(id, muscleSelectMultiply, 1);
     }
   }
 
@@ -229,7 +221,7 @@ class MuscleHit {
 }
 
 /// The figures side by side. [highlight] is dataset group -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
-/// Tap a plate to outline its group and see a tooltip: the muscle, its group, and [detail] if the caller has one.
+/// Tap a plate to fill its group blue and see a tooltip: the muscle, its group, and [detail] if the caller has one.
 /// [keyLabels] names the steps under the figures, strongest first; [expandable] adds a button that opens [MuscleFigureScreen].
 class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
@@ -248,7 +240,7 @@ class MuscleFigure extends StatefulWidget {
   final bool expandable;
   final String? title;
   final Duration? clearAfter;
-  /// The full screen's pinch scale, so outlines keep their width when zoomed.
+  /// The full screen's pinch scale, so the render resamples sharply when zoomed.
   final ValueListenable<double>? zoom;
 
   /// The width the two figures take at [height].
@@ -261,8 +253,8 @@ class MuscleFigure extends StatefulWidget {
 class _MuscleFigureState extends State<MuscleFigure> {
   MuscleHit? hit;
   Offset? anchor;                     // where the tap landed, in the row's coordinates
-  Rect? avoid;                        // the outlined plates' box on the tapped side, in the row's coordinates
-  var outlined = <String, Set<int>>{}; // per side key, the plates to edge
+  Rect? avoid;                        // the selected plates' box on the tapped side, in the row's coordinates
+  var selected = <String, Set<int>>{}; // per side key, the plates filled blue
   Timer? clear;
 
   @override
@@ -288,26 +280,26 @@ class _MuscleFigureState extends State<MuscleFigure> {
     }
     final same = found != null && hit != null && hit!.dataset == found.dataset && (found.dataset.isNotEmpty || hit!.plate == found.plate);
     final next = (found == null || same) ? null : found;
-    final edges = <String, Set<int>>{};
+    final group = <String, Set<int>>{};
     if (next != null) {
       for (final side in widget.sides) {
         final k = '${sex}_$side';
         final sm = await MuscleRenderer.map(k);
-        edges[k] = next.dataset.isEmpty ? (k == key ? {next.plate} : <int>{}) : {for (var id = 1; id < 256; id++) if (sm.plateDataset[id] == next.dataset) id};
+        group[k] = next.dataset.isEmpty ? (k == key ? {next.plate} : <int>{}) : sm.groupPlates(next.dataset);
       }
     }
     Rect? box2;
     if (next != null) {
-      // the box of the outlined plates on the tapped side, so the tooltip can keep clear of them
-      final b = m.bounds(edges[key] ?? const <int>{});
+      // the box of the selected plates on the tapped side, so the tooltip can keep clear of them
+      final b = m.bounds(group[key] ?? const <int>{});
       if (b != null) box2 = Rect.fromLTRB(dx + b.left * scale + rowOffset, dy + b.top * scale, dx + b.right * scale + rowOffset, dy + b.bottom * scale);
     }
     if (!mounted) return;
-    setState(() { hit = next; outlined = edges; anchor = next == null ? null : Offset(local.dx + rowOffset, local.dy); avoid = box2; });
+    setState(() { hit = next; selected = group; anchor = next == null ? null : Offset(local.dx + rowOffset, local.dy); avoid = box2; });
     widget.onTap?.call(hit);
     clear?.cancel();
     final after = widget.clearAfter;
-    if (hit != null && after != null) clear = Timer(after, () { if (mounted) setState(() { hit = null; outlined = {}; anchor = null; avoid = null; }); });
+    if (hit != null && after != null) clear = Timer(after, () { if (mounted) setState(() { hit = null; selected = {}; anchor = null; avoid = null; }); });
   }
 
   void _expand() {
@@ -335,7 +327,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
             if (i > 0) const SizedBox(width: 4),
             Builder(builder: (context) {
               final key = '${sex}_${widget.sides[i]}';
-              final edges = outlined[key] ?? const <int>{};
+              final picked = selected[key] ?? const <int>{};
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTapUp: widget.interactive ? (d) => _tap(key, d.localPosition, box, i * (box.width + 4)) : null,
@@ -354,7 +346,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
                           painter: _FigurePainter(md, {
                             for (var id = 1; id < 256; id++)
                               if ((opacity[md.plateDataset[id]] ?? 0) > 0) id: opacity[md.plateDataset[id]]!,
-                          }, edges, widget.zoom),
+                          }, picked, widget.zoom),
                         ),
                       );
                     },
@@ -401,7 +393,7 @@ class MuscleKey extends StatelessWidget {
   }
 }
 
-/// Places the tooltip clear of the outlined plates: under them, else above, else beside; kept near the row, with a
+/// Places the tooltip clear of the selected plates: under them, else above, else beside; kept near the row, with a
 /// little overflow allowed on the right where there is usually text, and almost none on the left.
 class _TipLayout extends SingleChildLayoutDelegate {
   const _TipLayout(this.anchor, this.avoid);
@@ -445,7 +437,7 @@ class _Tip extends StatelessWidget {
   }
 }
 
-/// The figure full screen: as large as the width allows, pinch to zoom, tap to outline a group, with the details in
+/// The figure full screen: as large as the width allows, pinch to zoom, tap to fill a group blue, with the details in
 /// a panel under it instead of a tooltip.
 class MuscleFigureScreen extends StatefulWidget {
   const MuscleFigureScreen({super.key, required this.highlight, this.sides = const ['front', 'back'], this.keyLabels, this.detail, this.title});
@@ -505,7 +497,7 @@ class _MuscleFigureScreenState extends State<MuscleFigureScreen> {
           Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             AnimatedSwitcher(duration: m(context, durBase), child: Column(key: ValueKey(hit?.muscle), crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(hit?.muscle ?? 'Tap a muscle to name it', style: t.titleMedium),
-              Text(hit == null ? 'Pinch to zoom. Tapping outlines every muscle in the group.' : (detail == null ? hit!.dataset : [if (hit!.dataset.isNotEmpty) hit!.dataset, detail].join(' · ')), style: t.bodySmall),
+              Text(hit == null ? 'Pinch to zoom. Tapping a muscle shows its whole group in blue.' : (detail == null ? hit!.dataset : [if (hit!.dataset.isNotEmpty) hit!.dataset, detail].join(' · ')), style: t.bodySmall),
             ])),
             if (widget.keyLabels != null) ...[const SizedBox(height: 10), MuscleKey(labels: widget.keyLabels!)],
           ])),

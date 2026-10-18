@@ -62,7 +62,7 @@ cardio or mobility, stay as they are: the alternative to lifting, one tap away.
 As of 0.13.4 the muscle side is shown, not yet used to choose. One component, `MuscleFigure`, draws the
 rendered maps from `muscle-map/` (male or female, a setting; front and back). Primary muscles fill with a
 the design system's mid moss accent, secondary ones with its pale accent line, with a two-swatch key under the figures. Tapping a plate
-outlines every plate of its dataset group in blue, on both figures, and floats a tooltip over the render
+fills every plate of its dataset group blue in place of its step, on both figures, and floats a tooltip over the render
 with the muscle, its group and a line from the screen: on Today which exercises use it as main or helper,
 on Progress when the group was last worked. An expand button opens the figure full screen with pinch
 zoom, a Both / Front / Back toggle and the same tap details in a panel. On Today it shows only the planned
