@@ -4,14 +4,17 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features.dart';
 import 'model.dart';
 
 const _key = 'fitness.v2';
 
 class Store extends ChangeNotifier {
-  Store(this.state, this._prefs);
+  Store(this.state, this._prefs, {bool? shiftClock}) : shiftClock = shiftClock ?? prototypeTools;
   AppState state;
   final SharedPreferences? _prefs;
+  /// Whether the prototype clock shift applies. Off in prod, so a shift saved by an older build is ignored there.
+  final bool shiftClock;
 
   static Future<Store> open() async {
     SharedPreferences? prefs;
@@ -27,7 +30,7 @@ class Store extends ChangeNotifier {
     return Store(state, prefs);
   }
 
-  DateTime get now => DateTime.now().add(Duration(days: state.clockOffsetDays));
+  DateTime get now => DateTime.now().add(Duration(days: shiftClock ? state.clockOffsetDays : 0));
 
   void save() {
     _prefs?.setString(_key, jsonEncode(state.toJson()));
