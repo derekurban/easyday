@@ -1,10 +1,10 @@
 // MuscleFigure: the rendered body figures from muscle-map/assets (male or female, front and back), with muscles
-// highlighted by dataset group. The base render is drawn as it is; each highlighted plate's traced surface
-// (muscle-map/pipeline/outlines.py) is filled with the moss accent, multiplied over the render so the plate keeps its
-// shading, at one of three opacities by which third of 0 to 1 the group's strength falls in (a main muscle at 1 gets
-// the full accent, a helping one at 0.5 the middle step, a faded recency the lightest). Tap a plate and every plate of
-// its group is outlined in blue along the same traced edges, with a tooltip over the figure naming it (and whatever
-// detail the caller adds). Fills and outlines are vector paths, so they stay crisp at any size and under the full
+// highlighted by dataset group. The base render is drawn as it is; each highlighted plate's fill shape
+// (muscle-map/pipeline/outlines.py: the plate's traced edge grown a pixel into the dark groove around it) is filled
+// with the moss accent, multiplied over the render so the plate keeps its shading, at one of three opacities by which
+// third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent, a helping one at 0.5 the
+// middle step, a faded recency the lightest). Tap a plate and every plate of its group is outlined in blue along its
+// traced edge, with a tooltip over the figure naming it (and whatever detail the caller adds). Fills and outlines are vector paths, so they stay crisp at any size and under the full
 // screen's pinch zoom. An expand button opens that full screen. The id maps (used for taps) follow
 // app/js/muscle-map.js and docs/muscle-mapping.md.
 import 'dart:async';
@@ -50,18 +50,19 @@ double muscleStepOpacity(double strength) {
   return muscleSteps[(strength.clamp(0.0, 1.0) * muscleSteps.length).ceil().clamp(1, muscleSteps.length) - 1];
 }
 
-/// One figure, ready to draw: the render, the box around the body it is drawn through, each plate's traced surface as
-/// a path in that box's coordinates, and the id map cropped to the box for taps.
+/// One figure, ready to draw: the render, the box around the body it is drawn through, each plate's traced edge and
+/// fill shape as paths in that box's coordinates, and the id map cropped to the box for taps.
 class MuscleMapData {
   MuscleMapData({required this.w, required this.h, required this.x0, required this.y0, required this.base, required this.plate,
-      required this.plateDataset, required this.plateMuscle, required this.paths});
+      required this.plateDataset, required this.plateMuscle, required this.paths, required this.fills});
   final int w, h;                   // cropped size
   final int x0, y0;                 // the crop's corner in the asset
   final ui.Image base;              // the whole asset image
   final Uint8List plate;            // plate id per cropped pixel
   final List<String?> plateDataset; // plate id -> dataset group
   final List<String?> plateMuscle;  // plate id -> muscle name
-  final Map<int, ui.Path> paths;    // plate id -> traced surface, cropped coordinates
+  final Map<int, ui.Path> paths;    // plate id -> traced edge (the selection outline), cropped coordinates
+  final Map<int, ui.Path> fills;    // plate id -> fill shape (the edge grown into the groove), cropped coordinates
 
   Rect get crop => Rect.fromLTWH(x0.toDouble(), y0.toDouble(), w.toDouble(), h.toDouble());
 
@@ -102,11 +103,13 @@ class MuscleRenderer {
     idsImage.dispose();
     final crop = await compute(_prepare, _PrepareArgs(base.width, base.height, baseRaw, ids));
     _outlines ??= rootBundle.loadString('assets/muscle/outlines.json').then((s) => jsonDecode(s) as Map<String, dynamic>);
-    final traced = ((await _outlines)!['maps'][key]['plates'] as Map<String, dynamic>);
-    final paths = <int, ui.Path>{
-      for (final e in traced.entries) int.parse(e.key): _path((e.value as List).cast<List>(), -crop.x0.toDouble(), -crop.y0.toDouble()),
+    final traced = (await _outlines)!['maps'][key] as Map<String, dynamic>;
+    Map<int, ui.Path> paths(String kind) => {
+      for (final e in (traced[kind] as Map<String, dynamic>).entries)
+        int.parse(e.key): _path((e.value as List).cast<List>(), -crop.x0.toDouble(), -crop.y0.toDouble()),
     };
-    return MuscleMapData(w: crop.w, h: crop.h, x0: crop.x0, y0: crop.y0, base: base, plate: crop.plate, plateDataset: dataset, plateMuscle: muscle, paths: paths);
+    return MuscleMapData(w: crop.w, h: crop.h, x0: crop.x0, y0: crop.y0, base: base, plate: crop.plate, plateDataset: dataset,
+        plateMuscle: muscle, paths: paths('plates'), fills: paths('fills'));
   }
 
   static Future<ui.Image> _image(String asset) async {
@@ -185,14 +188,14 @@ class _FigurePainter extends CustomPainter {
     final dst = Rect.fromLTWH(dx, dy, m.w * s, m.h * s);
     // Paths are scaled into the box's coordinates rather than through a canvas transform.
     final toBox = Float64List.fromList([s, 0, 0, 0, 0, s, 0, 0, 0, 0, 1, 0, dx, dy, 0, 1]);
-    // Each highlighted plate: clip to its path and draw the render again through a modulate filter of the multiply
+    // Each highlighted plate: clip to its fill shape and draw the render again through a modulate filter of the multiply
     // colour at the step's opacity. Over the render already there that comes out render × (1 − o·(1 − c)), a
     // multiply that keeps the plate's shading, done as plain source-over drawing (BlendMode.multiply reads the
     // framebuffer back, which Impeller on GLES does through a blurred, offset copy; an image shader there ignored
     // its matrix).
     final fill = Paint()..filterQuality = quality;
     for (final e in opacity.entries) {
-      final path = m.paths[e.key];
+      final path = m.fills[e.key];
       if (path == null || e.value <= 0) continue;
       fill.colorFilter = ColorFilter.mode(muscleMultiply.withValues(alpha: e.value), BlendMode.modulate);
       canvas.save();
