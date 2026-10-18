@@ -1,11 +1,12 @@
 // Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
-// settings, breaks, updates, feedback, and prototype tools.
+// settings, breaks, updates, feedback, and (staging only) prototype tools.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
+import '../features.dart';
 import '../integrations.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
@@ -200,32 +201,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 20),
         const SectionHeader('Feedback', icon: LucideIcons.messageSquareText),
         const FeedbackPanel(),
-        const SizedBox(height: 20),
-        const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
-        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Icon(LucideIcons.clock, size: 16, color: du.inkSecondary), const SizedBox(width: 8),
-            Expanded(child: Text('Clock: ${s.clockOffsetDays == 0 ? 'real time' : '${s.clockOffsetDays > 0 ? '+' : ''}${s.clockOffsetDays} days'} · today ${_date(store.now)}', style: t.bodyMedium)),
-          ]),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            OutlinedButton(onPressed: () => store.update((x) => x.clockOffsetDays += 1), child: const Text('+1 day')),
-            OutlinedButton(onPressed: () => store.update((x) => x.clockOffsetDays += 7), child: const Text('+7 days')),
-            OutlinedButton(onPressed: () => store.update((x) => x.clockOffsetDays += 28), child: const Text('+4 weeks')),
-            OutlinedButton.icon(onPressed: () => store.update((x) => x.clockOffsetDays = 0), icon: const Icon(LucideIcons.rotateCcw, size: 16), label: const Text('Reset clock')),
-          ]),
-          const SizedBox(height: 14),
-          Text('Simulate a workout with every set at the top, then move the clock on two days.', style: t.bodySmall),
-          const SizedBox(height: 8),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            OutlinedButton(onPressed: () => _simulate(context, Energy.normal), child: const Text('Clean normal workout')),
-            OutlinedButton(onPressed: () => _simulate(context, Energy.hard), child: const Text('Clean hard workout')),
-            OutlinedButton(onPressed: () => _simulate(context, Energy.normal, shortReps: true), child: const Text('Short workout')),
-          ]),
-          const SizedBox(height: 14),
-          TextButton.icon(onPressed: () => _confirmReset(context), style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error), icon: const Icon(LucideIcons.trash2, size: 16), label: const Text('Erase everything')),
-          Text('${exercises.length} exercises built in', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
-        ])),
+        if (prototypeTools) ...[
+          const SizedBox(height: 20),
+          const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
+          Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Icon(LucideIcons.clock, size: 16, color: du.inkSecondary), const SizedBox(width: 8),
+              Expanded(child: Text('Clock: ${s.clockOffsetDays == 0 ? 'real time' : '${s.clockOffsetDays > 0 ? '+' : ''}${s.clockOffsetDays} days'} · today ${_date(store.now)}', style: t.bodyMedium)),
+            ]),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton(onPressed: () => store.update((x) => x.clockOffsetDays += 1), child: const Text('+1 day')),
+              OutlinedButton(onPressed: () => store.update((x) => x.clockOffsetDays += 7), child: const Text('+7 days')),
+              OutlinedButton(onPressed: () => store.update((x) => x.clockOffsetDays += 28), child: const Text('+4 weeks')),
+              OutlinedButton.icon(onPressed: () => store.update((x) => x.clockOffsetDays = 0), icon: const Icon(LucideIcons.rotateCcw, size: 16), label: const Text('Reset clock')),
+            ]),
+            const SizedBox(height: 14),
+            Text('Simulate a workout with every set at the top, then move the clock on two days.', style: t.bodySmall),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              OutlinedButton(onPressed: () => _simulate(context, Energy.normal), child: const Text('Clean normal workout')),
+              OutlinedButton(onPressed: () => _simulate(context, Energy.hard), child: const Text('Clean hard workout')),
+              OutlinedButton(onPressed: () => _simulate(context, Energy.normal, shortReps: true), child: const Text('Short workout')),
+            ]),
+            const SizedBox(height: 14),
+            TextButton.icon(onPressed: () => _confirmReset(context), style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error), icon: const Icon(LucideIcons.trash2, size: 16), label: const Text('Erase everything')),
+            Text('${exercises.length} exercises built in', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
+          ])),
+        ],
       ])),
     );
   }
