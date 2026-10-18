@@ -3,6 +3,7 @@
 //
 //   node tool/dev.mjs [deviceId]          start (default device: emulator-5554), listens on 127.0.0.1:5181
 //   FLAVOR=prod node tool/dev.mjs         run the prod flavour instead of the default staging one
+//   UPDATE_FEED=http://127.0.0.1:8765/feed.json node tool/dev.mjs   read releases from a local feed (with adb reverse)
 //   curl localhost:5181/reload            hot reload (keeps state)
 //   curl localhost:5181/restart           hot restart (resets state)
 //   curl localhost:5181/log?tail=80       last N log lines
@@ -25,7 +26,8 @@ const lines = [];
 const log = (s) => { for (const l of String(s).split(/\r?\n/)) { if (!l) continue; lines.push(l); if (lines.length > 2000) lines.shift(); try { appendFileSync(logFile, l + "\n"); } catch {} } };
 
 const flutter = process.platform === "win32" ? "flutter.bat" : "flutter";
-const child = spawn(flutter, ["run", "--machine", "-d", device, "--flavor", flavor], { cwd: root, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32" });
+const defines = process.env.UPDATE_FEED ? [`--dart-define=UPDATE_FEED=${process.env.UPDATE_FEED}`] : [];
+const child = spawn(flutter, ["run", "--machine", "-d", device, "--flavor", flavor, ...defines], { cwd: root, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32" });
 
 let appId = null, ready = false, nextId = 1;
 const pending = new Map();

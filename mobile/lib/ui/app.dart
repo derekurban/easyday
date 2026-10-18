@@ -58,11 +58,16 @@ class _ShellState extends State<Shell> {
       bottomNavigationBar: NavigationBar(
         selectedIndex: tab,
         onDestinationSelected: (i) => setState(() => tab = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(LucideIcons.calendarDays), label: 'Today'),
-          NavigationDestination(icon: Icon(LucideIcons.trendingUp), label: 'Progress'),
-          NavigationDestination(icon: Icon(LucideIcons.dumbbell), label: 'Exercises'),
-          NavigationDestination(icon: Icon(LucideIcons.slidersHorizontal), label: 'Settings'),
+        destinations: [
+          const NavigationDestination(icon: Icon(LucideIcons.calendarDays), label: 'Today'),
+          const NavigationDestination(icon: Icon(LucideIcons.trendingUp), label: 'Progress'),
+          const NavigationDestination(icon: Icon(LucideIcons.dumbbell), label: 'Exercises'),
+          // The first step of the trail to a waiting update: a dot on Settings, where the banner is.
+          NavigationDestination(label: 'Settings', icon: ValueListenableBuilder(valueListenable: updateAvailable, builder: (context, r, _) =>
+              Stack(clipBehavior: Clip.none, children: [
+                const Icon(LucideIcons.slidersHorizontal),
+                if (r != null) const Positioned(top: -4, right: -6, child: UpdateDot()),
+              ]))),
         ],
       ),
     );

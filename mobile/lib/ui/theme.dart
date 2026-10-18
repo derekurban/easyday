@@ -6,19 +6,23 @@ class Du extends ThemeExtension<Du> {
   const Du({
     required this.bg, required this.surface, required this.sunk, required this.line, required this.ink, required this.inkSecondary,
     required this.inkTertiary, required this.accentStrong, required this.accentText, required this.accentSubtle, required this.accentLine,
-    required this.onAccent,
+    required this.onAccent, required this.warning, required this.warningSubtle, required this.warningLine,
   });
   final Color bg, surface, sunk, line, ink, inkSecondary, inkTertiary, accentStrong, accentText, accentSubtle, accentLine, onAccent;
+  /// The warning status: text and fill, a tinted surface, and its ring. Only for status, never decoration.
+  final Color warning, warningSubtle, warningLine;
 
   static const light = Du(
     bg: Color(0xFFF6F6F6), surface: Color(0xFFFCFCFC), sunk: Color(0xFFEDEDED), line: Color(0xFFD4D4D4),
     ink: Color(0xFF1B1B1B), inkSecondary: Color(0xFF555555), inkTertiary: Color(0xFF696969),
     accentStrong: Color(0xFF456938), accentText: Color(0xFF426635), accentSubtle: Color(0xFFE6F3E2), accentLine: Color(0xFFAEC6A6), onAccent: Color(0xFFFAFAFA),
+    warning: Color(0xFF8B590E), warningSubtle: Color(0xFFFCEDDE), warningLine: Color(0xFFDEB990),
   );
   static const dark = Du(
     bg: Color(0xFF141414), surface: Color(0xFF1C1C1C), sunk: Color(0xFF080808), line: Color(0xFF383838),
     ink: Color(0xFFEEEEEE), inkSecondary: Color(0xFF9E9E9E), inkTertiary: Color(0xFF909090),
     accentStrong: Color(0xFF86AB7A), accentText: Color(0xFF87A87C), accentSubtle: Color(0xFF1E281A), accentLine: Color(0xFF394A34), onAccent: Color(0xFF1B1B1B),
+    warning: Color(0xFFC38B46), warningSubtle: Color(0xFF322210), warningLine: Color(0xFF5A4123),
   );
 
   @override
