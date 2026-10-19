@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:fitness/logic/feedback.dart';
+import 'package:easyday/logic/feedback.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 ReportDraft problem() => ReportDraft(Report.problem)
@@ -45,7 +45,7 @@ void main() {
       expect(r.trimmed, isFalse);
       expect(r.url.scheme, 'https');
       expect(r.url.host, 'github.com');
-      expect(r.url.path, '/derekurban/fitness/issues/new');
+      expect(r.url.path, '/derekurban/easyday/issues/new');
       expect(r.url.queryParameters, {
         'template': 'bug.yml',
         'title': 'Timer skips a set',
@@ -103,7 +103,7 @@ void main() {
     });
 
     test('the reports list shows open issues', () {
-      expect(reportsUrl.path, '/derekurban/fitness/issues');
+      expect(reportsUrl.path, '/derekurban/easyday/issues');
       expect(reportsUrl.queryParameters['q'], contains('is:open'));
     });
   });

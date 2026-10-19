@@ -1,4 +1,4 @@
-# Fitness app
+# Easyday
 
 Exercise library with StrengthLog-style muscle highlighting: a front + back body render where the muscles an
 exercise works are tinted (red = primary, salmon = secondary).
@@ -6,7 +6,7 @@ exercise works are tinted (red = primary, salmon = secondary).
 See `docs/app/APPLICATION.md` for what the app is and how its logic works, with no implementation details.
 
 **Prototype:** `app/` is a mobile-first web app implementing that spec (vanilla ES modules, no build, data in localStorage).
-Serve the repo and open `/app/`: `node serve.mjs` (dev) or the `fitness-logic-site` task on port 5180 (Tailscale).
+Serve the repo and open `/app/`: `node serve.mjs` (dev) or the `easyday-logic-site` task on port 5180 (Tailscale).
 The UI uses [derekurban/design-system](https://github.com/derekurban/design-system), vendored at the tag in `app/vendor/du/PINNED_VERSION`;
 `app/styles.css` consumes its tokens only. Icons are Lucide (`app/vendor/lucide.min.js`).
 

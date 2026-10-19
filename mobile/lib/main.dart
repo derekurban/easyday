@@ -10,5 +10,5 @@ Future<void> main() async {
   // Debug builds publish the semantics tree so adb's uiautomator can read labels and tap targets.
   if (kDebugMode) SemanticsBinding.instance.ensureSemantics();
   final store = await Store.open();
-  runApp(FitnessApp(store));
+  runApp(EasydayApp(store));
 }

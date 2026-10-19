@@ -101,7 +101,7 @@ class CalendarInfo {
 }
 
 class CalendarBridge {
-  static const _ch = MethodChannel('fitness/calendar');
+  static const _ch = MethodChannel('easyday/calendar');
 
   static Future<bool> hasPermission() async {
     try { return await _ch.invokeMethod<bool>('hasPermission') ?? false; } catch (_) { return false; }
@@ -268,7 +268,7 @@ class AppInfo {
 
 /// The updater: the release list on GitHub, a download into the app cache, and an install session over this app.
 class UpdateBridge {
-  static const _ch = MethodChannel('fitness/update');
+  static const _ch = MethodChannel('easyday/update');
 
   /// How install sessions end, as Android's PackageInstaller status codes (0 success, -1 waiting on the user's
   /// confirm, anything else a failure) with Android's message.
@@ -300,7 +300,7 @@ class UpdateBridge {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
       final req = await client.getUrl(Uri.parse(updateFeed.isEmpty ? releasesUrl : updateFeed));
-      req.headers.set(HttpHeaders.userAgentHeader, 'fitness-app');
+      req.headers.set(HttpHeaders.userAgentHeader, 'easyday-app');
       req.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
       final res = await req.close();
       final body = await res.transform(const Utf8Decoder()).join();
@@ -331,7 +331,7 @@ class UpdateBridge {
       final file = File('$dir/$name');
       final req = await client.getUrl(Uri.parse(url));
       req.followRedirects = true;
-      req.headers.set(HttpHeaders.userAgentHeader, 'fitness-app');
+      req.headers.set(HttpHeaders.userAgentHeader, 'easyday-app');
       final res = await req.close();
       if (res.statusCode != 200) return null;
       final total = res.contentLength;
@@ -359,7 +359,7 @@ class UpdateBridge {
 
 /// Web pages, opened in the browser.
 class LinkBridge {
-  static const _ch = MethodChannel('fitness/links');
+  static const _ch = MethodChannel('easyday/links');
 
   /// False when nothing on the phone can open [url].
   static Future<bool> open(Uri url) async {

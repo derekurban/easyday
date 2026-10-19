@@ -1,6 +1,6 @@
-import 'package:fitness/data/model.dart';
-import 'package:fitness/data/store.dart';
-import 'package:fitness/features.dart';
+import 'package:easyday/data/model.dart';
+import 'package:easyday/data/store.dart';
+import 'package:easyday/features.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
