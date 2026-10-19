@@ -1,9 +1,9 @@
 // MuscleFigure: the rendered body figures from muscle-map/assets (male or female, front and back), with muscles
-// highlighted by their everyday names (data/index.dart `muscleNames`, each plate's `name` in flat.json). The base render is drawn as it is; each highlighted plate's fill shape
+// highlighted by their everyday names (data/index.dart `muscleNames`, each plate's `name` in flat.json). This is how the
+// muscle map draws strain points (MUSCLE_MAP.md): the base render is drawn as it is; each strained plate's fill shape
 // (muscle-map/pipeline/outlines.py: the plate's traced edge grown a pixel into the dark groove around it) is filled
-// with the moss accent, multiplied over the render so the plate keeps its shading, at one of three opacities by which
-// third of 0 to 1 the group's strength falls in (a main muscle at 1 gets the full accent, a helping one at 0.5 the
-// middle step, a faded recency the lightest). Tap a plate and every plate of that muscle, on both figures, fills blue
+// with the strain red, multiplied over the render so the plate keeps its shading, at the opacity of its shade: low,
+// medium or high, each a third of 0.00 to 1.00. Tap a plate and every plate of that muscle, on both figures, fills blue
 // instead, with a tooltip over the figure naming it (and whatever detail the caller adds, which is where a selected
 // muscle's strength is told). The fills are vector paths, so they stay crisp at any size and under the full screen's pinch zoom. An
 // expand button opens that full screen. The id maps (used for taps) follow app/js/muscle-map.js and
@@ -19,37 +19,34 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/index.dart';
+import '../logic/muscle_map.dart';
 import 'app.dart';
 import 'motion.dart';
 import 'theme.dart';
 
-/// A workout's main muscles come in at 1, its helping ones at 0.5.
-const primaryStrength = 1.0;
-const secondaryStrength = 0.5;
-
-/// The fill: the design system's light-theme accent (oklch 0.48 0.085 138), laid over the plate at one of three
-/// opacities, so a strength reads as one of three clear steps rather than a fade. The figure is the same light gray in
-/// both themes, so the accent is fixed rather than a theme token (the dark-theme accent is too pale on gray plates).
-/// Selection is a blue the rest of the app never uses, filled at full strength in place of a plate's step, so a tapped
-/// group stands out from every fill.
-const muscleAccent = Color(0xFF456938);
+/// The strain red: the design system's light-theme danger (#AF3E30), laid over the plate at one of three opacities, so
+/// strain points read as one of three clear shades rather than a fade, and a muscle visibly steps down one shade a day.
+/// The figure is the same light gray in both themes, so the red is fixed rather than a theme token. Selection is a
+/// blue the rest of the app never uses, filled at full strength in place of a plate's shade, so a tapped muscle stands
+/// out from every fill.
+const strainRed = Color(0xFFAF3E30);
 const muscleSelect = Color(0xFF2F7BE5);
 /// The plate gray the swatches sit on, the figure's typical plate brightness.
 const musclePlate = Color(0xFFBEBEBE);
-/// The steps' opacities, weakest first.
-const muscleSteps = [1 / 3, 2 / 3, 1.0];
+/// The shades' opacities, low first.
+const strainShadeOpacity = [1 / 3, 2 / 3, 1.0];
 
 /// What a fill multiplies the render by: its colour over the plates' typical gray (182), so a plate of that gray comes
 /// out that colour at full strength (as near as a multiply reaches) and darker or lighter parts keep their shading.
 Color _overPlate(Color c) => Color.from(
   alpha: 1, red: (c.r * 255 / 182).clamp(0.0, 1.0), green: (c.g * 255 / 182).clamp(0.0, 1.0), blue: (c.b * 255 / 182).clamp(0.0, 1.0));
-final muscleMultiply = _overPlate(muscleAccent);
+final strainMultiply = _overPlate(strainRed);
 final muscleSelectMultiply = _overPlate(muscleSelect);
 
-/// The opacity a strength draws at: nothing at 0, then the step whose third of the range it falls in.
-double muscleStepOpacity(double strength) {
-  if (strength <= 0) return 0;
-  return muscleSteps[(strength.clamp(0.0, 1.0) * muscleSteps.length).ceil().clamp(1, muscleSteps.length) - 1];
+/// The opacity strain points draw at: nothing when strain-free, then their shade's.
+double strainOpacity(double points) {
+  final shade = strainShade(points);
+  return shade == 0 ? 0 : strainShadeOpacity[shade - 1];
 }
 
 /// One figure, ready to draw: the render, the box around the body it is drawn through, each plate's fill shape as a
@@ -163,12 +160,12 @@ _Crop _prepare(_PrepareArgs a) {
   return _Crop(x0, y0, w, h, plate);
 }
 
-/// Draws one figure into its box: the render scaled to fit, the highlighted plates filled with the accent, the
+/// Draws one figure into its box: the render scaled to fit, the strained plates filled with the strain red, the
 /// selected ones with the selection blue. [zoom] is the full screen's pinch scale, so an enlarged render resamples sharply.
 class _FigurePainter extends CustomPainter {
   _FigurePainter(this.m, this.opacity, this.selected, this.zoom) : super(repaint: zoom);
   final MuscleMapData m;
-  final Map<int, double> opacity;   // plate id -> fill opacity
+  final Map<int, double> opacity;   // plate id -> fill opacity, by its shade
   final Set<int> selected;
   final ValueListenable<double>? zoom;
 
@@ -199,7 +196,7 @@ class _FigurePainter extends CustomPainter {
       canvas.restore();
     }
     for (final e in opacity.entries) {
-      if (!selected.contains(e.key)) fillPlate(e.key, muscleMultiply, e.value);
+      if (!selected.contains(e.key)) fillPlate(e.key, strainMultiply, e.value);
     }
     for (final id in selected) {
       fillPlate(id, muscleSelectMultiply, 1);
@@ -219,9 +216,9 @@ class MuscleHit {
   final String name;   // the muscle's everyday name
 }
 
-/// The figures side by side. [highlight] is muscle name -> strength: 1 primary, 0.5 secondary, or anything 0 to 1.
+/// The figures side by side. [highlight] is muscle name -> strain points, 0.00 to 1.00, drawn in their shades.
 /// Tap a plate to fill that muscle blue and see a tooltip: its name and [detail] if the caller has one.
-/// [keyLabels] names the steps under the figures, strongest first; [expandable] adds a button that opens [MuscleFigureScreen].
+/// [keyLabels] names the shades under the figures, high first; [expandable] adds a button that opens [MuscleFigureScreen].
 class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
     super.key, required this.highlight, this.height = 170, this.sides = const ['front', 'back'], this.interactive = true,
@@ -319,7 +316,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
     final sex = widget.figure ?? context.store.state.settings.figure;
     final box = Size(widget.height * 0.5, widget.height);
     final rowWidth = MuscleFigure.widthFor(widget.height, sides: widget.sides.length);
-    final opacity = <String, double>{for (final e in widget.highlight.entries) e.key: muscleStepOpacity(e.value)};
+    final opacity = <String, double>{for (final e in widget.highlight.entries) e.key: strainOpacity(e.value)};
     final detail = hit == null ? null : widget.detail?.call(hit!);
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
       SizedBox(width: rowWidth, height: box.height, child: Stack(clipBehavior: Clip.none, children: [
@@ -374,7 +371,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
   }
 }
 
-/// The steps' swatches, strongest first, one per label: the accent over the plate gray at each step's opacity.
+/// The shades' swatches, high first, one per label: the strain red over the plate gray at each shade's opacity.
 class MuscleKey extends StatelessWidget {
   const MuscleKey({super.key, required this.labels});
   final List<String> labels;
@@ -387,9 +384,9 @@ class MuscleKey extends StatelessWidget {
       const SizedBox(width: 5),
       Text(text, style: t.labelSmall),
     ]);
-    final steps = muscleSteps.reversed.toList();
+    final steps = strainShadeOpacity.reversed.toList();
     return Wrap(spacing: 12, runSpacing: 4, children: [
-      for (var i = 0; i < labels.length && i < steps.length; i++) swatch(Color.lerp(musclePlate, muscleAccent, steps[i])!, labels[i]),
+      for (var i = 0; i < labels.length && i < steps.length; i++) swatch(Color.lerp(musclePlate, strainRed, steps[i])!, labels[i]),
     ]);
   }
 }

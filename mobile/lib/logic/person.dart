@@ -4,6 +4,16 @@ import '../data/model.dart';
 /// Calendar days from a to b: a session last night and a visit this morning count as one day.
 int daysBetween(DateTime a, DateTime b) => DateTime(b.year, b.month, b.day).difference(DateTime(a.year, a.month, a.day)).inDays;
 
+/// Calendar days from [at] to [now].
+int daysAgo(DateTime at, DateTime now) => daysBetween(at, now);
+
+/// How long ago, in words: "today", "yesterday", "3 days ago", "2 weeks ago", "long ago", or "not yet".
+String agoText(DateTime? at, DateTime now) {
+  if (at == null) return 'not yet';
+  final d = daysAgo(at, now);
+  return d == 0 ? 'today' : d == 1 ? 'yesterday' : d < 14 ? '$d days ago' : d < 60 ? '${d ~/ 7} weeks ago' : 'long ago';
+}
+
 class PersonView {
   PersonView(this.state, this.daysSince, this.last);
   final PersonState state;

@@ -12,7 +12,6 @@ import '../features.dart';
 import '../integrations.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
-import '../logic/rotation.dart';
 import 'app.dart';
 import 'catalog.dart';
 import 'feedback.dart';
@@ -72,10 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             IconButton.outlined(onPressed: () => _editGoal(context), icon: const Icon(LucideIcons.pencil, size: 18), tooltip: 'Change the goal'),
           ]),
           const Divider(height: 24),
-          ChoiceRow<int>(label: 'Days a week', value: s.profile!.daysPerWeek, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, onChanged: (v) => store.update((x) { x.profile!.daysPerWeek = v; rebuildRotation(x); })),
-          Text('Your rotation', style: t.labelMedium),
-          const SizedBox(height: 6),
-          RotationPreview(s.plan!.rotation, current: s.plan!.index),
+          ChoiceRow<int>(label: 'Days a week', value: s.profile!.daysPerWeek, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, hint: 'Seeds the sets each muscle group aims for over ${g.lookBackDays} days: ${g.targetSets(s.profile!.daysPerWeek)} now${g.setsTarget == null ? '' : ', set by hand in the goal'}.', onChanged: (v) => store.update((x) => x.profile!.daysPerWeek = v)),
           const SizedBox(height: 14),
           Text('Units', style: t.labelMedium),
           const SizedBox(height: 6),
@@ -353,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SheetHeader('Goal', subtitle: 'Your own, in plain words. Levels stay where they are.', icon: LucideIcons.target),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: GoalEditor(goal: store.state.goal!, daysPerWeek: store.state.profile!.daysPerWeek, onChanged: (_) => store.update((x) => rebuildRotation(x))),
+          child: GoalEditor(goal: store.state.goal!, daysPerWeek: store.state.profile!.daysPerWeek, onChanged: (_) => store.update((_) {})),
         ),
       ]),
     ));
@@ -363,8 +359,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final store = context.store;
     store.update((s) {
       var now = store.now;
-      while (s.plan!.rotation[s.plan!.index].type != 'lift') { s.plan!.index = (s.plan!.index + 1) % s.plan!.rotation.length; }
-      final session = buildSession(s, BuildOptions(energy: energy, minutes: s.plan!.timeDefault, locationId: s.lastLocationId), now);
+      final session = buildSession(s, BuildOptions(energy: energy, minutes: s.plan!.timeDefault, locationId: s.lastLocationId, liftInstead: true), now);
       startSession(s, session, now);
       for (var i = 0; i < session.exercises.length; i++) {
         final e = session.exercises[i];

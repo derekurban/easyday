@@ -6,11 +6,11 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 ## Workout
 
 - **A warm-up that follows the workout.** The warm-up block is one fixed routine; it could lean on the
-  muscles the first exercises use, the way stretching could follow coverage.
+  muscles the first exercises use, the way stretching could follow strain points.
 - **Rep counts past the range.** The reps take one button for anything under the range and one for anything
   over, logged as one rep beyond. An exercise at the top of its progression, chasing a best total, would
   read better with the real count.
-- **Stretching that follows coverage.** The mobility routine at the end picked by which muscle groups
+- **Stretching that follows strain points.** The mobility routine at the end picked by which muscle groups
   were worked today.
 - **An effort budget.** Points per set, summed and capped by energy, was the model until 2026-10-15. It
   balanced well but could not be explained to a user, so energy became three dials and spare minutes a
@@ -34,20 +34,26 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 - **User-made indexes.** A name plus a rule for grouping; the data for it is on every exercise.
 - **Sharing an exercise or a goal** with another person.
 
-## Coverage
+## Selection and plans
 
-- **Cardio crediting the lower body a little,** so a runner's plan tilts toward upper work.
-- **A deficit adding a pattern** the goal does not list, rather than only choosing among what it does.
-- **A time-based window** (two weeks) for users whose rotation is long.
+- **Movement patterns and slots.** Until 2026-10-19 a workout was a fixed list of movement patterns (squat,
+  hinge, push, pull, ...) from a rotation of named workouts, and the muscle map chose an exercise per pattern.
+  Taken out because it confused the model: selection now works in muscles only (`SELECTION.md`). A pattern
+  grammar could return later as a shape laid over selection, never instead of it.
+- **Splits and a cycle designer.** Days with a focus (upper, lower, push, pull, legs, or a custom set of muscle
+  groups) in a cycle the user designs. Would sit on top of selection as a limit on which muscles a day may
+  draw from.
+- **A share target from capacity.** The sets target per muscle group is a setting. It could instead be derived
+  from days per week, exercises and sets, so a two-day lifter is never behind on everything.
+- **Cardio giving the legs strain points,** a little, so a runner's plan tilts toward upper work.
+- **Recovery by muscle size.** Strain decays a third a day for every muscle. Big muscles and heavy compounds
+  take longer than small ones; a per-muscle or per-difficulty decay is possible if the flat rate lands wrong.
 
 ## Location and calendar
 
 - **Planning a slot.** The planning flow of `CALENDAR.md`: pick a day and slot, a location, preview the
   workout, write a declinable event, sync both ways. The settings around it (awake hours, thresholds,
   auto-track) are built; the flow itself is not.
-- **Rotation items that differ in length,** so Workout A can hold five exercises and B four. The
-  calibration's ideal is one number for every item today.
-
 - **Background automations:** arriving at a known gym, leaving with nothing logged, the home version on
   a likely training day, switching to an anywhere location after days away. All need background position.
 - **Offering to save a position** the first time a workout starts at a location without one.

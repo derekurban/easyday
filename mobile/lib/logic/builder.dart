@@ -1,12 +1,16 @@
-// Builds today's workout: the list is built once at normal and fitted to the minutes by three calibrations (exercises,
-// sets, pushes: the fewest, the ideal, the most); energy turns the dials on it (hard: the next level, and room to grow
-// to the most; easy: lighter, fewer exercises at full sets). WORKOUT.md and section 7 of APPLICATION.md.
+// Builds today's workout: selection picks the muscles and an exercise for each (SELECTION.md); the list is built once at
+// normal and fitted to the minutes by three calibrations (exercises, sets, pushes: the fewest, the ideal, the most);
+// energy turns the dials on it (hard: the next level, and room to grow to the most; easy: lighter, fewer exercises at
+// full sets). WORKOUT.md and section 7 of APPLICATION.md.
 import 'dart:math';
 
+import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import 'ladder.dart';
+import 'muscle_map.dart';
 import 'person.dart';
+import 'selection.dart';
 
 const intentLight = 'light';
 const intentWorking = 'working';
@@ -19,21 +23,20 @@ const warmupSetsSeconds = 120.0; // two warm-up sets on a loaded hard exercise
 const warmupChoices = [0, 3, 5, 8];
 /// With no time limit the window is open: the count decides, not the minutes.
 const _openWindow = 600 * 60.0;
-const _freePatterns = ['core', 'carry', 'arms', 'legs', 'shoulders'];
 
-/// Expire pain pauses. A pattern comes back on its own, one rung down.
+/// Expire pain pauses. An exercise comes back on its own, one rung down.
 void expirePauses(AppState s, DateTime now) {
   final p = s.plan!;
   final expired = p.paused.entries.where((e) => !now.isBefore(e.value)).map((e) => e.key).toList();
-  for (final pattern in expired) {
-    for (final ex in exercises.where((e) => e.pattern == pattern)) {
-      final st = s.ex[ex.id];
-      if (st == null) continue;
+  for (final id in expired) {
+    final ex = exerciseById[id];
+    final st = s.ex[id];
+    if (ex != null && st != null) {
       st.rung = max(ex.loaded ? floorRung(s, ex, st) : 0, st.rung - 1);
       st.topRun = 0;
       st.shortRun = 0;
     }
-    p.paused.remove(pattern);
+    p.paused.remove(id);
   }
 }
 
@@ -78,34 +81,121 @@ void applyDecay(AppState s, DateTime now) {
   return (energy: energy, minutes: minutes, busy: busy);
 }
 
+/// A movement day is due when the goal's count of lifting workouts has gone by since the last one: cardio and mobility
+/// take turns. Null when a lifting workout is next.
+String? moveDue(AppState s) {
+  final every = s.goal?.moveEvery ?? 0;
+  if (every <= 0) return null;
+  var lifts = 0;
+  Session? lastMove;
+  for (final x in s.sessions.reversed) {
+    if (x.type == 'move') { lastMove = x; break; }
+    lifts++;
+  }
+  if (lifts < every) return null;
+  return lastMove?.kind == 'cardio' ? 'mobility' : 'cardio';
+}
+
 /// The default on a busy day.
 const busyDayMinutes = 25;
 /// The ideal list filling no more than this share of the window makes a long day: room to grow to the most.
 const longWindowShare = 0.5;
 
-List<Exercise> candidates(AppState s, String pattern, Iterable<String> equipment, Iterable<String> exclude) {
-  final ex = exclude.toSet();
-  return exercises.where((e) => e.pattern == pattern && available(e, equipment) && !ex.contains(e.id)).toList();
-}
-
 bool _practised(AppState s, Exercise e) => (s.ex[e.id]?.appearances ?? 0) > 0;
 int _difficulty(AppState s, Exercise e) => difficultyInPlay(e, s.ex[e.id]);
 
-/// Practised first, then library rank.
-int _usualOrder(AppState s, Exercise a, Exercise b) {
-  final pa = _practised(s, a), pb = _practised(s, b);
-  if (pa != pb) return pa ? -1 : 1;
-  return a.rank.compareTo(b.rank);
+/// Everything selection reads while a list is being built: the current strain points and today's plan so far, the share
+/// ledger, the user's words, and the equipment here.
+class _Selection {
+  _Selection(this.s, this.now, this.current, this.share, this.equipment) : withPlan = current;
+  final AppState s;
+  final DateTime now;
+  final StrainPoints current;
+  final Share share;
+  final Iterable<String> equipment;
+  StrainPoints withPlan;
+  /// The group an unrated exercise may take a turn for today, if any.
+  String? exploreGroup;
+
+  /// Every primary muscle of [e] strain-free, counting today's plan so far.
+  bool ready(Exercise e) => e.primary.every(withPlan.strainFree);
+
+  /// The shade [e]'s most strained primary muscle sits at, with today's plan so far added.
+  int shade(Exercise e) => withPlan.highestShade(e.primary);
+
+  String? pref(Exercise e) => preferenceOf(s.ex[e.id], now);
+
+  /// Ready first, then the lowest shade, then liked, fine and unrated, not for me (an unrated one above fine when it is
+  /// this group's turn for something new), then practised, then library rank.
+  int compare(Exercise a, Exercise b, {String? group}) {
+    final ra = ready(a), rb = ready(b);
+    if (ra != rb) return ra ? -1 : 1;
+    final c = shade(a).compareTo(shade(b));
+    if (c != 0) return c;
+    final p = _prefRank(a, group).compareTo(_prefRank(b, group));
+    if (p != 0) return p;
+    final pa = _practised(s, a), pb = _practised(s, b);
+    if (pa != pb) return pa ? -1 : 1;
+    return a.rank.compareTo(b.rank);
+  }
+
+  double _prefRank(Exercise e, String? group) {
+    final p = pref(e);
+    if (p == null && group != null && group == exploreGroup) return 0.5;
+    return preferenceRank(p).toDouble();
+  }
+
+  /// Today's plan so far: the current strain points plus the strain points from workout of [plan].
+  void plan(Iterable<({Exercise exercise, int sets, bool light})> plan) => withPlan = current.plus(strainPointsFromPlan(plan));
+
+  void planSlots(Iterable<_Slot> slots) => plan([
+        for (final x in slots) if (x.pick != null) (exercise: x.pick!, sets: x.sets == 0 ? 1 : x.sets, light: x.intent == intentLight),
+      ]);
+
+  /// The best exercise for a group: the user's pick for the slot, else the first by [compare].
+  Exercise? bestFor(String group, Iterable<String> used, String? pref) {
+    final cands = candidatesFor(s, group, equipment, used, now);
+    if (cands.isEmpty) return null;
+    if (pref != null) {
+      final p = cands.where((e) => e.id == pref).firstOrNull;
+      if (p != null) return p;
+    }
+    cands.sort((a, b) => compare(a, b, group: group));
+    return cands.first;
+  }
+
+  /// Groups in the order selection takes them: those with a ready candidate first, then the lowest band, more emphasis,
+  /// the furthest behind, the longest waiting, the index order. [candidates] gives the best exercise per group.
+  List<String> rankGroups(Iterable<String> groups, Map<String, Exercise> candidates) {
+    final g = s.goal!;
+    final list = groups.where(candidates.containsKey).toList();
+    int key(String grp) => (ready(candidates[grp]!) ? 0 : 1) * 100 + share.band(grp) * 10 + (1 - g.emphasisOf(grp));
+    list.sort((a, b) {
+      final k = key(a).compareTo(key(b));
+      if (k != 0) return k;
+      final d = share.deficit(b).compareTo(share.deficit(a));
+      if (d != 0) return d;
+      final la = share.lastWorked[a], lb = share.lastWorked[b];
+      if (la == null && lb != null) return -1;
+      if (lb == null && la != null) return 1;
+      if (la != null && lb != null && la != lb) return la.compareTo(lb);
+      return selectionOrder.indexOf(a).compareTo(selectionOrder.indexOf(b));
+    });
+    return list;
+  }
 }
 
 class _Slot {
-  _Slot(this.slot, this.pattern, this.priority);
+  _Slot(this.slot, this.group, this.priority);
   final String slot;
-  final String pattern;
-  final int priority;   // position in the goal's list: lower gets the work first and loses it last
+  final String group;
+  final int priority;   // the order selection took it: lower gets the work first and loses it last
   Exercise? pick;
   String intent = intentWorking;
   int sets = 0;
+  bool asked = false;   // the user asked for this muscle by hand
+  bool forced = false;  // asked for while still carrying strain
+  bool explored = false; // an unrated exercise took its turn here
 }
 
 double _seconds(AppState s, _Slot sl) {
@@ -115,18 +205,6 @@ double _seconds(AppState s, _Slot sl) {
   return secs;
 }
 double _totalSeconds(AppState s, List<_Slot> slots) => slots.fold(0.0, (a, x) => a + _seconds(s, x));
-
-/// The exercise for a pattern: the user's pick, else the usual one. Energy plays no part.
-Exercise? _pickFor(AppState s, String pattern, Iterable<String> equipment, Iterable<String> used, String? pref) {
-  final cands = candidates(s, pattern, equipment, used);
-  if (cands.isEmpty) return null;
-  if (pref != null) {
-    final p = cands.where((e) => e.id == pref).firstOrNull;
-    if (p != null) return p;
-  }
-  cands.sort((a, b) => _usualOrder(s, a, b));
-  return cands.first;
-}
 
 /// The working turns on an easy day: the exercises that have waited longest, ties by priority.
 int _waitedLongest(AppState s, _Slot a, _Slot b) {
@@ -138,7 +216,7 @@ int _waitedLongest(AppState s, _Slot a, _Slot b) {
 }
 
 /// The dials for one energy, on a list that is already built and fitted. The list never changes here.
-/// [pushes] is how many exercises train at the next level on a hard day.
+/// [pushes] is how many exercises train at the next level on a hard day. A first appearance is never pushed.
 void _turnDials(AppState s, List<_Slot> slots, Energy energy, GoalConfig g, int pushes) {
   switch (energy) {
     case Energy.easy:
@@ -149,18 +227,19 @@ void _turnDials(AppState s, List<_Slot> slots, Energy energy, GoalConfig g, int 
     case Energy.normal:
       break;
     case Energy.hard:
-      // the hardest exercises train at the next level, every set: the same sets, one step heavier
-      final byDifficulty = slots.toList()..sort((a, b) { final c = _difficulty(s, b.pick!).compareTo(_difficulty(s, a.pick!)); return c != 0 ? c : a.priority.compareTo(b.priority); });
+      // the hardest practised exercises train at the next level, every set: the same sets, one step heavier
+      final byDifficulty = slots.where((x) => _practised(s, x.pick!)).toList()
+        ..sort((a, b) { final c = _difficulty(s, b.pick!).compareTo(_difficulty(s, a.pick!)); return c != 0 ? c : a.priority.compareTo(b.priority); });
       for (final sl in byDifficulty.take(pushes)) { sl.intent = intentExtra; }
   }
 }
 
 /// Fit the minutes: exercises down to the fewest (light ones first, then the last on the list), then sets down to
 /// the fewest (the exercise with the most sets first, the last on the list among equals), and only when the minutes
-/// cannot hold even that, below the fewest. Returns the patterns dropped, so growth can bring them back if room appears.
-List<String> _fitTime(AppState s, List<_Slot> slots, double window, GoalConfig g) {
-  final dropped = <String>[];
-  void drop(_Slot victim) { slots.remove(victim); dropped.insert(0, victim.pattern); }
+/// cannot hold even that, below the fewest. Returns the slots dropped, so growth can bring them back if room appears.
+List<_Slot> _fitTime(AppState s, List<_Slot> slots, double window, GoalConfig g) {
+  final dropped = <_Slot>[];
+  void drop(_Slot victim) { slots.remove(victim); dropped.insert(0, victim); }
   for (var guard = 0; guard < 80 && _totalSeconds(s, slots) > window; guard++) {
     final byPriority = slots.toList()..sort((a, b) => b.priority.compareTo(a.priority));
     if (slots.length > g.exercises.min) { drop(byPriority.where((x) => x.intent == intentLight).firstOrNull ?? byPriority.first); continue; }
@@ -173,28 +252,46 @@ List<String> _fitTime(AppState s, List<_Slot> slots, double window, GoalConfig g
   return dropped;
 }
 
-/// Grow the exercises into what is left, one more pattern at a time, up to [limit]: dropped ones first, then the rest
-/// of the rotation item, then the free patterns.
-void _grow(AppState s, List<_Slot> slots, double window, int limit, int sets, Iterable<String> equipment,
-    List<String> morePatterns, Map<String, DateTime> paused) {
+/// Grow the exercises into what is left, one at a time, up to [limit]: dropped ones first, then the next muscle by the
+/// selection rules, only when its exercise fits the seconds left.
+void _grow(AppState s, List<_Slot> slots, double window, int limit, int sets, List<_Slot> dropped, Set<String> blocked, _Selection sel) {
   var added = slots.where((x) => x.slot.endsWith('x')).length;
   for (var guard = 0; guard < 20 && slots.length < limit; guard++) {
     final secsLeft = window - _totalSeconds(s, slots);
     if (secsLeft <= 0) break;
-    final inPlay = slots.map((x) => x.pattern).toSet();
-    final used = slots.map((x) => x.pick!.id).toList();
+    sel.planSlots(slots);
     _Slot? next;
-    for (final pattern in [...morePatterns, ..._freePatterns]) {
-      if (inPlay.contains(pattern) || paused.containsKey(pattern)) continue;
-      final pick = _pickFor(s, pattern, equipment, used, null);
-      if (pick == null) continue;
-      final sl = _Slot('${pattern}x', pattern, 100 + added)..pick = pick..intent = intentWorking..sets = sets;
-      if (_seconds(s, sl) <= secsLeft) { next = sl; break; }
+    final back = dropped.where((d) => !slots.contains(d)).firstOrNull;
+    if (back != null && _seconds(s, back) <= secsLeft) {
+      next = back;
+    } else {
+      final used = slots.map((x) => x.pick!.id).toList();
+      for (final cand in _rankedGroups(s, slots, used, blocked, sel)) {
+        final sl = _Slot('${cand.group}x${added + 1}', cand.group, 100 + added)..pick = cand.exercise..intent = intentWorking..sets = sets;
+        if (_seconds(s, sl) <= secsLeft) { next = sl; break; }
+      }
     }
     if (next == null) break;
     slots.add(next);
     added++;
   }
+}
+
+/// The muscle groups in the order selection takes them, each with its exercise: untaken groups while one of them is
+/// ready and behind, otherwise any group; a group already in the plan takes a second exercise only then.
+List<({String group, Exercise exercise})> _rankedGroups(AppState s, List<_Slot> slots, List<String> used, Set<String> blocked, _Selection sel) {
+  final taken = slots.map((x) => x.group).toSet();
+  final best = <String, Exercise>{};
+  for (final grp in muscleGroups) {
+    if (blocked.contains(grp)) continue;
+    final e = sel.bestFor(grp, used, null);
+    if (e != null) best[grp] = e;
+  }
+  if (best.isEmpty) return const [];
+  final untaken = best.keys.where((g) => !taken.contains(g));
+  final behindReady = untaken.any((g) => sel.ready(best[g]!) && sel.share.band(g) == 0);
+  final pool = behindReady ? untaken : best.keys;
+  return [for (final g in sel.rankGroups(pool, best)) (group: g, exercise: best[g]!)];
 }
 
 /// Grow the sets into what is left, one set at a time round the list in priority order, up to [limit] each.
@@ -219,6 +316,7 @@ class BuildOptions {
     required this.energy, required this.minutes, this.locationId, this.picks = const {}, this.rungOverrides = const {},
     this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.circuit = false,
     this.exerciseCount, this.warmupMinutes = 0, this.skipCardio = false, this.skipStretch = false, this.order = const [],
+    this.muscles = const [], this.leftOut = const {}, this.liftInstead = false,
   });
   final Energy energy;
   final int minutes;
@@ -231,6 +329,9 @@ class BuildOptions {
   final String? locationId;
   final Map<String, String> picks;          // slot -> exercise id
   final Map<String, int> rungOverrides;     // slot -> rung for today
+  final List<String> muscles;               // muscle groups the user asked for by hand today, strained or not
+  final Set<String> leftOut;                // slots the user left out today: the count drops by one
+  final bool liftInstead;                   // lift today even though a movement day is due
   final String? moveKind;                   // swap to a movement session: cardio | mobility
   final String? routine;
   final String? cardio;
@@ -242,25 +343,24 @@ class BuildOptions {
 Session buildSession(AppState s, BuildOptions o, DateTime now) {
   expirePauses(s, now);
   applyDecay(s, now);
-  final plan = s.plan!;
   final g = s.goal!;
-  final item = plan.rotation[plan.index];
   final ps = personState(s, now);
   final loc = s.location(o.locationId);
   final equipment = loc?.equipment ?? const <String>[];
   const id = 'preview'; // the real id is assigned when the session starts
   final minutes = clampMinutes(o.minutes);
 
-  if (o.moveKind != null || item.type == 'move') {
-    final kind = o.moveKind ?? item.kind!;
-    final routineId = o.routine ?? item.routine ?? 'reset';
+  final due = moveDue(s);
+  if (o.moveKind != null || (due != null && !o.liftInstead)) {
+    final kind = o.moveKind ?? due!;
+    final routineId = o.routine ?? 'reset';
     final r = routines[routineId]!;
     return Session(
-      id: id, type: 'move', kind: kind, name: kind == 'cardio' ? 'Move day' : r.name, itemIndex: plan.index, locationId: loc?.id,
+      id: id, type: 'move', kind: kind, name: kind == 'cardio' ? 'Move day' : r.name, locationId: loc?.id,
       energy: o.energy, timeMinutes: minutes, energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state,
       minutes: kind == 'cardio' ? minutes : null, routine: kind == 'mobility' ? routineId : null, cardio: kind == 'cardio' ? (o.cardio ?? 'any') : null,
       estMinutes: kind == 'cardio' ? minutes : (r.moves.length * r.seconds / 60).ceil(),
-    )..swappedToMove = item.type == 'lift';
+    )..swappedToMove = due == null;
   }
 
   // 1. the window: the minutes, less the warm-up and the cardio and stretching shares. With no time limit the window
@@ -271,22 +371,47 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   var stretchMin = o.skipStretch ? 0 : (minutes * g.stretchPct / 100).round();
   final window = count != null ? _openWindow : max(0, minutes - cardioMin - stretchMin - warmup) * 60.0;
 
-  // 2. the pattern list, with paused patterns substituted, and an exercise for each
-  final all = liftItems.where((it) => it.name == item.name).firstOrNull?.patterns ?? item.patterns;
-  final listed = item.patterns.toList();
-  String? free() => [..._freePatterns, ...all].where((a) => !listed.contains(a) && !plan.paused.containsKey(a) && candidates(s, a, equipment, const []).isNotEmpty).firstOrNull;
-  final patternsToday = listed.map((p) => plan.paused.containsKey(p) ? free() : p).whereType<String>().toList();
+  // 2. the muscles, then an exercise for each (SELECTION.md). The user's own muscles first, strained or not; then the
+  //    ready muscles furthest behind their share, emphasis first, as many as the ideal (or the count). One exercise per
+  //    muscle until every ready muscle that is behind has one. The last place may go to something new.
+  final sel = _Selection(s, now, MuscleMap(s).currentStrainPoints(now), shareOver(s, now), equipment);
+  final ideal = count ?? g.exercises.ideal;
   final slots = <_Slot>[];
-  final counts = <String, int>{};
   final used = <String>[];
-  for (var i = 0; i < patternsToday.length; i++) {
-    final p = patternsToday[i];
-    counts[p] = (counts[p] ?? 0) + 1;
-    final sl = _Slot('$p${counts[p]}', p, i);
-    sl.pick = _pickFor(s, p, equipment, used, o.picks[sl.slot]);
-    if (sl.pick == null) continue;
-    used.add(sl.pick!.id);
+  final counts = <String, int>{};
+  final blocked = <String>{};
+  String slotKey(String grp) { counts[grp] = (counts[grp] ?? 0) + 1; return '$grp${counts[grp]}'; }
+  for (final grp in o.muscles) {
+    if (!muscleGroups.contains(grp)) continue;
+    sel.planSlots(slots);
+    final key = slotKey(grp);
+    final pick = sel.bestFor(grp, used, o.picks[key]);
+    if (pick == null) continue;
+    final sl = _Slot(key, grp, slots.length)..pick = pick..asked = true..forced = !sel.ready(pick);
+    if (o.leftOut.contains(key)) { blocked.add(grp); continue; }
+    used.add(pick.id);
     slots.add(sl);
+  }
+  final explore = o.energy != Energy.hard;
+  for (var guard = 0; guard < 20 && slots.length < max(ideal, min(slots.length, g.exercises.max)); guard++) {
+    sel.planSlots(slots);
+    sel.exploreGroup = null;
+    final ranked = _rankedGroups(s, slots, used, blocked, sel);
+    if (ranked.isEmpty) break;
+    var next = ranked.first;
+    var explored = false;
+    // the last place: when the practised pick for this muscle has had its run, an unrated one takes a turn
+    if (explore && slots.length == ideal - 1 && _practised(s, next.exercise) && runOf(s, next.group, next.exercise.id) >= exploreRun[g.explore]!) {
+      sel.exploreGroup = next.group;
+      final fresh = sel.bestFor(next.group, used, null);
+      if (fresh != null && !_practised(s, fresh) && sel.ready(fresh) == sel.ready(next.exercise)) { next = (group: next.group, exercise: fresh); explored = true; }
+      sel.exploreGroup = null;
+    }
+    final key = slotKey(next.group);
+    final pick = o.picks.containsKey(key) ? (sel.bestFor(next.group, used, o.picks[key]) ?? next.exercise) : next.exercise;
+    if (o.leftOut.contains(key)) { blocked.add(next.group); continue; }
+    used.add(pick.id);
+    slots.add(_Slot(key, next.group, slots.length)..pick = pick..explored = explored && pick.id == next.exercise.id);
   }
 
   // 3. the list is built once, at normal: the ideal sets everywhere, fitted to the minutes by the calibrations. A day is
@@ -302,15 +427,14 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     while (slots.length > count) {
       final byPriority = slots.toList()..sort((a, b) => b.priority.compareTo(a.priority));
       slots.remove(byPriority.first);
-      dropped.insert(0, byPriority.first.pattern);
+      dropped.insert(0, byPriority.first);
     }
-    _grow(s, slots, window, count, g.sets.ideal, equipment, [...dropped, ...all.where((p) => !patternsToday.contains(p))], plan.paused);
+    _grow(s, slots, window, count, g.sets.ideal, dropped, blocked, sel);
   } else if (g.spare == Spare.exercises) {
-    final more = [...dropped, ...all.where((p) => !patternsToday.contains(p))];
-    _grow(s, slots, window, g.exercises.ideal, g.sets.ideal, equipment, more, plan.paused);
+    _grow(s, slots, window, max(g.exercises.ideal, slots.length), g.sets.ideal, dropped, blocked, sel);
     if (o.energy == Energy.hard || (longDay && o.energy != Energy.easy)) {
       _growSets(s, slots, window, g.sets.max);
-      _grow(s, slots, window, g.exercises.max, g.sets.ideal, equipment, more, plan.paused);
+      _grow(s, slots, window, g.exercises.max, g.sets.ideal, dropped, blocked, sel);
     }
   }
   // 4. the dials. A hard day pushes the fewest exercises when tight, the ideal usually, the most on a long day. An easy
@@ -327,7 +451,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
       slots.remove(victim);
     }
   }
-  final liftIndex = plan.rotation.take(plan.index).where((r) => r.type == 'lift').length;
+  final liftIndex = s.sessions.where((x) => x.type == 'lift').length;
   final usedSeconds = _totalSeconds(s, slots);
   var spareMin = 0;
   if (count != null) {
@@ -343,8 +467,11 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     }
   }
 
-  // 6. order: hardest first while the user is fresh; at the same difficulty, extra and working before light
+  // 6. order: emphasised muscles first, where strength lands; then hardest first while the user is fresh; at the same
+  //    difficulty, extra and working before light
   slots.sort((a, b) {
+    final e = g.emphasisOf(b.group).compareTo(g.emphasisOf(a.group));
+    if (e != 0) return e;
     final c = _difficulty(s, b.pick!).compareTo(_difficulty(s, a.pick!));
     if (c != 0) return c;
     final t = _tier(a.intent).compareTo(_tier(b.intent));
@@ -354,6 +481,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   // the exercise entries
   final lightenHard = ps.state == PersonState.away;
   final out = <SessionExercise>[];
+  final current = sel.current;
   for (final sl in slots) {
     final ex = sl.pick!;
     final st = ensureState(s, ex);
@@ -386,11 +514,16 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     var relative = sl.sets / g.sets.ideal;
     if (light) relative *= (ex.loaded ? easyShare : 0.85) * 0.9;
     if (nextLevel) relative *= 1.1;
+    final fresh = sl.explored;
+    final why = whyLine(
+      group: sl.group, ready: ex.primary.every(current.strainFree), band: sel.share.band(sl.group), emphasis: g.emphasisOf(sl.group),
+      preference: preferenceOf(st, now), fresh: fresh, asked: sl.asked,
+    );
     out.add(SessionExercise(
-      slot: sl.slot, exId: ex.id, pattern: sl.pattern, intent: sl.intent, workingSets: min(sl.sets, g.sets.ideal), rung: rung, rungLabel: label,
+      slot: sl.slot, exId: ex.id, muscle: sl.group, intent: sl.intent, workingSets: min(sl.sets, g.sets.ideal), rung: rung, rungLabel: label,
       target: target, lo: range.lo, hi: range.hi, atCeiling: ceilingToday, bestTotal: st.bestTotal, difficulty: difficulty, loadKg: load,
       secPerSet: st.secPerSet, sets: List.generate(sl.sets, (_) => SetLog()), warmups: ex.loaded && difficulty >= 3 ? warmupsFor(s, ex, load!) : const [],
-      edited: edited, lightened: lightened,
+      edited: edited, lightened: lightened, why: why, fresh: fresh, asked: sl.asked,
     )..relative = relative..nextLevel = nextLevel..usualLoadKg = usual);
   }
   final weight = out.fold(0, (a, e) => a + e.difficulty);
@@ -403,11 +536,20 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   }
 
   return Session(
-    id: id, type: 'lift', name: item.name, itemIndex: plan.index, locationId: loc?.id, energy: o.energy, timeMinutes: minutes,
+    id: id, type: 'lift', name: workoutName(out), locationId: loc?.id, energy: o.energy, timeMinutes: minutes,
     energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state, exercises: out,
     estMinutes: (usedSeconds / 60).round() + (out.isEmpty ? 0 : cardioMin + stretchMin + warmup), cardioMinutes: out.isEmpty ? 0 : cardioMin,
     stretchMinutes: out.isEmpty ? 0 : stretchMin, spareMinutes: spareMin, circuit: o.circuit, warmupMinutes: out.isEmpty ? 0 : warmup,
   )..relative = relative..pushes = out.where((e) => e.nextLevel).length;
+}
+
+/// A workout's name: the first two muscles it works, "Back and chest".
+String workoutName(List<SessionExercise> out) {
+  final groups = <String>[];
+  for (final e in out) { if (!groups.contains(e.muscle)) groups.add(e.muscle); }
+  if (groups.isEmpty) return 'Workout';
+  if (groups.length == 1) return groups.first;
+  return '${groups[0]} and ${groups[1].toLowerCase()}';
 }
 
 /// Seconds one exercise is planned to take, rest after its sets included: what the plan shows beside it.
@@ -416,19 +558,33 @@ double plannedSeconds(SessionExercise e) => e.secPerSet * e.sets.length + change
 /// Words for a relative load: how today compares with the usual working level.
 String relativeLabel(double r) => r < 0.95 ? 'lighter' : r > 1.05 ? 'more' : 'usual';
 
-/// Alternatives for one slot: same pattern, available here, not already in the session.
-List<Exercise> alternatives(AppState s, Session session, int idx, Iterable<String> equipment) {
+/// Alternatives for one slot: the same muscle, available here, not already in the session; in selection's order against
+/// the rest of the workout. Not for me ones come last; the sheet lists them under their own heading.
+List<Exercise> alternatives(AppState s, Session session, int idx, Iterable<String> equipment, DateTime now) {
   final e = session.exercises[idx];
-  return candidates(s, e.pattern, equipment, session.exercises.map((x) => x.exId))..sort((a, b) => _usualOrder(s, a, b));
+  final sel = _selectionBeside(s, session, idx, equipment, now);
+  return candidatesFor(s, e.muscle, equipment, session.exercises.map((x) => x.exId), now)..sort((a, b) => sel.compare(a, b));
 }
 
-/// Random fresh picks for every slot, from the top few alternatives.
-Map<String, String> shufflePicks(AppState s, Session session, Iterable<String> equipment, Random rng) {
+/// Selection for one slot of a built workout: the current strain points, plus every other exercise's.
+_Selection _selectionBeside(AppState s, Session session, int idx, Iterable<String> equipment, DateTime now) =>
+    _Selection(s, now, MuscleMap(s).currentStrainPoints(now), shareOver(s, now), equipment)
+      ..plan([
+        for (var i = 0; i < session.exercises.length; i++)
+          if (i != idx) (exercise: session.exercises[i].exercise, sets: session.exercises[i].sets.length, light: session.exercises[i].intent == intentLight),
+      ]);
+
+/// Random fresh picks for every slot, from the top few alternatives by selection's order, never a not-for-me one.
+Map<String, String> shufflePicks(AppState s, Session session, Iterable<String> equipment, Random rng, DateTime now) {
   final picks = <String, String>{};
   final used = <String>[];
-  for (final e in session.exercises) {
-    final alts = candidates(s, e.pattern, equipment, [...used, e.exId])..sort((a, b) => a.rank.compareTo(b.rank));
-    final pool = (alts.isEmpty ? candidates(s, e.pattern, equipment, used) : alts).take(4).toList();
+  for (var i = 0; i < session.exercises.length; i++) {
+    final e = session.exercises[i];
+    final sel = _selectionBeside(s, session, i, equipment, now);
+    final alts = candidatesFor(s, e.muscle, equipment, [...used, e.exId], now)..sort((a, b) => sel.compare(a, b));
+    final ranked = (alts.isEmpty ? candidatesFor(s, e.muscle, equipment, used, now) : alts).where((x) => sel.pref(x) != prefNo).toList();
+    final ready = ranked.where(sel.ready).toList();
+    final pool = (ready.isEmpty ? ranked : ready).take(4).toList();
     final pick = pool.isEmpty ? e.exercise : pool[rng.nextInt(pool.length)];
     picks[e.slot] = pick.id;
     used.add(pick.id);

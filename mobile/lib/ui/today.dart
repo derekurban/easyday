@@ -11,8 +11,9 @@ import '../integrations.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
 import '../logic/calendar.dart';
-import '../logic/muscles.dart';
+import '../logic/muscle_map.dart';
 import '../logic/person.dart';
+import '../logic/selection.dart';
 import 'app.dart';
 import 'muscle_figure.dart';
 import 'motion.dart';
@@ -34,6 +35,8 @@ class _TodayScreenState extends State<TodayScreen> {
   String? moveKind;
   String? routine;
   String? cardioId;
+  List<String> asked = [];  // muscle groups asked for by hand today
+  bool liftInstead = false; // lift today even though a movement day is due
   String? dismissedNudge;
   DayShape? day;           // today's calendar shape, when allowed
   String? nearbyId;        // the saved location nearest to the phone, when allowed
@@ -76,7 +79,6 @@ class _TodayScreenState extends State<TodayScreen> {
     final limit = s.settings.timeLimit;
     final n = (count ?? g.exercises.ideal).clamp(g.exercises.min, g.exercises.max);
     final loc = s.location(locationId ?? nearbyId);
-    final item = s.plan!.rotation[s.plan!.index];
     final ps = personState(s, now);
     final nudge = nudgeFor(s, now);
 
@@ -85,13 +87,15 @@ class _TodayScreenState extends State<TodayScreen> {
     final opts = BuildOptions(
       energy: e, minutes: mins, locationId: loc?.id, moveKind: moveKind, routine: routine, cardio: cardioId,
       energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, circuit: s.settings.circuit,
-      exerciseCount: limit ? null : n, warmupMinutes: s.settings.warmup,
+      exerciseCount: limit ? null : n, warmupMinutes: s.settings.warmup, muscles: asked, liftInstead: liftInstead,
     );
     final session = buildSession(s, opts, now);
     final est = estimateMinutes(session);
     final setCount = session.exercises.fold(0, (a, x) => a + x.sets.length);
     final fingerprint = '${session.type}|${session.exercises.map((x) => '${x.exId}:${x.sets.length}:${x.rung}').join(',')}';
-    final muscles = workoutMuscles(session);
+    final muscleMap = MuscleMap(s);
+    final planned = strainPointsFromWorkout(session, planned: true);
+    final current = muscleMap.currentStrainPoints(now);
     final lift = session.type == 'lift';
 
     return Scaffold(
@@ -146,11 +150,11 @@ class _TodayScreenState extends State<TodayScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        MuscleFigure(highlight: muscles, height: 170, keyLabels: const ['main', 'helping'], expandable: true, title: session.name,
-                            detail: (h) => _muscleDetail(session, h)),
+                        MuscleFigure(highlight: planned.byMuscle, height: 170, keyLabels: const ['high strain', 'medium', 'low'], expandable: true,
+                            title: session.name, detail: (h) => _muscleDetail(session, h, planned, current)),
                         const SizedBox(width: 14),
                         Expanded(child: Padding(padding: const EdgeInsets.only(top: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          for (final line in _whyLines(s, now, muscles))
+                          for (final line in _whyLines(s, now, session, muscleMap, current))
                             Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(line, style: t.bodySmall?.copyWith(color: du.ink))),
                         ]))),
                       ]),
@@ -209,12 +213,22 @@ class _TodayScreenState extends State<TodayScreen> {
               _hint(context, LucideIcons.calendarDays, 'Calendar ${day!.busyPct} % full today, so ${defaults.busy == 'easy' ? 'easy and ' : ''}$busyDayMinutes minutes by default.'),
             if (!limit)
               _hint(context, LucideIcons.info, 'Your usual is ${g.exercises.ideal}, between ${g.exercises.min} and ${g.exercises.max} in Settings. About $est min.'),
+            if (asked.isNotEmpty && lift)
+              Padding(padding: const EdgeInsets.only(bottom: 6), child: Wrap(spacing: 6, runSpacing: 4, children: [
+                for (final grp in asked)
+                  InputChip(label: Text(grp), visualDensity: VisualDensity.compact, onDeleted: () => setState(() => asked.remove(grp)), deleteButtonTooltipMessage: 'Not today'),
+              ])),
             const SizedBox(height: 4),
             Row(children: [
-              if (moveKind != null && item.type == 'lift')
-                IconButton.outlined(onPressed: () => setState(() => moveKind = null), icon: const Icon(LucideIcons.dumbbell, size: 20), tooltip: 'Lift instead')
-              else
-                IconButton.outlined(onPressed: () => _moveSheet(context, loc), icon: Icon(moveIcon('cardio'), size: 20), tooltip: moveKind != null || item.type == 'move' ? 'Change movement' : 'Move instead'),
+              if (!lift) ...[
+                IconButton.outlined(onPressed: () => setState(() { moveKind = null; liftInstead = true; }), icon: const Icon(LucideIcons.dumbbell, size: 20), tooltip: 'Lift instead'),
+                const SizedBox(width: 8),
+                IconButton.outlined(onPressed: () => _moveSheet(context, loc), icon: Icon(moveIcon(session.kind), size: 20), tooltip: 'Change movement'),
+              ] else ...[
+                IconButton.outlined(onPressed: () => _moveSheet(context, loc), icon: Icon(moveIcon('cardio'), size: 20), tooltip: 'Move instead'),
+                const SizedBox(width: 8),
+                IconButton.outlined(onPressed: () => _muscleSheet(context, s, now), icon: const Icon(LucideIcons.plus, size: 20), tooltip: 'Work a muscle'),
+              ],
               const SizedBox(width: 8),
               Expanded(child: SizedBox(
                 height: 52,
@@ -247,39 +261,60 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// For a tapped muscle: which of today's exercises use it.
-  String? _muscleDetail(Session x, MuscleHit h) {
+  /// For a tapped muscle: the strain points this workout gives it, which exercises use it, and what it carries now.
+  String? _muscleDetail(Session x, MuscleHit h, StrainPoints planned, StrainPoints current) {
     final main = <String>[], helping = <String>[];
     for (final e in x.exercises) {
       if (e.exercise.primary.contains(h.name)) { main.add(e.exercise.name); }
       else if (e.exercise.secondary.contains(h.name)) { helping.add(e.exercise.name); }
     }
-    if (main.isEmpty && helping.isEmpty) return 'Not worked today.';
-    return [if (main.isNotEmpty) 'Main in ${main.join(', ')}.', if (helping.isNotEmpty) 'Helps in ${helping.join(', ')}.'].join(' ');
+    final now = current.strainFree(h.name) ? 'Strain-free now.' : 'Carrying ${strainPointsText(current[h.name])} now.';
+    if (main.isEmpty && helping.isEmpty) return 'Not worked today. $now';
+    return [
+      '${strainPointsText(planned[h.name])} strain points from this workout.',
+      if (main.isNotEmpty) 'Main in ${main.join(', ')}.',
+      if (helping.isNotEmpty) 'Helps in ${helping.join(', ')}.',
+      now,
+    ].join(' ');
   }
 
-  /// What the workout works, the main muscles then the helping ones, and what has waited longest.
-  List<String> _whyLines(AppState s, DateTime now, Map<String, double> muscles) {
+  /// Why each muscle was chosen, one line each from the two ledgers and the user's word (SELECTION.md), then what is
+  /// still carrying strain.
+  List<String> _whyLines(AppState s, DateTime now, Session session, MuscleMap muscleMap, StrainPoints current) {
     String names(Iterable<String> xs) {
       final l = xs.toList();
       return l.length <= 1 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
     }
-    final main = muscles.entries.where((e) => e.value >= primaryStrength).map((e) => e.key).toList();
-    final helping = muscles.entries.where((e) => e.value < primaryStrength).map((e) => e.key).toList();
-    // the muscle groups not worked for a week or more, and not in today's workout, longest first
-    final todayGroups = muscles.keys.map(muscleGroup).toSet();
-    final last = <String, DateTime>{};
-    for (final e in lastWorked(s).entries) {
-      if (e.value == null) continue;
-      final grp = muscleGroup(e.key);
-      if (last[grp] == null || e.value!.isAfter(last[grp]!)) last[grp] = e.value!;
+    final seen = <String>{};
+    final lines = <String>[];
+    for (final e in session.exercises) {
+      if (!seen.add(e.muscle) || lines.length >= 4) continue;
+      lines.add('${e.muscle}: ${e.why}.');
     }
-    final waited = last.entries.where((e) => !todayGroups.contains(e.key) && daysAgo(e.value, now) >= 7).toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
-    return [
-      if (main.isNotEmpty) 'Works ${names(main)}.',
-      if (helping.isNotEmpty) 'Also ${names(helping)}.',
-      if (waited.isNotEmpty) 'Not lately: ${waited.take(2).map((e) => '${e.key.toLowerCase()} ${daysAgo(e.value, now)} days').join(', ')}.',
-    ];
+    // the most strained muscles, with the day each will be strain-free
+    final strained = current.ranked().take(3).map((m) => '$m until ${dayText(muscleMap.strainFreeOn(m, now), now)}').toList();
+    if (strained.isNotEmpty) lines.add('Carrying strain: ${names(strained)}.');
+    return lines;
+  }
+
+  String _setsText(double x) => x == x.roundToDouble() ? '${x.round()}' : x.toStringAsFixed(1);
+
+  /// Work a muscle: any group, whatever the plan says. Strained ones are allowed, and the plan says so.
+  Future<void> _muscleSheet(BuildContext context, AppState s, DateTime now) async {
+    final share = shareOver(s, now);
+    final current = MuscleMap(s).currentStrainPoints(now);
+    final grp = await showSheet<String>(context, ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
+      const SheetHeader('Work a muscle', subtitle: 'Adds it to today whatever the plan says. Still carrying strain is allowed; the plan will say so.', icon: LucideIcons.plus),
+      for (final g in muscleGroups)
+        ListTile(
+          leading: IconBadge(LucideIcons.personStanding, size: 36, accent: asked.contains(g)),
+          title: Text(g),
+          subtitle: Text('${_setsText(share.of(g))} of ${_setsText(share.target(g))} sets, ${share.bandWord(g)} · ${trackedMuscles.any((m) => muscleGroup(m) == g && !current.strainFree(m)) ? 'carrying strain' : 'ready'}'),
+          trailing: asked.contains(g) ? Icon(LucideIcons.check, color: context.du.accentStrong) : null,
+          onTap: () => Navigator.pop(context, g),
+        ),
+    ]));
+    if (grp != null && !asked.contains(grp)) setState(() => asked.add(grp));
   }
 
   Widget _doneForToday(BuildContext context, AppState s, DateTime now) {
@@ -289,7 +324,6 @@ class _TodayScreenState extends State<TodayScreen> {
     final last = s.lastSession!;
     final sets = last.exercises.fold(0, (a, x) => a + x.attempted.length);
     final mins = last.elapsedMinutes;
-    final next = s.plan!.rotation[s.plan!.index];
     return Scaffold(
       appBar: AppBar(title: const Text('Today')),
       body: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 32), children: [
@@ -311,10 +345,10 @@ class _TodayScreenState extends State<TodayScreen> {
         const SizedBox(height: 24),
         Row(children: [
           Icon(LucideIcons.sunrise, size: 16, color: du.inkTertiary), const SizedBox(width: 8),
-          Expanded(child: Text('${next.name} is ready tomorrow. Nothing is waiting for you tonight.', style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
+          Expanded(child: Text('Your next workout is ready tomorrow, built from where your body is then. Nothing is waiting for you tonight.', style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
         ]),
         const SizedBox(height: 28),
-        OutlinedButton.icon(onPressed: () => store.update((x) => x.plan!.continuedOn = now), icon: const Icon(LucideIcons.skipForward, size: 18), label: Text('Start ${next.name} anyway')),
+        OutlinedButton.icon(onPressed: () => store.update((x) => x.plan!.continuedOn = now), icon: const Icon(LucideIcons.skipForward, size: 18), label: const Text('Start another anyway')),
         const SizedBox(height: 8),
         TextButton.icon(onPressed: () { store.update((x) => x.plan!.continuedOn = now); setState(() => moveKind = 'cardio'); }, icon: const Icon(LucideIcons.footprints, size: 18), label: const Text('Add a walk or mobility')),
       ]),
@@ -349,13 +383,13 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _plan(BuildContext context, BuildOptions opts) async {
     final started = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => PlanScreen(base: opts)));
-    if (started == true && mounted) setState(() { moveKind = null; energy = null; minutes = null; count = null; });
+    if (started == true && mounted) setState(() { moveKind = null; energy = null; minutes = null; count = null; asked = []; liftInstead = false; });
   }
 
   void _startMove(BuildContext context, Session session) {
     final store = context.store;
     store.update((s) => startSession(s, session, store.now));
-    setState(() { moveKind = null; energy = null; minutes = null; count = null; });
+    setState(() { moveKind = null; energy = null; minutes = null; count = null; asked = []; liftInstead = false; });
   }
 
   /// The suggested slot and when the calendar was last read, with a tap to read it again.

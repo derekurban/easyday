@@ -3,6 +3,9 @@
 Diagrams of how the habit-first training app is meant to work. Sources are Mermaid in `src/`,
 rendered PNGs are in `build/`, and `index.html` is the site.
 
+These diagrams predate 2026-10-19. Anything in them about a rotation, slots or movement patterns is
+superseded: workouts are now built per visit from muscles, by `docs/app/SELECTION.md`.
+
 ## Viewing over Tailscale
 The `easyday-logic-site` scheduled task (per-user, runs at logon) serves the repo on port 5180 via `site.ps1`.
 The root redirects to the app:

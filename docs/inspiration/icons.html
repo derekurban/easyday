@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspiration board · launcher icon</title>
+<link rel="stylesheet" href="../../app/vendor/du/styles.css">
+<style>
+  body { padding: 24px 16px 64px; }
+  main { max-width: 1100px; margin: 0 auto; display: grid; gap: 32px; }
+  h1 { font: var(--font-title-style); letter-spacing: var(--tracking-title); margin: 0 0 4px; }
+  h2 { font: var(--font-heading); letter-spacing: var(--tracking-heading); margin: 0; }
+  .sub { color: var(--ink-secondary); margin: 6px 0 0; max-width: 72ch; font: var(--font-small); }
+  section { display: grid; gap: 16px; }
+
+  /* tiles sit on a wallpaper tone so ink and paper tiles both show against it */
+  .stage { background: #e9e6df; }
+  [data-theme="dark"] .stage { background: #2a2d29; }
+  @media (prefers-color-scheme: dark) { [data-theme="system"] .stage { background: #2a2d29; } }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; }
+  .seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--sunk); }
+  .seg button { font: var(--font-label); padding: 6px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink-secondary); cursor: pointer; }
+  .seg button.on { background: var(--surface); color: var(--ink); box-shadow: var(--ring-hairline); }
+  .ctl { display: inline-flex; align-items: center; gap: 8px; font: var(--font-label); color: var(--ink-tertiary); }
+  .ctl input { accent-color: var(--accent); }
+
+  /* home screens */
+  .homes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .home { border-radius: 18px; padding: 24px 16px 20px; display: grid; gap: 14px; }
+  .home.dark { background: #2a2d29; background-image: radial-gradient(120% 90% at 20% 0%, #3b4237 0%, transparent 60%); }
+  .home.light { background: #e9e6df; background-image: radial-gradient(120% 90% at 80% 0%, #f7f4ee 0%, transparent 60%); }
+  .home.themed { background: #dde3d6; }
+  .home .row { display: flex; justify-content: space-around; }
+  .home figure { margin: 0; display: grid; justify-items: center; gap: 6px; width: 64px; }
+  .home figcaption { font: 500 11px/14px var(--font-body); color: #f2f2f2; text-shadow: 0 1px 2px rgb(0 0 0 / .4); }
+  .home.light figcaption, .home.themed figcaption { color: #2b2b2b; text-shadow: none; }
+  .home .name { font: var(--font-label); color: #f2f2f2; opacity: .7; }
+  .home.light .name, .home.themed .name { color: #2b2b2b; }
+  .home svg { display: block; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .25)); }
+
+  .now { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 16px 20px; }
+  .now .big { flex: none; padding: 12px; border-radius: 14px; }
+  .now .what { flex: 1; min-width: 220px; }
+  .now .what b { font: var(--font-subheading); display: block; }
+  .now .what span { font: var(--font-small); color: var(--ink-secondary); }
+  .btn { font: var(--font-label); padding: 9px 14px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+  .shortlist { display: flex; flex-wrap: wrap; gap: 12px; }
+  .shortlist:empty::before { content: "Nothing saved yet. Pick a glyph and a treatment, then save the pair."; font: var(--font-small); color: var(--ink-tertiary); }
+  .pick .stage { padding: 8px; border-radius: 12px; }
+  .pick { position: relative; display: grid; justify-items: center; gap: 6px; padding: 12px 12px 10px; background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 14px; cursor: pointer; width: 104px; }
+  .pick span { font: var(--font-caption); color: var(--ink-secondary); text-align: center; }
+  .pick .x { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--ink-tertiary); cursor: pointer; font: var(--font-label); }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); box-shadow: var(--shadow-rest); border-radius: 18px; padding: 16px; display: grid; align-content: start; gap: 12px; cursor: pointer; text-align: left; border: 0; color: inherit; font: inherit; }
+  .card:hover { box-shadow: var(--shadow-rest-hover); }
+  .card.on { box-shadow: var(--shadow-rest), 0 0 0 2px var(--accent-strong); }
+  .card .tiles { display: flex; align-items: flex-end; gap: 12px; padding: 14px; border-radius: 12px; }
+  .card .tiles .small { display: flex; align-items: flex-end; gap: 10px; }
+  .card h3 { font: var(--font-subheading); letter-spacing: var(--tracking-subheading); margin: 0; display: flex; gap: 8px; align-items: baseline; }
+  .card h3 small { font: var(--font-caption); color: var(--ink-tertiary); }
+  .card p { margin: 0; font: var(--font-small); color: var(--ink-secondary); }
+  .card svg { display: block; flex: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Launcher icon</h1>
+    <p class="sub">Same frame every time: an opening bracket, a closing bracket in moss, and something between them. That is the
+      design system's mark, <b>[ ~ ]</b>, with Easyday's own glyph inside. The board moves along two axes. Pick what goes between
+      the brackets, then how the brackets are drawn. Glyph cards use the selected treatment and treatment cards use the
+      selected glyph, so any pair can be tried. Tiles are drawn the way Android draws them: the adaptive foreground inside the
+      launcher's mask.</p>
+  </header>
+
+  <div class="controls">
+    <span class="ctl">Mask <span class="seg" id="mask"></span></span>
+    <span class="ctl">Page <span class="seg" id="theme"></span></span>
+    <label class="ctl"><input type="checkbox" id="safe"> Show safe zone</label>
+  </div>
+
+  <section>
+    <div class="now">
+      <div class="big stage" id="nowBig"></div>
+      <div class="what"><b id="nowName"></b><span id="nowStory"></span></div>
+      <button class="btn" id="save">Save this pair</button>
+    </div>
+    <div class="homes" id="homes"></div>
+  </section>
+
+  <section>
+    <div>
+      <h2>Shortlist</h2>
+      <p class="sub">Saved pairs stay in this browser. Click one to bring it back.</p>
+    </div>
+    <div class="shortlist" id="shortlist"></div>
+  </section>
+
+  <section>
+    <div>
+      <h2>Between the brackets</h2>
+      <p class="sub">What the icon says. Some are about lifting, some about the habit, some about the ladder.</p>
+    </div>
+    <div class="grid" id="glyphs"></div>
+  </section>
+
+  <section>
+    <div>
+      <h2>The brackets themselves</h2>
+      <p class="sub">Colour, weight, cut and fit of the frame, applied to the selected glyph.</p>
+    </div>
+    <div class="grid" id="treatments"></div>
+  </section>
+</main>
+
+<script>
+// Everything is drawn in the 100-unit path space of app/icon.svg: brackets at x 20..30 and 70..80, y 22..78.
+const PAPER = '#eeeeee', INK = '#1b1b1b', MOSS = '#86ab7a', MOSS_DEEP = '#456938';
+
+// --- glyphs: what goes between the brackets ---
+// each draws with c = { fg, ac, gw (stroke multiplier), cap, join }
+const line = (c, d, w, color) => `<path d="${d}" fill="none" style="stroke:${color || c.fg}" stroke-width="${w * c.gw}" stroke-linecap="${c.cap}" stroke-linejoin="${c.join}"/>`;
+const GLYPHS = [
+  { id: 'plates', name: 'Tilted, rounded plates', tag: 'ships', story: 'The mark as it ships: a dumbbell at 45 degrees with rounded-rectangle plates.',
+    // drawn in the launcher tile's units, so it is scaled back into this board's path space
+    draw: c => `<g transform="translate(50 50) scale(${1 / 1.139}) translate(-50 -50) rotate(-45 50 50)">${line(c, 'M32 50 H68', 5.32)}` +
+      [[34.36, 38, 10.28, 24, 2], [55.36, 38, 10.28, 24, 2], [27.78, 42.5, 7.44, 15, 1.8], [64.78, 42.5, 7.44, 15, 1.8]]
+        .map(([x, y, w, h, r]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" style="fill:${c.fg}"/>`).join('') + '</g>' },
+  { id: 'dumbbell', name: 'Dumbbell', tag: 'before', story: 'The mark up to 0.14: a bar with two plates a side, merged into one shape.',
+    draw: c => line(c, 'M34 50 H66 M34 42 V58 M42 37 V63 M58 37 V63 M66 42 V58', 8) },
+  { id: 'bar', name: 'Brackets as plates', tag: 'lifting', story: 'The brackets already look like plates. One bar between them makes the whole mark a barbell.',
+    draw: c => line(c, 'M31 50 H69', 8) },
+  { id: 'collars', name: 'Bar and collars', tag: 'lifting', story: 'The barbell again, with collars, so it reads as a bar and not a dash.',
+    draw: c => line(c, 'M33 50 H67', 6) + line(c, 'M38 42 V58 M62 42 V58', 7) },
+  { id: 'tilted', name: 'Tilted dumbbell', tag: 'lifting', story: 'The dumbbell picked up. The tilt stops it reading as an H.',
+    draw: c => `<g transform="rotate(-38 50 50) translate(50 50) scale(.84) translate(-50 -50)">${line(c, 'M33 50 H67', 5) + line(c, 'M41 38 V62 M59 38 V62', 11) + line(c, 'M30.5 43 V57 M69.5 43 V57', 7)}</g>` },
+  { id: 'plate', name: 'One plate', tag: 'lifting', story: 'A weight plate seen face on. Round, calm, and it holds up at 24 px.',
+    draw: c => line(c, 'M50 36 A14 14 0 1 1 49.99 36 Z', 8) + `<circle cx="50" cy="50" r="3.6" style="fill:${c.ac}"/>` },
+  { id: 'kettlebell', name: 'Kettlebell', tag: 'lifting', story: 'Home and gym both have one. A distinct silhouette that is not another dumbbell.',
+    draw: c => line(c, 'M39.5 55 C33.5 45 36 34.5 50 34.5 C64 34.5 66.5 45 60.5 55', 6.5) + `<path d="M41 68.5 A14.5 14.5 0 1 1 59 68.5 Z" style="fill:${c.fg}"/>` },
+  { id: 'stairs', name: 'The ladder', tag: 'progress', story: 'Steps up. The ladder is how every exercise grows, one easy rung at a time.',
+    draw: c => line(c, 'M34 64 H42.5 V55.5 H51 V47 H59.5 V38.5 H66', 7) },
+  { id: 'bars', name: 'Growth bars', tag: 'progress', story: 'Three bars, rising. The last in moss is where you are now.',
+    draw: c => line(c, 'M38.5 62 V55 M50 62 V47', 8) + line(c, 'M61.5 62 V38', 8, c.ac) },
+  { id: 'chevron', name: 'Step up', tag: 'progress', story: 'One chevron. A little more than last time, and no more than that.',
+    draw: c => line(c, 'M37 58 L50 44 L63 58', 9) },
+  { id: 'check', name: 'Done for today', tag: 'habit', story: 'The whole point is to show up. A tick is what the day ends with.',
+    draw: c => line(c, 'M37 51 L46 60 L63 41', 9) },
+  { id: 'tally', name: 'Tally', tag: 'habit', story: 'Days counted on a wall. Four strokes and the fifth across them.',
+    draw: c => line(c, 'M38.5 40 V60 M45.5 40 V60 M52.5 40 V60 M59.5 40 V60', 5) + line(c, 'M34.5 57 L64 43', 5, c.ac) },
+  { id: 'dots', name: 'Streak grid', tag: 'habit', story: 'A week as dots. Done days filled, today in moss, the rest still to come.',
+    draw: c => [[38,38,1],[50,38,1],[62,38,1],[38,50,1],[50,50,1],[62,50,1],[38,62,2],[50,62,0],[62,62,0]]
+      .map(([x, y, s]) => s === 0 ? `<circle cx="${x}" cy="${y}" r="4.4" style="fill:${c.fg}" opacity=".28"/>` : `<circle cx="${x}" cy="${y}" r="4.4" style="fill:${s === 2 ? c.ac : c.fg}"/>`).join('') },
+  { id: 'sunrise', name: 'Easy day', tag: 'name', story: 'The name, drawn: a sun coming up over a flat line. A day that starts gently.',
+    draw: c => `<path d="M40 57 A10 10 0 0 1 60 57 Z" style="fill:${c.ac}"/>` + line(c, 'M34 63 H66 M41 69.5 H59', 5) + line(c, 'M50 40.5 V37 M61.3 45.7 L63.8 43.2 M38.7 45.7 L36.2 43.2', 4.5) },
+  { id: 'wave', name: 'Easy wave', tag: 'name', story: 'One soft swell. A calmer cousin of the squiggle in the family mark.',
+    draw: c => line(c, 'M34 52 C39 40 45 40 50 50 C55 60 61 60 66 48', 7) },
+  { id: 'e', name: 'Lowercase e', tag: 'name', story: 'A monogram. Plain, and a little generic until it sits in the brackets.',
+    draw: c => line(c, 'M38 50 H62 A12 12 0 1 0 58.5 58.5', 7) },
+  { id: 'dot', name: 'Just a dot', tag: 'minimal', story: 'Almost nothing between the brackets. One rep. Reads at any size.',
+    draw: c => `<circle cx="50" cy="50" r="7" style="fill:${c.fg}"/>` },
+];
+
+// --- treatments: how the frame is drawn ---
+// the frame as it ships, from app/icon.svg: the design system's proportions at 1.3x weight, inside the safe zone
+const BASE = { bg: INK, fg: PAPER, close: MOSS, glyph: PAPER, ac: MOSS, w: 6.22, gw: 1, cap: 'round', join: 'round',
+  x: 24.54, arm: 7.94, top: 24.54, bot: 75.46, scale: 1, gscale: 1 };
+const TREATMENTS = [
+  { id: 'today', name: 'As it ships', story: "Ink tile, paper marks, the closing bracket in moss. The design system logo's proportions at 1.3x its weight." },
+  { id: 'old', name: 'The 0.14 frame', story: "1.7x the logo's weight and wider than tall. The arms read as knobs, and a circle mask clips the corners.", w: 9, x: 20, arm: 10, top: 22, bot: 78 },
+  { id: 'paper', name: 'Paper tile', story: 'The light theme of the same thing. Deep moss for contrast on paper.', bg: '#f6f6f6', fg: INK, glyph: INK, close: MOSS_DEEP, ac: MOSS_DEEP },
+  { id: 'moss', name: 'Moss tile', story: 'Colour does the work. Ink marks, the closing bracket in paper.', bg: MOSS, fg: INK, glyph: INK, close: '#fafafa', ac: '#fafafa' },
+  { id: 'inside', name: 'Moss inside', story: 'Both brackets paper and the glyph in moss. The accent moves to the meaning.', close: PAPER, glyph: MOSS, ac: PAPER },
+  { id: 'allmoss', name: 'All moss', story: 'Every mark in moss on ink. Quieter on the home screen.', fg: MOSS, close: MOSS, glyph: MOSS, ac: PAPER },
+  { id: 'heavy', name: 'Heavy', story: 'Thicker strokes. Louder at small sizes, heavier in the hand.', w: 8.5, gw: 1.3 },
+  { id: 'hairline', name: 'Light', story: 'Thin strokes. Elegant large, thin and faint at 24 px.', w: 4.5, gw: .7 },
+  { id: 'square', name: 'Square cut', story: 'Square ends and sharp corners. More like code brackets, less like a toy.', cap: 'square', join: 'miter' },
+  { id: 'tall', name: 'Tall brackets', story: 'The brackets stretch top to bottom and the glyph sits small inside. Their ends come close to the edge of a circle mask.', top: 18.5, bot: 81.5, arm: 6.5 },
+  { id: 'tight', name: 'Tight', story: 'Short arms pulled in close, so the glyph and frame read as one shape.', x: 28, arm: 5.5, top: 31, bot: 69, w: 5.6, gscale: .86 },
+  { id: 'themed', name: 'Themed (monochrome)', story: 'Android 13+ themed icons recolour the mark in one tint. No moss to lean on.', bg: '#d7e4cf', fg: '#2c3a26', close: '#2c3a26', glyph: '#2c3a26', ac: '#2c3a26' },
+  { id: 'open', name: 'No tile', story: 'Marks straight on the page, for the splash screen and the app header.', bg: 'none', fg: 'var(--ink)', glyph: 'var(--ink)', close: 'var(--accent-strong)', ac: 'var(--accent-strong)' },
+];
+
+// --- masks, in the 100-unit visible tile ---
+function superellipse(n) {
+  const pts = [];
+  for (let i = 0; i < 96; i++) {
+    const t = i / 96 * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
+    pts.push([50 + 50 * Math.sign(c) * Math.abs(c) ** (2 / n), 50 + 50 * Math.sign(s) * Math.abs(s) ** (2 / n)]);
+  }
+  return 'M' + pts.map(p => p.map(v => v.toFixed(2)).join(' ')).join(' L') + ' Z';
+}
+const MASKS = {
+  rounded: { name: 'Rounded', d: 'M22 0 H78 A22 22 0 0 1 100 22 V78 A22 22 0 0 1 78 100 H22 A22 22 0 0 1 0 78 V22 A22 22 0 0 1 22 0 Z' },
+  circle: { name: 'Circle', d: 'M50 0 A50 50 0 1 1 49.99 0 Z' },
+  squircle: { name: 'Squircle', d: superellipse(4) },
+  teardrop: { name: 'Teardrop', d: 'M50 0 A50 50 0 0 1 100 50 V84 A16 16 0 0 1 84 100 H50 A50 50 0 0 1 0 50 A50 50 0 0 1 50 0 Z' },
+};
+
+// Android: the 64-unit box spans 80 of the 108-unit adaptive canvas, and the launcher shows the middle 72.
+// From path space that is v = 1.139 p - 6.94, a scale of 1.139 about the centre. The safe zone is a 66-unit circle.
+const ADAPTIVE = 1.139, SAFE_R = 33 / 36 * 50;
+
+let uid = 0;
+function icon(glyphId, treatId, size, opts = {}) {
+  const g = GLYPHS.find(x => x.id === glyphId), t = { ...BASE, ...TREATMENTS.find(x => x.id === treatId) };
+  const mask = MASKS[opts.mask || state.mask], id = 'm' + (uid++);
+  const k = ADAPTIVE * t.scale, c = { fg: t.glyph, ac: t.ac, gw: t.gw, cap: t.cap, join: t.join };
+  const bracket = (x, dir, color) => `<path d="M${x + dir * t.arm} ${t.top} L${x} ${t.top} L${x} ${t.bot} L${x + dir * t.arm} ${t.bot}" fill="none" style="stroke:${color}" stroke-width="${t.w}" stroke-linecap="${t.cap}" stroke-linejoin="${t.join}"/>`;
+  const glyph = `<g transform="translate(50 50) scale(${t.gscale}) translate(-50 -50)">${g.draw(c)}</g>`;
+  const safe = (opts.safe ?? state.safe) ? `<circle cx="50" cy="50" r="${SAFE_R}" fill="none" stroke="#e0a030" stroke-width="${100 / size}" stroke-dasharray="${300 / size} ${200 / size}"/>` : '';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" role="img" aria-label="${g.name}, ${t.name}">
+    <defs><clipPath id="${id}"><path d="${mask.d}"/></clipPath></defs>
+    <g clip-path="url(#${id})">
+      ${t.bg === 'none' ? '' : `<rect width="100" height="100" style="fill:${t.bg}"/>`}
+      <g transform="translate(50 50) scale(${k}) translate(-50 -50)">
+        ${bracket(t.x, 1, t.fg)}${glyph}${bracket(100 - t.x, -1, t.close)}
+      </g>
+    </g>${safe}</svg>`;
+}
+
+// --- placeholder neighbours on the home screens ---
+function neighbour(kind, size, themed) {
+  const bg = themed ? '#d7e4cf' : { a: '#5b6f8a', b: '#c98b52', c: '#7a7a7a' }[kind], fg = themed ? '#2c3a26' : '#f4f4f4';
+  const mark = { a: `<circle cx="50" cy="50" r="17" fill="none" stroke="${fg}" stroke-width="7"/>`,
+    b: `<path d="M32 36 H68 V62 H46 L36 70 V62 H32 Z" fill="${fg}"/>`,
+    c: `<circle cx="50" cy="50" r="19" fill="none" stroke="${fg}" stroke-width="6"/><path d="M50 39 V51 L58 56" fill="none" stroke="${fg}" stroke-width="6" stroke-linecap="round"/>` }[kind];
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100"><defs><clipPath id="n${uid}"><path d="${MASKS[state.mask].d}"/></clipPath></defs><g clip-path="url(#n${uid++})"><rect width="100" height="100" fill="${bg}"/>${mark}</g></svg>`;
+}
+
+// --- state, kept in the URL hash ---
+const state = { glyph: 'plates', treat: 'today', mask: 'circle', theme: 'system', safe: false };
+for (const [k, v] of new URLSearchParams(location.hash.slice(1))) if (k in state) state[k] = k === 'safe' ? v === '1' : v;
+// the shortlist lives in localStorage, or in memory where storage is blocked (sandboxed frames)
+let memory = '[]';
+const saved = () => { try { return JSON.parse(localStorage.getItem('easyday-icon-shortlist') || '[]'); } catch { return JSON.parse(memory); } };
+const setSaved = list => { memory = JSON.stringify(list); try { localStorage.setItem('easyday-icon-shortlist', memory); } catch {} };
+
+function seg(el, options, key) {
+  el.innerHTML = Object.entries(options).map(([v, label]) => `<button data-v="${v}" class="${state[key] === v ? 'on' : ''}">${label}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (b) { state[key] = b.dataset.v; render(); } };
+}
+
+function render() {
+  uid = 0;
+  document.documentElement.dataset.theme = state.theme;
+  history.replaceState(null, '', '#' + new URLSearchParams({ ...state, safe: state.safe ? 1 : 0 }));
+  seg(document.getElementById('mask'), Object.fromEntries(Object.entries(MASKS).map(([k, m]) => [k, m.name])), 'mask');
+  seg(document.getElementById('theme'), { system: 'System', light: 'Light', dark: 'Dark' }, 'theme');
+  document.getElementById('safe').checked = state.safe;
+
+  const g = GLYPHS.find(x => x.id === state.glyph), t = TREATMENTS.find(x => x.id === state.treat);
+  document.getElementById('nowBig').innerHTML = icon(state.glyph, state.treat, 96);
+  document.getElementById('nowName').textContent = `${g.name} · ${t.name}`;
+  document.getElementById('nowStory').textContent = g.story;
+
+  const row = (themed, treat) => `<div class="row">
+      <figure>${neighbour('a', 52, themed)}<figcaption>Camera</figcaption></figure>
+      <figure>${neighbour('b', 52, themed)}<figcaption>Messages</figcaption></figure>
+      <figure>${icon(state.glyph, treat, 52, { safe: false })}<figcaption>Easyday</figcaption></figure>
+      <figure>${neighbour('c', 52, themed)}<figcaption>Clock</figcaption></figure>
+    </div>`;
+  document.getElementById('homes').innerHTML =
+    `<div class="home dark"><span class="name">Dark wallpaper</span>${row(false, state.treat)}</div>
+     <div class="home light"><span class="name">Light wallpaper</span>${row(false, state.treat)}</div>
+     <div class="home themed"><span class="name">Themed icons on</span>${row(true, 'themed')}</div>`;
+
+  document.getElementById('shortlist').innerHTML = saved().map((p, i) => {
+    const gg = GLYPHS.find(x => x.id === p.glyph), tt = TREATMENTS.find(x => x.id === p.treat);
+    return gg && tt ? `<div class="pick" data-i="${i}"><div class="stage">${icon(p.glyph, p.treat, 56, { safe: false })}</div><span>${gg.name}<br>${tt.name}</span><button class="x" data-x="${i}" title="Remove">×</button></div>` : '';
+  }).join('');
+
+  const tiles = (gid, tid) => `<div class="tiles stage">${icon(gid, tid, 96)}<div class="small">${icon(gid, tid, 48, { safe: false })}${icon(gid, tid, 24, { safe: false })}</div></div>`;
+  document.getElementById('glyphs').innerHTML = GLYPHS.map(x => `<button class="card ${x.id === state.glyph ? 'on' : ''}" data-glyph="${x.id}">
+      ${tiles(x.id, state.treat)}<h3>${x.name} <small>${x.tag}</small></h3><p>${x.story}</p></button>`).join('');
+  document.getElementById('treatments').innerHTML = TREATMENTS.map(x => `<button class="card ${x.id === state.treat ? 'on' : ''}" data-treat="${x.id}">
+      ${tiles(state.glyph, x.id)}<h3>${x.name}</h3><p>${x.story}</p></button>`).join('');
+}
+
+document.addEventListener('click', e => {
+  const x = e.target.closest('[data-x]');
+  if (x) { const list = saved(); list.splice(+x.dataset.x, 1); setSaved(list); render(); return; }
+  const pick = e.target.closest('.pick');
+  if (pick) { Object.assign(state, saved()[+pick.dataset.i]); render(); return; }
+  const card = e.target.closest('.card');
+  if (card) { if (card.dataset.glyph) state.glyph = card.dataset.glyph; if (card.dataset.treat) state.treat = card.dataset.treat; render(); }
+});
+document.getElementById('safe').onchange = e => { state.safe = e.target.checked; render(); };
+document.getElementById('save').onclick = () => {
+  const list = saved().filter(p => !(p.glyph === state.glyph && p.treat === state.treat));
+  setSaved([...list, { glyph: state.glyph, treat: state.treat }]); render();
+};
+render();
+</script>
+</body>
+</html>

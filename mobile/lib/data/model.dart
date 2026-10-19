@@ -31,7 +31,7 @@ class Settings {
   int stepDown = 2;      // sessions below the bottom before a rung steps down (1 to 5)
   int decayWeeks = 3;    // weeks before an unused rung decays (2 to 8, 0 = off)
   int daysAway = 7;      // days away before easy is the default (5 to 21)
-  int painRestDays = 7;  // days a pattern rests after pain (3 to 28)
+  int painRestDays = 7;  // days an exercise and its muscles rest after pain (3 to 28)
   // integrations, each off until the user turns it on and grants the permission
   bool notify = false;
   int notifyHour = 18;   // daily reminder hour, 0 to 23
@@ -88,6 +88,20 @@ class Settings {
 /// What spare minutes are for, once the planned exercises fit.
 enum Spare { exercises, cardio, rest }
 
+/// How often an unrated exercise takes a turn from a practised one: one appearance in eight, four or two (SELECTION.md).
+enum Explore { rarely, sometimes, often }
+
+const exploreLabel = {Explore.rarely: 'Rarely', Explore.sometimes: 'Sometimes', Explore.often: 'Often'};
+const exploreRun = {Explore.rarely: 8, Explore.sometimes: 4, Explore.often: 2};
+/// Emphasis per muscle group: less, usual, more, as a share of the sets target.
+const emphasisLabel = {-1: 'Less', 0: 'Usual', 1: 'More'};
+const emphasisShare = {-1: 0.5, 0: 1.0, 1: 1.5};
+const lookBackMin = 3, lookBackMax = 14, lookBackDefault = 7;
+const setsTargetMin = 2, setsTargetMax = 30;
+
+/// The sets target per muscle group seeded from days per week: 6 for two days, 8 for three, 10 for four or more.
+int seedSetsTarget(int daysPerWeek) => daysPerWeek <= 2 ? 6 : daysPerWeek == 3 ? 8 : 10;
+
 const spareLabel = {Spare.exercises: 'More exercises', Spare.cardio: 'Cardio', Spare.rest: 'Rest'};
 const expressionLabel = {Expression.heavy: 'Heavy and few', Expression.middle: 'Middle', Expression.light: 'Light and many'};
 const expressionRange = {Expression.heavy: heavyReps, Expression.middle: middleReps, Expression.light: lightReps};
@@ -118,7 +132,8 @@ class GoalConfig {
   GoalConfig({
     required this.template, required this.name, required List<Band> bands, required this.exercises, required this.sets, required this.pushes,
     required this.moveEvery, this.spare = Spare.exercises, this.cardioPct = defaultCardioPct, this.stretchPct = defaultStretchPct,
-  }) : bands = [for (final b in bands) b.copy()];
+    this.lookBackDays = lookBackDefault, this.setsTarget, Map<String, int>? emphasis, this.explore = Explore.rarely,
+  }) : bands = [for (final b in bands) b.copy()], emphasis = {...?emphasis};
   String template;       // the template it was last filled from, for the icon
   String name;
   List<Band> bands;      // rep bands, each tagged with the difficulties it applies to; several per difficulty cycle by workout
@@ -129,9 +144,26 @@ class GoalConfig {
   Spare spare;           // what spare minutes are for
   int cardioPct;         // share of every workout's minutes for cardio at the end
   int stretchPct;        // share for stretching, last
+  int lookBackDays;      // the days a muscle group's share looks back over (3 to 14)
+  int? setsTarget;       // sets per muscle group over the look-back; null is seeded from days per week
+  Map<String, int> emphasis;  // muscle group -> -1 less, 1 more; absent is usual
+  Explore explore;       // how often an unrated exercise takes a turn
 
   /// The working set count: the usual.
   int get workingSets => sets.ideal;
+
+  /// The sets target per muscle group over the look-back, the setting or the seed from days per week.
+  int targetSets(int daysPerWeek) => setsTarget ?? seedSetsTarget(daysPerWeek);
+
+  /// A group's emphasis: -1 less, 0 usual, 1 more.
+  int emphasisOf(String group) => emphasis[group] ?? 0;
+
+  /// A group's target: the sets target scaled by its emphasis, half, one or one and a half.
+  double targetFor(String group, int daysPerWeek) => targetSets(daysPerWeek) * emphasisShare[emphasisOf(group)]!;
+
+  void setEmphasis(String group, int v) {
+    if (v == 0) { emphasis.remove(group); } else { emphasis[group] = v.clamp(-1, 1); }
+  }
 
   /// The bands for a difficulty, in list order.
   List<RepRange> rowFor(int difficulty) => [for (final b in bands) if (b.difficulties.contains(difficulty)) b.range];
@@ -174,12 +206,17 @@ class GoalConfig {
     spare = Spare.exercises;
     cardioPct = defaultCardioPct;
     stretchPct = defaultStretchPct;
+    lookBackDays = lookBackDefault;
+    setsTarget = null;
+    emphasis = {};
+    explore = Explore.rarely;
   }
 
   Map<String, dynamic> toJson() => {
         'template': template, 'name': name, 'bands': [for (final b in bands) {'r': _rr(b.range), 'd': b.difficulties.toList()..sort()}],
         'exercises': _tri(exercises), 'sets': _tri(sets), 'pushes': _tri(pushes), 'moveEvery': moveEvery,
         'spare': _e(spare), 'cardioPct': cardioPct, 'stretchPct': stretchPct,
+        'lookBackDays': lookBackDays, 'setsTarget': setsTarget, 'emphasis': emphasis, 'explore': _e(explore),
       };
   static GoalConfig fromJson(Map<String, dynamic> j) {
     final tpl = goals[j['template']];
@@ -207,6 +244,10 @@ class GoalConfig {
       pushes: j['pushes'] != null ? _ptri(j['pushes']).clampTo(pushesMin, pushesMax) : oldExtras != null ? (oldExtras == 0 ? const Tri(2, 5, 10) : Tri(max(0, oldExtras - 1), oldExtras, oldExtras + 1)).clampTo(pushesMin, pushesMax) : t.pushes,
       moveEvery: j['moveEvery'] ?? t.moveEvery, spare: _p(Spare.values, j['spare'], Spare.exercises),
       cardioPct: j['cardioPct'] ?? defaultCardioPct, stretchPct: j['stretchPct'] ?? defaultStretchPct,
+      lookBackDays: ((j['lookBackDays'] ?? lookBackDefault) as int).clamp(lookBackMin, lookBackMax),
+      setsTarget: j['setsTarget'] == null ? null : (j['setsTarget'] as int).clamp(setsTargetMin, setsTargetMax),
+      emphasis: (j['emphasis'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as int).clamp(-1, 1)))..removeWhere((k, v) => v == 0 || !muscleGroups.contains(k)),
+      explore: _p(Explore.values, j['explore'], Explore.rarely),
     );
   }
 
@@ -275,12 +316,16 @@ class ExerciseState {
   int bestTotal = 0;      // best total reps at the current rung
   DateTime? lastWorkingAt; // last time the exercise was asked for its working level; the working turns go to the longest-waiting
   double secPerSet;       // timing model: seconds per set including the rest after it
+  String? preference;     // the user's word: liked, fine, no (not for me); null is unrated (SELECTION.md)
+  int swappedOut = 0;     // swapped out of a plan this many times in a row without being done; three ask "still like it?"
+  DateTime? likedUntil;   // a manual pick of an unrated exercise counts as liked until then
 
   Map<String, dynamic> toJson() => {
         'rung': rung, 'startRung': startRung, 'baseKg': baseKg, 'topRun': topRun, 'shortRun': shortRun, 'appearances': appearances,
         'calibrating': calibrating, 'decayedBy': decayedBy, 'decayPeriodsApplied': decayPeriodsApplied, 'lastDoneAt': _ms(lastDoneAt),
         'costOverride': costOverride, 'costUp': costUp, 'costDown': costDown, 'ceilingRun': ceilingRun, 'bestTotal': bestTotal, 'secPerSet': secPerSet,
         'lastWorkingAt': _ms(lastWorkingAt), 'reps': repsOverride == null ? null : _rr(repsOverride!),
+        'preference': preference, 'swappedOut': swappedOut, 'likedUntil': _ms(likedUntil),
       };
   static ExerciseState fromJson(Map<String, dynamic> j) => ExerciseState(
         rung: j['rung'], startRung: j['startRung'], baseKg: (j['baseKg'] as num?)?.toDouble(), secPerSet: (j['secPerSet'] as num).toDouble())
@@ -297,7 +342,10 @@ class ExerciseState {
     ..ceilingRun = j['ceilingRun'] ?? 0
     ..bestTotal = j['bestTotal'] ?? 0
     ..lastWorkingAt = _d(j['lastWorkingAt'])
-    ..repsOverride = j['reps'] != null ? _pr(j['reps']) : (j['band'] == null ? null : expressionRange[_p(Expression.values, j['band'], Expression.middle)]);
+    ..repsOverride = j['reps'] != null ? _pr(j['reps']) : (j['band'] == null ? null : expressionRange[_p(Expression.values, j['band'], Expression.middle)])
+    ..preference = const ['liked', 'fine', 'no'].contains(j['preference']) ? j['preference'] : null
+    ..swappedOut = j['swappedOut'] ?? 0
+    ..likedUntil = _d(j['likedUntil']);
 }
 
 /// One logged set. reps == null means never attempted. [start] is when the set began (I'm ready), [at] when the reps
@@ -324,13 +372,17 @@ class Warmup {
 
 class SessionExercise {
   SessionExercise({
-    required this.slot, required this.exId, required this.pattern, required this.intent, required this.workingSets, required this.rung, required this.rungLabel,
+    required this.slot, required this.exId, required this.muscle, required this.intent, required this.workingSets, required this.rung, required this.rungLabel,
     required this.target, required this.lo, required this.hi, required this.atCeiling, required this.bestTotal, required this.difficulty,
     this.loadKg, required this.secPerSet, required this.sets, this.warmups = const [], this.edited = false, this.lightened = false,
+    this.why = '', this.fresh = false, this.asked = false,
   });
   String slot;
   String exId;
-  String pattern;
+  String muscle;      // the muscle group this exercise was chosen for (SELECTION.md)
+  String why;         // one line on why it was chosen, from the ledgers and the user's word
+  bool fresh;         // an unrated exercise took its turn for something new here
+  bool asked;         // the user asked for this muscle by hand today
   String intent;      // light | working | extra: what today asks of this exercise. Never a judgement.
   int workingSets;    // the working set count at the time, so judging knows what the working level was
   int rung;           // the rung used today (after easy or comeback adjustments)
@@ -361,13 +413,15 @@ class SessionExercise {
   bool get atWorkingLevel => intent != 'light' && !lightened && sets.length >= workingSets;
 
   Map<String, dynamic> toJson() => {
-        'slot': slot, 'exId': exId, 'pattern': pattern, 'intent': intent, 'workingSets': workingSets, 'rung': rung, 'rungLabel': rungLabel, 'target': target, 'lo': lo, 'hi': hi,
+        'slot': slot, 'exId': exId, 'muscle': muscle, 'intent': intent, 'workingSets': workingSets, 'rung': rung, 'rungLabel': rungLabel, 'target': target, 'lo': lo, 'hi': hi,
         'atCeiling': atCeiling, 'bestTotal': bestTotal, 'difficulty': difficulty, 'loadKg': loadKg, 'relative': relative,
         'nextLevel': nextLevel, 'usualLoadKg': usualLoadKg, 'secPerSet': secPerSet, 'sets': sets.map((s) => s.toJson()).toList(),
         'warmups': warmups.map((w) => w.toJson()).toList(), 'edited': edited, 'lightened': lightened,
+        'why': why, 'fresh': fresh, 'asked': asked,
       };
   static SessionExercise fromJson(Map<String, dynamic> j) => SessionExercise(
-        slot: j['slot'], exId: j['exId'], pattern: j['pattern'], intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
+        slot: j['slot'], exId: j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
+        why: j['why'] ?? '', fresh: j['fresh'] ?? false, asked: j['asked'] ?? false,
         rung: j['rung'], rungLabel: j['rungLabel'], target: j['target'],
         lo: j['lo'], hi: j['hi'], atCeiling: j['atCeiling'] ?? false, bestTotal: j['bestTotal'] ?? 0,
         difficulty: j['difficulty'] ?? foldDifficulty(j['cost'] ?? 3),
@@ -379,9 +433,15 @@ class SessionExercise {
         ..usualLoadKg = (j['usualLoadKg'] as num?)?.toDouble();
 }
 
+/// The muscle group an exercise is filed under: its first primary muscle's. For older sessions that carried no muscle.
+String _groupOf(String exId) {
+  final ex = exerciseById[exId];
+  return ex == null || ex.primary.isEmpty ? 'Other' : muscleGroup(ex.primary.first);
+}
+
 class Session {
   Session({
-    required this.id, required this.type, required this.name, required this.itemIndex, required this.locationId,
+    required this.id, required this.type, required this.name, this.itemIndex = 0, required this.locationId,
     required this.energy, required this.timeMinutes, required this.energyChosen, required this.timeChosen, required this.stateAtStart,
     this.kind, this.exercises = const [], this.minutes, this.routine, this.cardio, this.estMinutes = 0, this.cardioMinutes = 0, this.stretchMinutes = 0,
     this.spareMinutes = 0, this.circuit = false, this.warmupMinutes = 0,
@@ -435,7 +495,7 @@ class Session {
         'calendarEventId': calendarEventId, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
       };
   static Session fromJson(Map<String, dynamic> j) => Session(
-        id: j['id'], type: j['type'], kind: j['kind'], name: j['name'], itemIndex: j['itemIndex'], locationId: j['locationId'],
+        id: j['id'], type: j['type'], kind: j['kind'], name: j['name'], itemIndex: j['itemIndex'] ?? 0, locationId: j['locationId'],
         energy: _p(Energy.values, j['energy'], Energy.normal),
         timeMinutes: j['timeMinutes'] ?? const {'short': 20, 'normal': 35, 'long': 50}[j['time']] ?? minutesDefault,
         energyChosen: j['energyChosen'] ?? false, timeChosen: j['timeChosen'] ?? false, stateAtStart: _p(PersonState.values, j['stateAtStart'], PersonState.active),
@@ -459,38 +519,27 @@ class Session {
     ..calendarEventId = j['calendarEventId'];
 }
 
-class RotationEntry {
-  RotationEntry({required this.type, required this.name, this.focus = '', this.patterns = const [], this.kind, this.routine});
-  String type;   // lift | move
-  String name;
-  String focus;
-  List<String> patterns;  // in priority order: the first get the work first and lose it last
-  String? kind;  // cardio | mobility
-  String? routine;
-  Map<String, dynamic> toJson() => {'type': type, 'name': name, 'focus': focus, 'patterns': patterns, 'kind': kind, 'routine': routine};
-  static RotationEntry fromJson(Map<String, dynamic> j) => RotationEntry(
-      type: j['type'], name: j['name'], focus: j['focus'] ?? '',
-      patterns: List<String>.from(j['patterns'] ?? [...?j['mains'], ...?j['accs']]),
-      kind: j['kind'], routine: j['routine']);
-}
-
+/// What carries over between workouts that is not a level: pain pauses, the two defaults, and the muscles the user asked
+/// for by hand. There is no rotation: every workout is built from history when the user shows up (SELECTION.md).
 class Plan {
-  Plan({required this.rotation, this.index = 0});
-  List<RotationEntry> rotation;
-  int index;
-  Map<String, DateTime> paused = {};     // pattern -> until
+  Plan();
+  Map<String, DateTime> paused = {};     // exercise id -> until: the exercise and its primary muscles rest
   Energy energyDefault = Energy.normal;
   int timeDefault = minutesDefault;
   DateTime? continuedOn;  // the day the user chose to start another workout after finishing one
+  List<({String group, DateTime at})> asked = [];  // muscles asked for by hand, for the one line suggesting more emphasis
+  List<String> moreSuggested = [];                 // groups that line has been said for
   Map<String, dynamic> toJson() => {
-        'rotation': rotation.map((r) => r.toJson()).toList(), 'index': index,
         'paused': paused.map((k, v) => MapEntry(k, _ms(v))), 'energyDefault': _e(energyDefault), 'timeDefault': timeDefault, 'continuedOn': _ms(continuedOn),
+        'asked': [for (final a in asked) {'g': a.group, 'at': _ms(a.at)}], 'moreSuggested': moreSuggested,
       };
-  static Plan fromJson(Map<String, dynamic> j) => Plan(rotation: (j['rotation'] as List).map((r) => RotationEntry.fromJson(r)).toList(), index: j['index'] ?? 0)
-    ..paused = (j['paused'] as Map? ?? {}).map((k, v) => MapEntry(k as String, _d(v)!))
+  static Plan fromJson(Map<String, dynamic> j) => Plan()
+    ..paused = ((j['paused'] as Map? ?? {}).map((k, v) => MapEntry(k as String, _d(v)!))..removeWhere((k, _) => !exerciseById.containsKey(k)))
     ..energyDefault = _p(Energy.values, j['energyDefault'], Energy.normal)
     ..timeDefault = j['timeDefault'] is int ? j['timeDefault'] : minutesDefault
-    ..continuedOn = _d(j['continuedOn']);
+    ..continuedOn = _d(j['continuedOn'])
+    ..asked = [for (final a in (j['asked'] as List? ?? [])) (group: a['g'] as String, at: _d(a['at'])!)]
+    ..moreSuggested = List<String>.from(j['moreSuggested'] ?? []);
 }
 
 class Person {
@@ -548,7 +597,6 @@ class AppState {
     // older builds kept the goal id on the profile
     if (s.goal == null && j['profile']?['goal'] != null) s.goal = GoalConfig.fromTemplate(goals[j['profile']['goal']] ?? goals.values.first);
     // older builds named workouts "Day A"
-    for (final r in s.plan?.rotation ?? const <RotationEntry>[]) { if (r.name.startsWith('Day ')) r.name = 'Workout ${r.name.substring(4)}'; }
     for (final x in s.sessions) { if (x.name.startsWith('Day ')) x.name = 'Workout ${x.name.substring(4)}'; }
     s.ex.removeWhere((k, _) => !exerciseById.containsKey(k));
     if ((j['version'] ?? 1) < 4) _migrateMaxes(s, j);
