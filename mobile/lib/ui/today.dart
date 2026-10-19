@@ -303,8 +303,7 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget _musclesPanel(BuildContext context, AppState s, DateTime now, Session session, MusclePlan plan) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    final working = <String>[];
-    for (final e in session.exercises) { if (!working.contains(e.muscle)) working.add(e.muscle); }
+    final working = workedInOrder(session.exercises);
     final tint = muscleFills(plan.states, chosen: workedMuscles(session), primary: musclePrimary);
     final forced = plan.forced;
     final excluded = musclesIn(plan.states, MuscleState.excluded);
@@ -454,7 +453,7 @@ class _TodayScreenState extends State<TodayScreen> {
         if (tag != null) _tag(context, tag, accent: e.nextLevel),
         if (word != null) _tag(context, word, accent: word == 'new' || word == 'forced'),
       ]),
-      subtitle: Text('${muscleTitle(e.muscle)} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
+      subtitle: Text('${muscleTitle(listWords(e.exercise.primary))} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
       isThreeLine: note != null,
       trailing: Text('${max(1, (plannedSeconds(e) / 60).round())} min', style: t.bodySmall),
     );
@@ -545,7 +544,7 @@ class _TodayScreenState extends State<TodayScreen> {
         );
       }
       return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(0, 0, 0, 20), children: [
-        SheetHeader(ex.name, subtitle: '${muscleTitle(e.muscle)} · ${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
+        SheetHeader(ex.name, subtitle: '${muscleTitle(listWords(ex.primary))} · ${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
         Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 10), child: Text('Chosen because: ${e.why}.', style: t.bodySmall)),
         if (st.swappedOut >= swapsBeforeAsking)
           Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: Panel(sunk: true, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

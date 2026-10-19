@@ -58,9 +58,10 @@ void main() {
       expect(dayName([]), 'Workout');
     });
 
-    test('a built workout is named for every muscle its places went to, in order', () {
+    test('a built workout is named for every muscle its exercises work as a main muscle, in order', () {
       final x = build(fresh(), t0);
-      expect(x.name, dayName(placesOf(x)));
+      expect(x.name, dayName(workedInOrder(x.exercises)));
+      expect(x.name, contains('glutes'), reason: 'the squat works them as a main muscle, though its place went to the quads');
       expect(x.name, endsWith(' day'));
       expect(placesOf(x).every(trackedMuscles.contains), isTrue, reason: 'places go to muscles, not groups');
     });
@@ -168,6 +169,36 @@ void main() {
       expect(placesOf(build(s, t0, minutes: 60, shuffle: 1)), placesOf(build(s, t0, minutes: 60, shuffle: 1)));
       final draws = {for (var i = 1; i <= 8; i++) placesOf(build(s, t0, minutes: 60, shuffle: i)).join()};
       expect(draws.length, greaterThan(1));
+    });
+
+    test('the engine: one exercise that works several forced muscles covers them all', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, t0, muscles: const ['quads', 'glutes'], manual: true);
+      expect(x.exercises.length, 1, reason: 'a squat works both');
+      expect(x.exercises.single.exercise.primary, containsAll(['quads', 'glutes']));
+      // with nothing shared, each muscle takes its own
+      final y = build(s, t0, muscles: const ['lats', 'upper back'], manual: true);
+      expect(y.exercises.length, 2);
+      expect(workedInOrder(y.exercises), containsAll(['lats', 'upper back']));
+    });
+
+    test('the engine prefers an exercise that covers another waiting muscle over working one twice', () {
+      final s = fresh(template: 'gym');
+      // chin-ups work the lats and the biceps; forcing both wants one chin-up, not a pulldown and a curl
+      final x = build(s, t0, muscles: const ['lats', 'biceps'], manual: true);
+      expect(x.exercises.map((e) => e.exId), ['chinup']);
+      // and in shuffle every required muscle is worked, with no muscle given a second exercise while others wait
+      final z = build(s, t0, muscles: const ['quads', 'glutes'], minutes: 60);
+      final worked = workedInOrder(z.exercises);
+      expect(worked, containsAll(['quads', 'glutes']));
+      expect(z.exercises.where((e) => e.exercise.primary.contains('glutes')).length, 1, reason: 'the squat already works the glutes');
+      expect(z.exercises.length, greaterThan(1), reason: 'the other places go to other muscles');
+    });
+
+    test('manual never repeats a muscle to fill the minutes', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, t0, muscles: const ['lats', 'upper back'], manual: true, minutes: 90);
+      expect(x.exercises.length, 2);
     });
 
     test('everything excluded builds nothing, with the name falling back', () {
