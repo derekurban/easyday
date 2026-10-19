@@ -13,8 +13,12 @@ const intentWorking = 'working';
 const intentExtra = 'extra';
 const intentLabel = {intentLight: 'light', intentWorking: 'working', intentExtra: 'extra set'};
 
-const _changeSeconds = 60.0;     // walking to the next exercise and setting up
-const _warmupSeconds = 120.0;    // two warm-up sets on a loaded hard exercise
+const changeSeconds = 60.0;      // walking to the next exercise and setting up
+const warmupSetsSeconds = 120.0; // two warm-up sets on a loaded hard exercise
+/// The warm-up block choices, in minutes; 0 is none.
+const warmupChoices = [0, 3, 5, 8];
+/// With no time limit the window is open: the count decides, not the minutes.
+const _openWindow = 600 * 60.0;
 const _freePatterns = ['core', 'carry', 'arms', 'legs', 'shoulders'];
 
 /// Expire pain pauses. A pattern comes back on its own, one rung down.
@@ -106,8 +110,8 @@ class _Slot {
 
 double _seconds(AppState s, _Slot sl) {
   final st = ensureState(s, sl.pick!);
-  var secs = st.secPerSet * sl.sets + _changeSeconds;
-  if (sl.pick!.loaded && _difficulty(s, sl.pick!) >= 3) secs += _warmupSeconds;
+  var secs = st.secPerSet * sl.sets + changeSeconds;
+  if (sl.pick!.loaded && _difficulty(s, sl.pick!) >= 3) secs += warmupSetsSeconds;
   return secs;
 }
 double _totalSeconds(AppState s, List<_Slot> slots) => slots.fold(0.0, (a, x) => a + _seconds(s, x));
@@ -214,9 +218,16 @@ class BuildOptions {
   BuildOptions({
     required this.energy, required this.minutes, this.locationId, this.picks = const {}, this.rungOverrides = const {},
     this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.circuit = false,
+    this.exerciseCount, this.warmupMinutes = 0, this.skipCardio = false, this.skipStretch = false, this.order = const [],
   });
   final Energy energy;
   final int minutes;
+  /// No time limit: this many exercises at the ideal sets, and the minutes are whatever they take.
+  final int? exerciseCount;
+  final int warmupMinutes;                  // the warm-up block before the lifting, inside the minutes
+  final bool skipCardio;                    // no cardio block today
+  final bool skipStretch;                   // no stretching block today
+  final List<String> order;                 // slots in the order the user arranged; the rest keep the builder's order after them
   final String? locationId;
   final Map<String, String> picks;          // slot -> exercise id
   final Map<String, int> rungOverrides;     // slot -> rung for today
@@ -252,10 +263,13 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     )..swappedToMove = item.type == 'lift';
   }
 
-  // 1. the window: the minutes, less the cardio and stretching shares
-  var cardioMin = (minutes * g.cardioPct / 100).round();
-  final stretchMin = (minutes * g.stretchPct / 100).round();
-  final window = (minutes - cardioMin - stretchMin) * 60.0;
+  // 1. the window: the minutes, less the warm-up and the cardio and stretching shares. With no time limit the window
+  //    is open and the count decides; cardio and stretching then keep their shares of whatever the lifting takes.
+  final count = o.exerciseCount?.clamp(1, exercisesMax);
+  final warmup = o.warmupMinutes.clamp(0, 30);
+  var cardioMin = o.skipCardio ? 0 : (minutes * g.cardioPct / 100).round();
+  var stretchMin = o.skipStretch ? 0 : (minutes * g.stretchPct / 100).round();
+  final window = count != null ? _openWindow : max(0, minutes - cardioMin - stretchMin - warmup) * 60.0;
 
   // 2. the pattern list, with paused patterns substituted, and an exercise for each
   final all = liftItems.where((it) => it.name == item.name).firstOrNull?.patterns ?? item.patterns;
@@ -282,8 +296,16 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   final idealSeconds = _totalSeconds(s, slots);
   final dropped = _fitTime(s, slots, window, g);
   final tight = dropped.isNotEmpty || slots.any((x) => x.sets < g.sets.ideal);
-  final longDay = !tight && idealSeconds <= window * longWindowShare;
-  if (g.spare == Spare.exercises) {
+  final longDay = count == null && !tight && idealSeconds <= window * longWindowShare;
+  if (count != null) {
+    // no time limit: exactly the count, the last on the list going first, then the same growth order as spare minutes
+    while (slots.length > count) {
+      final byPriority = slots.toList()..sort((a, b) => b.priority.compareTo(a.priority));
+      slots.remove(byPriority.first);
+      dropped.insert(0, byPriority.first.pattern);
+    }
+    _grow(s, slots, window, count, g.sets.ideal, equipment, [...dropped, ...all.where((p) => !patternsToday.contains(p))], plan.paused);
+  } else if (g.spare == Spare.exercises) {
     final more = [...dropped, ...all.where((p) => !patternsToday.contains(p))];
     _grow(s, slots, window, g.exercises.ideal, g.sets.ideal, equipment, more, plan.paused);
     if (o.energy == Energy.hard || (longDay && o.energy != Energy.easy)) {
@@ -297,7 +319,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   final pushes = (tight ? g.pushes.min : longDay ? g.pushes.max : g.pushes.ideal).clamp(0, slots.length);
   _turnDials(s, slots, o.energy, g, pushes);
   final listedAtNormal = slots.length;
-  if (o.energy == Energy.easy) {
+  if (o.energy == Energy.easy && count == null) {
     final easyWindow = window * easyWindowShare;
     for (var guard = 0; guard < 20 && slots.length > max(1, g.exercises.min) && _totalSeconds(s, slots) > easyWindow; guard++) {
       final byPriority = slots.toList()..sort((a, b) => b.priority.compareTo(a.priority));
@@ -307,10 +329,18 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   }
   final liftIndex = plan.rotation.take(plan.index).where((r) => r.type == 'lift').length;
   final usedSeconds = _totalSeconds(s, slots);
-  final slack = ((window - usedSeconds) / 60).floor();
   var spareMin = 0;
-  if (slack > 0 && slots.isNotEmpty) {
-    if (g.spare == Spare.rest) { spareMin = slack; } else { cardioMin += slack; }
+  if (count != null) {
+    // cardio and stretching keep their shares of the whole, whatever the lifting takes
+    final rest = 1 - (g.cardioPct + g.stretchPct) / 100;
+    final whole = (usedSeconds / 60 + warmup) / (rest <= 0.2 ? 0.2 : rest);
+    cardioMin = o.skipCardio ? 0 : (whole * g.cardioPct / 100).round();
+    stretchMin = o.skipStretch ? 0 : (whole * g.stretchPct / 100).round();
+  } else {
+    final slack = ((window - usedSeconds) / 60).floor();
+    if (slack > 0 && slots.isNotEmpty) {
+      if (g.spare == Spare.rest || o.skipCardio) { spareMin = slack; } else { cardioMin += slack; }
+    }
   }
 
   // 6. order: hardest first while the user is fresh; at the same difficulty, extra and working before light
@@ -365,14 +395,23 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   }
   final weight = out.fold(0, (a, e) => a + e.difficulty);
   final relative = (weight == 0 ? 1.0 : out.fold(0.0, (a, e) => a + e.relative * e.difficulty) / weight) * (listedAtNormal == 0 ? 1 : out.length / listedAtNormal);
+  // the user's own order, when they moved exercises on the plan
+  if (o.order.isNotEmpty) {
+    int rank(SessionExercise e) { final i = o.order.indexOf(e.slot); return i < 0 ? o.order.length : i; }
+    final builderOrder = [...out];
+    out.sort((a, b) { final c = rank(a).compareTo(rank(b)); return c != 0 ? c : builderOrder.indexOf(a).compareTo(builderOrder.indexOf(b)); });
+  }
 
   return Session(
     id: id, type: 'lift', name: item.name, itemIndex: plan.index, locationId: loc?.id, energy: o.energy, timeMinutes: minutes,
     energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state, exercises: out,
-    estMinutes: (usedSeconds / 60).round() + (out.isEmpty ? 0 : cardioMin + stretchMin), cardioMinutes: out.isEmpty ? 0 : cardioMin,
-    stretchMinutes: out.isEmpty ? 0 : stretchMin, spareMinutes: spareMin, circuit: o.circuit,
+    estMinutes: (usedSeconds / 60).round() + (out.isEmpty ? 0 : cardioMin + stretchMin + warmup), cardioMinutes: out.isEmpty ? 0 : cardioMin,
+    stretchMinutes: out.isEmpty ? 0 : stretchMin, spareMinutes: spareMin, circuit: o.circuit, warmupMinutes: out.isEmpty ? 0 : warmup,
   )..relative = relative..pushes = out.where((e) => e.nextLevel).length;
 }
+
+/// Seconds one exercise is planned to take, rest after its sets included: what the plan shows beside it.
+double plannedSeconds(SessionExercise e) => e.secPerSet * e.sets.length + changeSeconds + (e.warmups.isNotEmpty ? warmupSetsSeconds : 0);
 
 /// Words for a relative load: how today compares with the usual working level.
 String relativeLabel(double r) => r < 0.95 ? 'lighter' : r > 1.05 ? 'more' : 'usual';
@@ -397,12 +436,9 @@ Map<String, String> shufflePicks(AppState s, Session session, Iterable<String> e
   return picks;
 }
 
-/// Estimated minutes for a session as planned: the lifting, then the cardio and stretching blocks.
+/// Estimated minutes for a session as planned: the warm-up, the lifting, then the cardio and stretching blocks.
 int estimateMinutes(Session session) {
   if (session.type == 'move') return session.estMinutes;
-  var secs = 0.0;
-  for (final e in session.exercises) {
-    secs += e.secPerSet * e.sets.length + _changeSeconds + (e.warmups.isNotEmpty ? _warmupSeconds : 0);
-  }
-  return (secs / 60).round() + session.cardioMinutes + session.stretchMinutes;
+  final secs = session.exercises.fold(0.0, (a, e) => a + plannedSeconds(e));
+  return (secs / 60).round() + session.warmupMinutes + session.cardioMinutes + session.stretchMinutes;
 }

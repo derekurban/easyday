@@ -5,9 +5,11 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 
 ## Workout
 
-- **Warm-up and cool-down blocks.** A configurable block before the lifting (a few minutes of easy
-  movement or a short routine) and one after, separate from the cardio and stretching shares. Today only
-  loaded hard exercises get warm-up sets.
+- **A warm-up that follows the workout.** The warm-up block is one fixed routine; it could lean on the
+  muscles the first exercises use, the way stretching could follow coverage.
+- **Rep counts past the range.** The reps take one button for anything under the range and one for anything
+  over, logged as one rep beyond. An exercise at the top of its progression, chasing a best total, would
+  read better with the real count.
 - **Stretching that follows coverage.** The mobility routine at the end picked by which muscle groups
   were worked today.
 - **An effort budget.** Points per set, summed and capped by energy, was the model until 2026-10-15. It
