@@ -47,8 +47,7 @@ class _TodayScreenState extends State<TodayScreen> {
   String? cardioId;
   bool liftInstead = false; // lift today even though a movement day is due
   // the muscle plan: null until the user has changed it, so the defaults follow the strain of the moment
-  Map<String, MuscleState>? muscleStates;
-  List<String> muscleOrder = [];
+  MusclePlan? musclePlan;
   // the plan's edits, by slot, for today
   Map<String, String> picks = {};
   Map<String, int> rungOverrides = {};
@@ -86,31 +85,32 @@ class _TodayScreenState extends State<TodayScreen> {
     setState(() { day = shape; nearbyId = near; contextLoaded = true; syncing = false; });
   }
 
-  /// Today's states for the eleven groups: the user's, else the defaults from the strain of the moment.
-  Map<String, MuscleState> _states(AppState s, DateTime now) => muscleStates ?? defaultMuscleStates(MuscleMap(s).currentStrainPoints(now));
+  /// Today's muscle plan: the user's, else the defaults from the strain of the moment.
+  MusclePlan _musclePlan(AppState s, DateTime now) => musclePlan ?? MusclePlan(states: defaultMuscleStates(MuscleMap(s).currentStrainPoints(now)), order: muscleGroups);
 
   /// Everything the builder needs, from today's answers, the muscle plan and the plan's edits. [asBuilt] leaves the
   /// edits out: the workout as the builder first made it.
-  BuildOptions _options(AppState s, DateTime now, {Map<String, MuscleState>? states, List<String>? order, bool asBuilt = false}) {
+  BuildOptions _options(AppState s, DateTime now, {MusclePlan? plan, bool asBuilt = false}) {
     final defaults = defaultsFor(s, now, busyShare: day?.busyShare);
     final g = s.goal!;
     final limit = s.settings.timeLimit;
     final n = (count ?? g.exercises.ideal).clamp(g.exercises.min, g.exercises.max);
     final loc = s.location(locationId ?? nearbyId);
-    final st = states ?? _states(s, now);
-    final ord = order ?? muscleOrder;
+    final p = plan ?? _musclePlan(s, now);
+    // manual with no time limit: exactly the forced muscles, one exercise each
+    final manualCount = max(1, min(p.forced.length, g.exercises.max));
     return BuildOptions(
       energy: energy ?? defaults.energy, minutes: minutes ?? defaults.minutes, locationId: loc?.id, moveKind: moveKind, routine: routine, cardio: cardioId,
       energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, circuit: s.settings.circuit,
-      exerciseCount: limit ? null : n, warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch,
-      muscles: groupsIn(st, MuscleState.forced, ord), excluded: groupsIn(st, MuscleState.excluded).toSet(), liftInstead: liftInstead,
-      picks: asBuilt ? const {} : picks, rungOverrides: asBuilt ? const {} : rungOverrides, order: asBuilt ? const [] : this.order, leftOut: asBuilt ? const {} : leftOut,
+      exerciseCount: limit ? null : p.manual ? manualCount : n, warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch,
+      muscles: p.forced, excluded: p.excluded, shuffle: p.shuffle, liftInstead: liftInstead,
+      picks: asBuilt ? const {} : picks, rungOverrides: asBuilt ? const {} : rungOverrides, order: asBuilt ? const [] : order, leftOut: asBuilt ? const {} : leftOut,
     );
   }
 
   void _reset() => setState(() {
         moveKind = null; energy = null; minutes = null; count = null; liftInstead = false;
-        muscleStates = null; muscleOrder = []; picks = {}; rungOverrides = {}; order = []; leftOut = {}; warmup = null; skipCardio = false; skipStretch = false;
+        musclePlan = null; picks = {}; rungOverrides = {}; order = []; leftOut = {}; warmup = null; skipCardio = false; skipStretch = false;
       });
 
   @override
@@ -138,8 +138,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final setCount = session.exercises.fold(0, (a, x) => a + x.sets.length);
     final fingerprint = '${session.type}|${session.name}|${session.exercises.map((x) => '${x.exId}:${x.sets.length}:${x.rung}').join(',')}';
     final lift = session.type == 'lift';
-    final states = _states(s, now);
-    final current = MuscleMap(s).currentStrainPoints(now);
+    final plan = _musclePlan(s, now);
 
     return Scaffold(
       appBar: AppBar(
@@ -191,15 +190,17 @@ class _TodayScreenState extends State<TodayScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (lift) ...[
-                  _musclesPanel(context, s, now, session, states, current),
+                  _musclesPanel(context, s, now, session, plan),
                   const SizedBox(height: 12),
                   if (session.exercises.isEmpty)
                     Panel(padding: EdgeInsets.zero, child: ListTile(
                       leading: const IconBadge(LucideIcons.circleOff, size: 36),
                       title: const Text('Nothing fits today'),
-                      subtitle: Text(groupsIn(states, MuscleState.excluded).length == muscleGroups.length
-                          ? 'Every muscle is excluded. Tap the muscles to make some available.'
-                          : 'Nothing here works the muscles available. Add equipment to this location, change the muscles, or move instead.'),
+                      subtitle: Text(plan.manual
+                          ? 'Manual: only forced muscles are worked, and none is forced. Tap the muscles to force some.'
+                          : plan.excluded.length == muscleGroups.length
+                              ? 'Every muscle is excluded. Tap the muscles to make some available.'
+                              : 'Nothing here works the muscles available. Add equipment to this location, change the muscles, or move instead.'),
                       trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
                       onTap: () => _pickMuscles(context),
                     ))
@@ -297,34 +298,31 @@ class _TodayScreenState extends State<TodayScreen> {
 
   // ---------- the muscles
 
-  /// The muscles panel: a small figure painted like the picker, and what today works, forces and leaves out. Tap to open
-  /// the picker.
-  Widget _musclesPanel(BuildContext context, AppState s, DateTime now, Session session, Map<String, MuscleState> states, StrainPoints current) {
+  /// The muscles panel: a small figure painted like the picker (forced primary, chosen secondary, excluded dark), and
+  /// what today works, forces and leaves out. Tap to open the picker.
+  Widget _musclesPanel(BuildContext context, AppState s, DateTime now, Session session, MusclePlan plan) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    final fills = muscleFills(states, current, du.accentStrong);
     final working = <String>[];
     for (final e in session.exercises) { if (!working.contains(e.muscle)) working.add(e.muscle); }
-    final forced = groupsIn(states, MuscleState.forced, muscleOrder);
-    final excluded = groupsIn(states, MuscleState.excluded);
-    final strained = excluded.where((g) => groupShade(current, g) > 0).length;
+    final tint = muscleFills(plan.states, chosen: working.toSet(), primary: du.accentStrong);
+    final forced = plan.forced;
+    final excluded = groupsIn(plan.states, MuscleState.excluded);
     String lower(Iterable<String> xs) => listWords(xs.map((g) => g.toLowerCase()));
     return Panel(
       onTap: () => _pickMuscles(context),
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       child: Row(children: [
-        MuscleFigure(highlight: fills.highlight, tint: fills.tint, height: 92, interactive: false),
+        MuscleFigure(highlight: const {}, tint: tint, height: 92, interactive: false),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('MUSCLES', style: t.labelSmall),
+          Text(plan.manual ? 'MUSCLES · MANUAL' : 'MUSCLES · SHUFFLE', style: t.labelSmall),
           const SizedBox(height: 3),
           Text(working.isEmpty ? 'Nothing to work.' : 'Working ${lower(working)}.', style: t.bodyMedium),
           if (forced.isNotEmpty) Text('Forced: ${lower(forced)}.', style: t.bodySmall?.copyWith(color: du.accentText)),
-          Text(excluded.isEmpty
-              ? 'Every muscle available.'
-              : 'Excluded: ${lower(excluded)}${strained > 0 ? strained == excluded.length ? ', carrying strain' : ', $strained carrying strain' : ''}.', style: t.bodySmall),
+          if (!plan.manual) Text(excluded.isEmpty ? 'Every muscle available.' : 'Excluded: ${lower(excluded)}.', style: t.bodySmall),
           const SizedBox(height: 3),
-          Text(muscleStates == null ? 'Tap to change' : 'Changed today · tap to change', style: t.labelSmall?.copyWith(color: du.accentText)),
+          Text(musclePlan == null ? 'Tap to change' : 'Changed today · tap to change', style: t.labelSmall?.copyWith(color: du.accentText)),
         ])),
         Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
       ]),
@@ -333,16 +331,16 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _pickMuscles(BuildContext context) async {
     final store = context.store;
-    final r = await Navigator.of(context).push<(Map<String, MuscleState>, List<String>)>(MaterialPageRoute(
+    final r = await Navigator.of(context).push<MusclePlan>(MaterialPageRoute(
       fullscreenDialog: true,
       builder: (_) => MusclePickerScreen(
-        states: _states(store.state, store.now), order: muscleOrder,
-        preview: (st, ord) => buildSession(store.state, _options(store.state, store.now, states: st, order: ord), store.now),
+        plan: _musclePlan(store.state, store.now),
+        preview: (p) => buildSession(store.state, _options(store.state, store.now, plan: p), store.now),
       ),
     ));
     if (r == null || !mounted) return;
     // the muscles changed, so the slots did: the plan's edits start over
-    setState(() { muscleStates = r.$1; muscleOrder = r.$2; picks = {}; rungOverrides = {}; order = []; leftOut = {}; });
+    setState(() { musclePlan = r; picks = {}; rungOverrides = {}; order = []; leftOut = {}; });
   }
 
   // ---------- the plan

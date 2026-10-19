@@ -86,10 +86,29 @@ void main() {
       expect(later.values.every((v) => v == MuscleState.available), isTrue);
     });
 
-    test('the tap cycle goes excluded, available, forced and round', () {
-      expect(nextMuscleState(MuscleState.excluded), MuscleState.available);
-      expect(nextMuscleState(MuscleState.available), MuscleState.forced);
-      expect(nextMuscleState(MuscleState.forced), MuscleState.excluded);
+    test('a plan sets the selected groups, works only the forced ones when manual, and draws by seed when shuffled', () {
+      final plan = MusclePlan(states: defaultMuscleStates(StrainPoints.none), order: muscleGroups);
+      plan.set(['Chest', 'Back'], MuscleState.forced);
+      plan.set(['Calves'], MuscleState.excluded);
+      expect(plan.forced, ['Chest', 'Back']);
+      expect(plan.excluded, {'Calves'});
+      expect(plan.shuffle, isNull);
+      plan.seed = 3;
+      expect(plan.shuffle, 3);
+      plan.manual = true;
+      expect(plan.shuffle, isNull);
+      expect(plan.excluded, muscleGroups.toSet().difference({'Chest', 'Back'}));
+      final x = build(fresh(), t0, muscles: plan.forced, excluded: plan.excluded, minutes: 60);
+      expect(groupsOf(x).toSet(), {'Chest', 'Back'});
+    });
+
+    test('a shuffle seed draws different ready groups, the same for the same seed', () {
+      final s = fresh();
+      final a = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 60, shuffle: 1, liftInstead: true), t0);
+      final b = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 60, shuffle: 1, liftInstead: true), t0);
+      expect(groupsOf(a), groupsOf(b));
+      final draws = {for (var i = 1; i <= 8; i++) groupsOf(buildSession(s, BuildOptions(energy: Energy.normal, minutes: 60, shuffle: i, liftInstead: true), t0)).join()};
+      expect(draws.length, greaterThan(1));
     });
   });
 

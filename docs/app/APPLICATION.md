@@ -515,9 +515,10 @@ level. An energy or time they default to does not count as the user's choice.
   off, how many exercises), move instead, muscles, reshuffle, and Start. Changing any of them rebuilds the
   workout in place.
 - **The muscle picker.** The body, front and back, with a stack of view tabs at the bottom right: both,
-  front, back, list. A tap on a muscle cycles its group excluded, available, forced; the list has the groups
-  under those three headings, draggable between them. A line above Done previews the day's name, count and
-  minutes as the states change.
+  front, back, list. Tap muscles to select them, then a pill makes the selected ones forced, available or
+  excluded; the list has the groups under those three headings, draggable between them. Shuffle or Manual at
+  the top says whether the workout is drawn from the available pool (Draw again for another draw) or works
+  the forced muscles only. A line above Done previews the day's name, count and minutes as the plan changes.
 - **Words.** "Progression" and "level" are explained in plain words on first run, on every exercise card, and
   wherever a level can be edited: the progression is every step an exercise can get harder by, the level is the
   step you are on. No screen assumes the user knows the vocabulary.

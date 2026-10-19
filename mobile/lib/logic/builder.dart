@@ -108,8 +108,10 @@ int _difficulty(AppState s, Exercise e) => difficultyInPlay(e, s.ex[e.id]);
 /// Everything selection reads while a list is being built: the current strain points and today's plan so far, the share
 /// ledger, the user's words, and the equipment here.
 class _Selection {
-  _Selection(this.s, this.now, this.current, this.share, this.equipment) : withPlan = current;
+  _Selection(this.s, this.now, this.current, this.share, this.equipment, {int? shuffle}) : withPlan = current, rng = shuffle == null ? null : Random(shuffle);
   final AppState s;
+  /// When set, groups are drawn at random among the ready ones (the Shuffle button) instead of by share.
+  final Random? rng;
   final DateTime now;
   final StrainPoints current;
   final Share share;
@@ -170,6 +172,15 @@ class _Selection {
   List<String> rankGroups(Iterable<String> groups, Map<String, Exercise> candidates) {
     final g = s.goal!;
     final list = groups.where(candidates.containsKey).toList();
+    if (rng != null) {
+      final draw = {for (final grp in list) grp: rng!.nextDouble()};
+      list.sort((a, b) {
+        final ra = ready(candidates[a]!), rb = ready(candidates[b]!);
+        if (ra != rb) return ra ? -1 : 1;
+        return draw[a]!.compareTo(draw[b]!);
+      });
+      return list;
+    }
     int key(String grp) => (ready(candidates[grp]!) ? 0 : 1) * 100 + share.band(grp) * 10 + (1 - g.emphasisOf(grp));
     list.sort((a, b) {
       final k = key(a).compareTo(key(b));
@@ -317,7 +328,7 @@ class BuildOptions {
     required this.energy, required this.minutes, this.locationId, this.picks = const {}, this.rungOverrides = const {},
     this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.circuit = false,
     this.exerciseCount, this.warmupMinutes = 0, this.skipCardio = false, this.skipStretch = false, this.order = const [],
-    this.muscles = const [], this.excluded = const {}, this.leftOut = const {}, this.liftInstead = false,
+    this.muscles = const [], this.excluded = const {}, this.leftOut = const {}, this.liftInstead = false, this.shuffle,
   });
   final Energy energy;
   final int minutes;
@@ -332,6 +343,7 @@ class BuildOptions {
   final Map<String, int> rungOverrides;     // slot -> rung for today
   final List<String> muscles;               // muscle groups forced today (the muscle plan), strained or not, in the user's order
   final Set<String> excluded;               // muscle groups excluded today: never picked, not even to fill spare minutes
+  final int? shuffle;                       // a seed: the places after the forced groups go to ready groups at random, not by share
   final Set<String> leftOut;                // slots the user left out today: the count drops by one
   final bool liftInstead;                   // lift today even though a movement day is due
   final String? moveKind;                   // swap to a movement session: cardio | mobility
@@ -376,7 +388,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   // 2. the muscles, then an exercise for each (SELECTION.md). The user's own muscles first, strained or not; then the
   //    ready muscles furthest behind their share, emphasis first, as many as the ideal (or the count). One exercise per
   //    muscle until every ready muscle that is behind has one. The last place may go to something new.
-  final sel = _Selection(s, now, MuscleMap(s).currentStrainPoints(now), shareOver(s, now), equipment);
+  final sel = _Selection(s, now, MuscleMap(s).currentStrainPoints(now), shareOver(s, now), equipment, shuffle: o.shuffle);
   final ideal = count ?? g.exercises.ideal;
   final slots = <_Slot>[];
   final used = <String>[];

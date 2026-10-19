@@ -94,11 +94,16 @@ Everything above is a default. The user's pick always stands, for today.
   rules above. *Forced*: worked for certain, by an exercise that has it as a primary muscle, taking a place
   before the rules fill the rest. The defaults come from the muscle map: a group whose most strained muscle is
   at any shade starts excluded (the threshold is one constant, `excludeFromShade`), the rest start available,
-  nothing starts forced. The muscle picker on Today changes them: a tap on a muscle on the body cycles its
-  group excluded, available, forced; a list view shows the groups under the three headings, each tile
-  draggable up, down and between them, with its strain and its share beside it. Done rebuilds the workout.
-  A forced group still carrying strain is worked anyway, and its why-line says so. When every group is
-  excluded, or nothing here works the available ones, Today says so and offers the picker or a movement day.
+  nothing starts forced. The muscle picker on Today changes them: tap muscles on the body to select them
+  (blue), then one of three pills says what the selected ones are today. A list view shows the groups under
+  the three headings, each tile draggable up, down and between them, with its strain and its share beside it.
+  The figure shows the result like a muscle map: forced groups in the primary green, the available groups
+  the workout chose in the secondary green, the other available ones plain, excluded ones very dark.
+  *Shuffle* (the default) fills the places after the forced groups from the available pool by the rules
+  above, and Draw again takes ready groups at random instead of by share; *Manual* works the forced groups
+  only. Done rebuilds the workout. A forced group still carrying strain is worked anyway, and its why-line
+  says so. When every group is excluded, or nothing here works the available ones, Today says so and offers
+  the picker or a movement day.
 - **Swap.** The swap sheet lists every other exercise for the same muscle available here, in the order above,
   not for me under its own heading. Nothing a user picks changes its word.
 - **Leave it out today.** On any row. The count drops by one.
@@ -121,8 +126,9 @@ Everything above is a default. The user's pick always stands, for today.
 
 ## Where it shows
 
-- **Today:** the day's name, the muscles panel (a small figure painted like the picker: forced green, excluded
-  red for strain or dim, available plain) saying what is worked, forced and excluded, and the picker behind it.
+- **Today:** the day's name, the muscles panel (a small figure painted like the picker: forced primary green,
+  chosen secondary, excluded dark, available plain) saying what is worked, forced and excluded, and the picker
+  behind it.
   Each exercise's why-line is on its sheet.
 - **The plan:** a row's tag when it is not for me, with leave it out today; the swap sheet in selection's
   order.

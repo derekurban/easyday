@@ -1,9 +1,11 @@
-// The muscle picker: today's word on each muscle group (logic/muscle_plan.dart), chosen on the body. Every group is
-// excluded, available or forced; a tap on a muscle cycles its group through the three. Excluded groups carrying
-// strain keep their strain red, excluded strain-free ones go dim, forced ones go green, available ones stay plain.
-// A stack of tabs at the bottom right switches between both figures, the front, the back, and a list: the groups
-// under Forced, Available and Excluded, each tile draggable up and down and between the three. Done hands the
-// states back to Today, which rebuilds the workout from them.
+// The muscle picker: today's word on each muscle group (logic/muscle_plan.dart), chosen on the body. Tap muscles to
+// select them (blue, on both figures), then a pill says what the selected ones are today: forced, available or
+// excluded. The figure shows the result the way a muscle map shows a workout: forced groups in the primary green,
+// the available groups the workout chose in the secondary green, the rest of the available ones plain, excluded ones
+// very dark. Shuffle fills the places after the forced groups from the available pool (the Shuffle button draws
+// again); Manual works the forced groups only. A stack of tabs at the bottom right switches between both figures,
+// the front, the back, and a list: the groups under Forced, Available and Excluded, each tile draggable up and down
+// and between the three. Done hands the plan back to Today, which rebuilds the workout from it.
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -20,30 +22,37 @@ import 'motion.dart';
 import 'muscle_figure.dart';
 import 'theme.dart';
 
-/// The dim an excluded, strain-free muscle is drawn in: a mid gray multiplied over the plate at about half strength.
-const muscleDim = Color(0x8C7A7A7A);
+/// An excluded group's fill: a very dark gray multiplied over the plate at nearly full strength.
+const muscleExcluded = Color(0xF2303030);
+/// The secondary strength: the primary colour at this alpha, for the available groups the workout chose.
+const muscleSecondaryAlpha = 0.45;
 
 IconData muscleStateIcon(MuscleState s) => switch (s) { MuscleState.forced => LucideIcons.pin, MuscleState.available => LucideIcons.circleDashed, MuscleState.excluded => LucideIcons.ban };
 
-/// The fills for the figure from the states: muscle name -> strain points for the red (excluded groups only) and
-/// muscle name -> tint (forced green, excluded strain-free dim). Available groups are left plain.
-({Map<String, double> highlight, Map<String, Color> tint}) muscleFills(Map<String, MuscleState> states, StrainPoints current, Color forced) {
-  final highlight = <String, double>{};
+/// The figure's fills from the states: forced in [primary], the available groups in [chosen] at the secondary
+/// strength, excluded very dark, the rest plain. Groups in [selected] fill the selection blue instead.
+Map<String, Color> muscleFills(Map<String, MuscleState> states, {required Set<String> chosen, required Color primary, Set<String> selected = const {}}) {
   final tint = <String, Color>{};
   for (final g in muscleGroups) {
-    for (final m in musclesOf(g)) {
-      switch (states[g]) {
-        case MuscleState.forced:
-          tint[m] = forced;
-        case MuscleState.excluded:
-          if (current.strainFree(m)) { tint[m] = muscleDim; } else { highlight[m] = current[m]; }
-        default:
-          break;
-      }
-    }
+    final c = selected.contains(g)
+        ? muscleSelect
+        : switch (states[g]) {
+            MuscleState.forced => primary,
+            MuscleState.excluded => muscleExcluded,
+            _ => chosen.contains(g) ? primary.withValues(alpha: muscleSecondaryAlpha) : null,
+          };
+    if (c == null) continue;
+    for (final m in musclesOf(g)) { tint[m] = c; }
   }
-  return (highlight: highlight, tint: tint);
+  return tint;
 }
+
+/// What a group looks like in the list: the plate gray under the same fill the figure gives it.
+Color muscleSwatch(MuscleState? state, {required bool chosen, required Color primary}) => switch (state) {
+      MuscleState.forced => Color.lerp(musclePlate, primary, 0.8)!,
+      MuscleState.excluded => Color.lerp(musclePlate, const Color(0xFF303030), 0.9)!,
+      _ => chosen ? Color.lerp(musclePlate, primary, muscleSecondaryAlpha)! : musclePlate,
+    };
 
 /// What a group's strain is in words: "ready", or "medium strain, strain-free Thursday".
 String groupStrainText(StrainPoints current, MuscleMap map, String group, DateTime now) {
@@ -54,29 +63,34 @@ String groupStrainText(StrainPoints current, MuscleMap map, String group, DateTi
   return '${strainShadeLabels[strainShades - shade]} strain, strain-free ${dayText(free, now)}';
 }
 
+/// The groups a built workout works.
+Set<String> workedGroups(Session session) => {for (final e in session.exercises) e.muscle};
+
 class MusclePickerScreen extends StatefulWidget {
-  const MusclePickerScreen({super.key, required this.states, required this.order, required this.preview});
-  final Map<String, MuscleState> states;
-  /// The groups in the list's order, forced first.
-  final List<String> order;
-  /// The workout the states would build, for the line above Done.
-  final Session Function(Map<String, MuscleState> states, List<String> order) preview;
+  const MusclePickerScreen({super.key, required this.plan, required this.preview});
+  final MusclePlan plan;
+  /// The workout the plan would build, for the figure's chosen groups and the line above Done.
+  final Session Function(MusclePlan plan) preview;
   @override
   State<MusclePickerScreen> createState() => _MusclePickerScreenState();
 }
 
 class _MusclePickerScreenState extends State<MusclePickerScreen> {
-  late Map<String, MuscleState> states = {...widget.states};
-  late List<String> order = [...widget.order, for (final g in muscleGroups) if (!widget.order.contains(g)) g];
+  late MusclePlan plan = widget.plan.copy()..order.addAll([for (final g in muscleGroups) if (!widget.plan.order.contains(g)) g]);
+  final selected = <String>{};
   String view = 'both';
-  String? lastTapped;
 
   static const views = {'both': LucideIcons.columns2, 'front': LucideIcons.personStanding, 'back': LucideIcons.flipHorizontal2, 'list': LucideIcons.list};
   static const viewLabel = {'both': 'Both sides', 'front': 'Front', 'back': 'Back', 'list': 'List'};
 
-  void _cycle(String group) {
+  void _toggle(String group) {
     HapticFeedback.selectionClick();
-    setState(() { states[group] = nextMuscleState(states[group] ?? MuscleState.available); lastTapped = group; });
+    setState(() { if (!selected.remove(group)) selected.add(group); });
+  }
+
+  void _apply(MuscleState st) {
+    HapticFeedback.lightImpact();
+    setState(() { plan.set(selected, st); selected.clear(); });
   }
 
   @override
@@ -88,48 +102,116 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     final du = context.du;
     final map = MuscleMap(s);
     final current = map.currentStrainPoints(now);
-    final session = widget.preview(states, order);
-    final forced = groupsIn(states, MuscleState.forced, order);
+    final session = widget.preview(plan);
+    final chosen = workedGroups(session);
+    final forced = plan.forced;
     final defaults = defaultMuscleStates(current);
-    final changed = muscleGroups.any((g) => states[g] != defaults[g]);
+    final changed = muscleGroups.any((g) => plan.states[g] != defaults[g]) || plan.manual || plan.seed > 0;
+    // the state the selection shares, when it shares one
+    final shared = selected.isEmpty ? null : selected.map((g) => plan.states[g]).toSet().singleOrNull;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(LucideIcons.x, size: 22), tooltip: 'Close'),
         title: const Text('Muscles'),
         actions: [
-          if (changed) TextButton.icon(onPressed: () => setState(() { states = defaultMuscleStates(current); lastTapped = null; }), icon: const Icon(LucideIcons.undo2, size: 16), label: const Text('Reset')),
+          if (changed) TextButton.icon(onPressed: () => setState(() { plan = MusclePlan(states: defaults, order: muscleGroups); selected.clear(); }), icon: const Icon(LucideIcons.undo2, size: 16), label: const Text('Reset')),
         ],
       ),
       body: SafeArea(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        // how the rest of the workout is filled
+        Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: Row(children: [
+          Expanded(child: Segmented<bool>(
+            value: plan.manual, options: const {false: 'Shuffle', true: 'Manual'}, icons: const {false: LucideIcons.shuffle, true: LucideIcons.pin},
+            onChanged: (v) => setState(() => plan.manual = v),
+          )),
+          const SizedBox(width: 8),
+          IconButton.outlined(
+            onPressed: plan.manual ? null : () { HapticFeedback.selectionClick(); setState(() => plan.seed++); },
+            icon: const Icon(LucideIcons.dices, size: 20), tooltip: 'Draw again',
+          ),
+        ])),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 6, 16, 0), child: Text(
+          plan.manual ? 'Only forced muscles are worked.' : 'Forced muscles first, then the workout is drawn from the available ones.${plan.seed > 0 ? ' Draw ${plan.seed}.' : ''}',
+          style: t.bodySmall,
+        )),
         Expanded(child: Stack(children: [
           Positioned.fill(child: AnimatedSwitcher(
             duration: m(context, durBase),
-            child: view == 'list' ? _list(context, current, map, now) : _figure(context, current, map, now),
+            child: view == 'list' ? _list(context, current, map, now, chosen) : _figure(context, chosen),
           )),
           Positioned(right: 12, bottom: 12, child: _tabs(context)),
         ])),
         Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
-          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            // the selection and the pills that set its state
+            Row(children: [
+              Expanded(child: AnimatedSwitcher(
+                duration: m(context, durBase),
+                layoutBuilder: _leftLayout,
+                child: Text(
+                  selected.isEmpty ? 'Tap muscles to select them, then say what they are today.' : '${listWords(selected.toList())} selected',
+                  key: ValueKey(selected.isEmpty ? '' : selected.join()), style: t.bodySmall?.copyWith(color: selected.isEmpty ? null : muscleSelect),
+                ),
+              )),
+              if (selected.isNotEmpty) TextButton(onPressed: () => setState(selected.clear), style: TextButton.styleFrom(minimumSize: const Size(44, 32), padding: const EdgeInsets.symmetric(horizontal: 8)), child: const Text('Clear')),
+            ]),
+            const SizedBox(height: 6),
+            Row(children: [
+              for (final st in const [MuscleState.forced, MuscleState.available, MuscleState.excluded]) ...[
+                Expanded(child: _pill(context, st, on: shared == st, enabled: selected.isNotEmpty)),
+                if (st != MuscleState.excluded) const SizedBox(width: 8),
+              ],
+            ]),
+            const SizedBox(height: 10),
             AnimatedSwitcher(
               duration: m(context, durBase),
+              layoutBuilder: _leftLayout,
               child: Column(key: ValueKey('${session.name}${session.exercises.length}${session.estMinutes}'), crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(session.exercises.isEmpty ? 'Nothing to work' : session.name, style: t.titleLarge),
                 Text(session.exercises.isEmpty
-                    ? 'Every muscle is excluded, or nothing here fits. Tap a muscle to make it available.'
+                    ? (plan.manual ? 'Force a muscle to work it.' : 'Every muscle is excluded, or nothing here fits. Make some available.')
                     : '${session.exercises.length} exercise${session.exercises.length == 1 ? '' : 's'} · about ${session.estMinutes} min${forced.isNotEmpty ? ' · ${listWords(forced.map((g) => g.toLowerCase()))} forced' : ''}', style: t.bodySmall),
               ]),
             ),
             const SizedBox(height: 10),
             SizedBox(width: double.infinity, height: 52, child: FilledButton.icon(
-              onPressed: () => Navigator.of(context).pop((states, order)),
+              onPressed: () => Navigator.of(context).pop(plan),
               icon: const Icon(LucideIcons.check, size: 20),
               label: const Text('Done'),
             )),
           ]),
         ),
       ])),
+    );
+  }
+
+  /// Switched text sits at the left, not the centre AnimatedSwitcher defaults to.
+  static Widget _leftLayout(Widget? current, List<Widget> previous) => Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]);
+
+  /// One of the three pills: sets the selected muscles to a state.
+  Widget _pill(BuildContext context, MuscleState st, {required bool on, required bool enabled}) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final ink = !enabled ? du.inkTertiary : on ? du.accentText : du.ink;
+    return Pressable(
+      borderRadius: 999,
+      onTap: enabled ? () => _apply(st) : null,
+      child: AnimatedContainer(
+        duration: m(context, durBase),
+        height: 40,
+        decoration: BoxDecoration(
+          color: on ? du.accentSubtle : enabled ? du.surface : du.bg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: on ? du.accentStrong : du.line, width: on ? 1.5 : 0.6),
+        ),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(muscleStateIcon(st), size: 15, color: ink),
+          const SizedBox(width: 6),
+          Text(muscleStateLabel[st]!, style: t.labelLarge?.copyWith(color: ink)),
+        ]),
+      ),
     );
   }
 
@@ -158,41 +240,26 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     );
   }
 
-  Widget _figure(BuildContext context, StrainPoints current, MuscleMap map, DateTime now) {
-    final t = Theme.of(context).textTheme;
+  Widget _figure(BuildContext context, Set<String> chosen) {
     final du = context.du;
-    final fills = muscleFills(states, current, du.accentStrong);
+    final tint = muscleFills(plan.states, chosen: chosen, primary: du.accentStrong, selected: selected);
     final sides = view == 'both' ? const ['front', 'back'] : [view];
-    final tapped = lastTapped;
     return LayoutBuilder(key: ValueKey(view), builder: (context, c) {
       final n = sides.length;
-      // the tabs take the bottom right corner: on one side the figure leaves them room, on both it sits above them
-      final height = min(c.maxHeight - 112, (c.maxWidth - 32 - 4 * (n - 1)) / (0.5 * n)).clamp(160.0, 1200.0).toDouble();
+      final height = min(c.maxHeight - 48, (c.maxWidth - 32 - 4 * (n - 1)) / (0.5 * n)).clamp(160.0, 1200.0).toDouble();
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: Wrap(spacing: 12, runSpacing: 4, children: [
-          _swatch(context, Color.lerp(musclePlate, du.accentStrong, 0.75)!, 'Forced'),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: Wrap(spacing: 12, runSpacing: 4, children: [
+          _swatch(context, muscleSwatch(MuscleState.forced, chosen: true, primary: du.accentStrong), 'Forced'),
+          _swatch(context, muscleSwatch(MuscleState.available, chosen: true, primary: du.accentStrong), 'Chosen'),
           _swatch(context, musclePlate, 'Available'),
-          _swatch(context, Color.lerp(musclePlate, strainRed, 2 / 3)!, 'Excluded, strained'),
-          _swatch(context, Color.lerp(musclePlate, const Color(0xFF7A7A7A), 0.55)!, 'Excluded, strain-free'),
+          _swatch(context, muscleSwatch(MuscleState.excluded, chosen: false, primary: du.accentStrong), 'Excluded'),
+          _swatch(context, Color.lerp(musclePlate, muscleSelect, 0.85)!, 'Selected'),
         ])),
         Expanded(child: Center(child: MuscleFigure(
           key: ValueKey('fig$view'),
-          highlight: fills.highlight, tint: fills.tint, sides: sides, height: height, selectable: false, tooltip: false,
-          onTap: (h) { if (h != null && muscleGroups.contains(muscleGroup(h.name))) _cycle(muscleGroup(h.name)); },
+          highlight: const {}, tint: tint, sides: sides, height: height, selectable: false, tooltip: false,
+          onTap: (h) { if (h != null && muscleGroups.contains(muscleGroup(h.name))) _toggle(muscleGroup(h.name)); },
         ))),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 72, 8),
-          child: AnimatedSwitcher(
-            duration: m(context, durBase),
-            child: tapped == null
-                ? Text('Tap a muscle to cycle it: excluded, available, forced.', key: const ValueKey('hint'), style: t.bodySmall)
-                : Row(key: ValueKey('$tapped${states[tapped]}'), children: [
-                    Icon(muscleStateIcon(states[tapped]!), size: 14, color: states[tapped] == MuscleState.forced ? du.accentText : du.inkSecondary),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('$tapped: ${muscleStateLabel[states[tapped]]!.toLowerCase()} · ${groupStrainText(current, map, tapped, now)}', style: t.bodySmall?.copyWith(color: du.ink))),
-                  ]),
-          ),
-        ),
       ]);
     });
   }
@@ -208,14 +275,15 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
   }
 
   /// The list: a header per state, the groups under each, every tile draggable up or down and across the headers.
-  Widget _list(BuildContext context, StrainPoints current, MuscleMap map, DateTime now) {
+  /// A tap selects a tile, like a tap on the figure.
+  Widget _list(BuildContext context, StrainPoints current, MuscleMap map, DateTime now, Set<String> chosen) {
     final share = shareOver(context.store.state, now);
     const sections = [MuscleState.forced, MuscleState.available, MuscleState.excluded];
     // the flat list the reorderable view shows: headers and tiles, each with a key
     final items = <({MuscleState? header, String? group})>[];
     for (final st in sections) {
       items.add((header: st, group: null));
-      for (final g in groupsIn(states, st, order)) { items.add((header: null, group: g)); }
+      for (final g in groupsIn(plan.states, st, plan.order)) { items.add((header: null, group: g)); }
     }
     return ReorderableListView.builder(
       key: const ValueKey('list'),
@@ -234,15 +302,14 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
         var st = sections.first;
         for (var i = to; i >= 0; i--) { if (items[i].header != null) { st = items[i].header!; break; } }
         setState(() {
-          states[moved.group!] = st;
-          order = [for (final it in items) if (it.group != null) it.group!];
-          lastTapped = moved.group;
+          plan.states[moved.group!] = st;
+          plan.order..clear()..addAll([for (final it in items) if (it.group != null) it.group!]);
         });
       },
       itemBuilder: (context, i) {
         final it = items[i];
-        if (it.header != null) return _header(context, it.header!, groupsIn(states, it.header!, order).length, key: ValueKey('h${it.header}'));
-        return _tile(context, i, it.group!, current, map, share, now, key: ValueKey('g${it.group}'));
+        if (it.header != null) return _header(context, it.header!, groupsIn(plan.states, it.header!, plan.order).length, key: ValueKey('h${it.header}'));
+        return _tile(context, i, it.group!, current, map, share, now, chosen, key: ValueKey('g${it.group}'));
       },
     );
   }
@@ -250,6 +317,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
   Widget _header(BuildContext context, MuscleState st, int count, {required Key key}) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
+    final blurb = st == MuscleState.available && plan.manual ? 'Not worked when manual.' : muscleStateBlurb[st]!;
     return Padding(
       key: key,
       padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
@@ -258,35 +326,36 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
         const SizedBox(width: 6),
         Text(muscleStateLabel[st]!.toUpperCase(), style: t.labelSmall?.copyWith(color: st == MuscleState.forced ? du.accentText : null)),
         const SizedBox(width: 8),
-        Expanded(child: Text(count == 0 ? 'Drop a muscle here. ${muscleStateBlurb[st]}' : muscleStateBlurb[st]!, style: t.labelSmall, overflow: TextOverflow.ellipsis)),
+        Expanded(child: Text(count == 0 ? 'Drop a muscle here. $blurb' : blurb, style: t.labelSmall, overflow: TextOverflow.ellipsis)),
       ]),
     );
   }
 
-  Widget _tile(BuildContext context, int index, String g, StrainPoints current, MuscleMap map, Share share, DateTime now, {required Key key}) {
+  Widget _tile(BuildContext context, int index, String g, StrainPoints current, MuscleMap map, Share share, DateTime now, Set<String> chosen, {required Key key}) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    final st = states[g]!;
-    final shade = groupShade(current, g);
-    final fill = switch (st) {
-      MuscleState.forced => Color.lerp(musclePlate, du.accentStrong, 0.75)!,
-      MuscleState.excluded => shade == 0 ? Color.lerp(musclePlate, const Color(0xFF7A7A7A), 0.55)! : Color.lerp(musclePlate, strainRed, strainShadeOpacity[shade - 1])!,
-      MuscleState.available => musclePlate,
-    };
+    final st = plan.states[g]!;
+    final on = selected.contains(g);
+    final fill = on ? Color.lerp(musclePlate, muscleSelect, 0.85)! : muscleSwatch(st, chosen: chosen.contains(g), primary: du.accentStrong);
+    final worked = st == MuscleState.forced || (st == MuscleState.available && chosen.contains(g));
     return ReorderableDelayedDragStartListener(
       key: key,
       index: index,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: Panel(
-          padding: EdgeInsets.zero,
-          sunk: st == MuscleState.excluded,
+        child: AnimatedContainer(
+          duration: m(context, durBase),
+          decoration: BoxDecoration(
+            color: st == MuscleState.excluded ? du.sunk : du.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: on ? muscleSelect : du.line, width: on ? 1.5 : 0.6),
+          ),
           child: ListTile(
-            onTap: () => _cycle(g),
+            onTap: () => _toggle(g),
             contentPadding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
             leading: Container(width: 22, height: 22, decoration: BoxDecoration(color: fill, shape: BoxShape.circle, border: Border.all(color: du.line, width: 0.6))),
             title: Text(g, style: t.bodyLarge?.copyWith(color: st == MuscleState.excluded ? du.inkSecondary : du.ink)),
-            subtitle: Text('${groupStrainText(current, map, g, now)} · ${share.bandWord(g)}'),
+            subtitle: Text('${worked ? 'in today\'s workout · ' : ''}${groupStrainText(current, map, g, now)} · ${share.bandWord(g)}'),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(muscleStateIcon(st), size: 16, color: st == MuscleState.forced ? du.accentText : du.inkTertiary),
               ReorderableDragStartListener(index: index, child: Padding(padding: const EdgeInsets.fromLTRB(10, 12, 8, 12), child: Icon(LucideIcons.gripVertical, size: 18, color: du.inkTertiary))),

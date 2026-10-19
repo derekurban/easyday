@@ -2,7 +2,7 @@
 // one of three states. Excluded: not worked today. Available: in the pool selection draws from (SELECTION.md).
 // Forced: worked today for certain, by an exercise that has it as a primary muscle. The defaults come from the
 // muscle map: a group carrying enough strain starts excluded, the rest start available, nothing starts forced.
-// The user changes any of them on the muscle picker, for today only.
+// The user changes any of them on the muscle picker, for today only: select muscles, then pick their state.
 import '../data/index.dart';
 import 'muscle_map.dart';
 
@@ -21,12 +21,35 @@ const muscleStateBlurb = {
 /// At 2 a usual workout would exclude nothing the next day; only four sets or more would.
 const excludeFromShade = 1;
 
-/// The order the states cycle through on a tap: excluded, available, forced, and round again.
-MuscleState nextMuscleState(MuscleState s) => switch (s) {
-      MuscleState.excluded => MuscleState.available,
-      MuscleState.available => MuscleState.forced,
-      MuscleState.forced => MuscleState.excluded,
-    };
+/// Today's muscle plan as a whole: the states, the list's order, and how the rest of the workout is filled. Shuffle
+/// (the default) fills the places after the forced groups from the available pool, by selection's rules, or at random
+/// among the ready ones once [seed] is above zero (the Shuffle button). Manual works the forced groups only.
+class MusclePlan {
+  MusclePlan({Map<String, MuscleState>? states, List<String>? order, this.manual = false, this.seed = 0})
+      : states = {...?states}, order = [...?order];
+  final Map<String, MuscleState> states;
+  final List<String> order;
+  bool manual;
+  int seed;
+
+  MusclePlan copy() => MusclePlan(states: states, order: order, manual: manual, seed: seed);
+
+  /// The groups worked for certain, in the list's order.
+  List<String> get forced => groupsIn(states, MuscleState.forced, order);
+
+  /// The groups the builder may not touch: the excluded ones, or everything not forced when manual.
+  Set<String> get excluded => manual
+      ? {for (final g in muscleGroups) if (states[g] != MuscleState.forced) g}
+      : groupsIn(states, MuscleState.excluded).toSet();
+
+  /// The seed the builder draws with, or null for selection's own order.
+  int? get shuffle => manual || seed <= 0 ? null : seed;
+
+  /// Give every group in [groups] the state [state]: the pill row on the picker, applied to the selected muscles.
+  void set(Iterable<String> groups, MuscleState state) {
+    for (final g in groups) { states[g] = state; }
+  }
+}
 
 /// The muscles (by their everyday names) that fold onto a group.
 List<String> musclesOf(String group) => [for (final m in trackedMuscles) if (muscleGroup(m) == group) m];
