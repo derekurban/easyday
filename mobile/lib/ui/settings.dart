@@ -384,28 +384,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (context.mounted) _say(context, 'Copied. Open the other install and restore it there.');
   }
 
-  /// Takes a copy from the clipboard after a confirm. Notifications, the calendar and position come in off and each asks
-  /// for its permission again, since this install may not have it yet.
+  /// Restores a copy, then turns back on, one permission ask at a time, whatever the copy had on.
   Future<void> _restoreData(BuildContext context) async {
-    final store = context.store;
-    final raw = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
-    if (!context.mounted) return;
-    if (raw == null || !Store.looksLikeData(raw)) { _say(context, 'The clipboard holds no copied data. Copy it in the other install first.'); return; }
-    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text('Replace everything?'),
-      content: const Text('Profile, locations, levels and history on this phone become the copied ones. There is no undo.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace'))],
-    ));
-    if (ok != true || !context.mounted) return;
-    if (!store.importJson(raw)) { _say(context, 'That data could not be read. Nothing changed.'); return; }
-    final want = store.state.settings;
-    final notify = want.notify, calendar = want.calendar, autoTrack = want.autoTrack, location = want.location;
-    store.update((x) { x.settings.notify = false; x.settings.calendar = false; x.settings.autoTrack = false; x.settings.location = false; });
+    final want = await restoreCopiedData(context);
+    if (want == null || !context.mounted) return;
     _say(context, 'Restored.');
-    if (notify) await _toggleNotify(context, true);
-    if (calendar && context.mounted) await _toggleCalendar(context, true);
-    if (autoTrack && context.mounted) await _toggleAutoTrack(context, true);
-    if (location && context.mounted) await _toggleLocation(context, true);
+    if (want.notify) await _toggleNotify(context, true);
+    if (want.calendar && context.mounted) await _toggleCalendar(context, true);
+    if (want.autoTrack && context.mounted) await _toggleAutoTrack(context, true);
+    if (want.location && context.mounted) await _toggleLocation(context, true);
   }
 
   Future<void> _confirmReset(BuildContext context) async {
@@ -488,4 +475,27 @@ class _FigureChoice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Takes a copy made by Copy your data from the clipboard after a confirm; Settings and the first onboarding page both
+/// offer it. Notifications, the calendar and position come in off, since this install may not have their permissions
+/// yet. Returns which of them the copy had on, or null when nothing changed.
+Future<({bool notify, bool calendar, bool autoTrack, bool location})?> restoreCopiedData(BuildContext context) async {
+  final store = context.store;
+  final messenger = ScaffoldMessenger.of(context);
+  void say(String text) => messenger.showSnackBar(SnackBar(content: Text(text)));
+  final raw = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+  if (!context.mounted) return null;
+  if (raw == null || !Store.looksLikeData(raw)) { say('The clipboard holds no copied data. Copy it in the other install first.'); return null; }
+  final ok = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+    title: const Text('Replace everything?'),
+    content: const Text('Profile, locations, levels and history on this phone become the copied ones. There is no undo.'),
+    actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Replace'))],
+  ));
+  if (ok != true) return null;
+  if (!store.importJson(raw)) { say('That data could not be read. Nothing changed.'); return null; }
+  final s = store.state.settings;
+  final want = (notify: s.notify, calendar: s.calendar, autoTrack: s.autoTrack, location: s.location);
+  store.update((x) { x.settings.notify = false; x.settings.calendar = false; x.settings.autoTrack = false; x.settings.location = false; });
+  return want;
 }

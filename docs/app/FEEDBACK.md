@@ -1,7 +1,7 @@
 # Feedback
 
 Anyone using the app can report a problem or suggest a feature. Both become issues on the app's public GitHub repo,
-`derekurban/fitness`, where they are triaged with everything else. The report is written in the app; on GitHub the
+`derekurban/easyday`, where they are triaged with everything else. The report is written in the app; on GitHub the
 person only signs in and sends.
 
 ## How it works
@@ -59,4 +59,4 @@ set aside on 2026-10-18 because it opens a public endpoint and leaves reports wi
 | `.github/ISSUE_TEMPLATE/bug.yml`, `feature.yml` | The issue forms. GitHub reads them from the default branch (`main`) |
 | `mobile/lib/logic/feedback.dart` | The fields, the draft, the added lines, the link and its length budget, the copied text (pure, tested in `mobile/test/feedback_test.dart`) |
 | `mobile/lib/ui/feedback.dart` | The Settings panel and the sheet |
-| `mobile/lib/integrations.dart` | `LinkBridge` (channel `fitness/links`) opens the browser; `UpdateBridge.appInfo` also reports the phone |
+| `mobile/lib/integrations.dart` | `LinkBridge` (channel `easyday/links`) opens the browser; `UpdateBridge.appInfo` also reports the phone |

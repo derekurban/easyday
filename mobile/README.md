@@ -1,4 +1,4 @@
-# Fitness · Android
+# Easyday · Android
 
 The Android build of the habit-first training app. Flutter, no code generation. Dependencies: shared_preferences, lucide_icons_flutter,
 flutter_local_notifications (+ timezone, flutter_timezone), geolocator. Calendar access is a 40-line method channel in MainActivity.kt.
@@ -52,14 +52,14 @@ Two flavours on one dimension, so a try-out never touches the real install:
 
 | Flavour | Application id | Name | Icon |
 |---|---|---|---|
-| `prod` | `dev.derekurban.fitness` | Fitness | green bracket |
-| `staging` | `dev.derekurban.fitness.staging` | Fitness Staging | amber bracket |
+| `prod` | `app.easyday` | Easyday | green bracket |
+| `staging` | `app.easyday.staging` | Easyday Staging | amber bracket |
 
 The dev loop runs staging (`FLAVOR=prod node tool/dev.mjs` for prod). Every `flutter run` or `flutter build apk` needs
 `--flavor prod|staging`. The launcher icons are drawn from the brand mark `../app/icon.svg` by `python -I tool/icons.py`.
 
 Release builds are signed with the keystore named in `android/key.properties` (ignored by git; the keystore lives in
-`~/.keys/fitness/`). Without that file a checkout still builds, signed with the debug key, but such a build cannot update
+`~/.keys/easyday/`). Without that file a checkout still builds, signed with the debug key, but such a build cannot update
 an install signed with the release key.
 
 ### Branches and releases
@@ -68,8 +68,8 @@ Work lands on `dev`. Releases come from CI (`../.github/workflows/release.yml`),
 
 | Merge | Builds | GitHub release |
 |---|---|---|
-| `dev` → `staging` | staging flavour | `v<version>-staging.<versionCode>` with `fitness-staging.apk` |
-| `staging` → `main` | prod flavour | `v<version>-prod.<versionCode>` with `fitness.apk`, marked latest |
+| `dev` → `staging` | staging flavour | `v<version>-staging.<versionCode>` with `easyday-staging.apk` |
+| `staging` → `main` | prod flavour | `v<version>-prod.<versionCode>` with `easyday.apk`, marked latest |
 
 Each run analyzes, tests, builds the flavour signed with the release key and publishes the release. `<version>` is
 `pubspec.yaml`'s version name (bump it for a new version); the versionCode is 100000 + the workflow's run number, so
@@ -81,7 +81,7 @@ signing key reaches CI as repo secrets `KEYSTORE_BASE64` (the keystore, base64),
 ### Updates in the app
 
 Installed apps update themselves (`AutoUpdater` in `lib/ui/updates.dart`). On launch, and on coming back to the front
-at most every half hour, the app reads `api.github.com/repos/derekurban/fitness/releases`, takes the newest release
+at most every half hour, the app reads `api.github.com/repos/derekurban/easyday/releases`, takes the newest release
 carrying its own flavour's APK, and if it is a higher version (or the same version with a higher build number) it
 downloads it, shows "Updating to …", and installs it over itself through a PackageInstaller session; Android closes
 the app and the new version opens next time. It waits while a workout is in progress, installs nothing in debug builds, and

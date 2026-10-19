@@ -54,7 +54,7 @@ const sections = diagrams.map(d => `
 
 const site = `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fitness app · logic</title>
+<title>Easyday · logic</title>
 <style>
   :root{--fg:#1b1b1f;--muted:#6b6b76;--line:#e4e4ea;--bg:#fff;--accent:#5b4fd1}
   @media (prefers-color-scheme:dark){:root{--fg:#ececf1;--muted:#9a9aa6;--line:#2c2c34;--bg:#131316;--accent:#a89cff}}
@@ -71,7 +71,7 @@ const site = `<!doctype html><html lang="en"><head><meta charset="utf-8">
   ol.principles{padding-left:22px;margin:0} ol.principles li{margin:8px 0}
   footer{color:var(--muted);font-size:13px;padding:20px}
 </style>${MERMAID}</head><body>
-<header><h1>Fitness app · logic</h1><p class="sub">Habit-first training app. How the pieces fit, one visit, the feedback loops, person state, and automations.</p></header>
+<header><h1>Easyday · logic</h1><p class="sub">Habit-first training app. How the pieces fit, one visit, the feedback loops, person state, and automations.</p></header>
 <nav><a href="#principles">Principles</a>${nav}</nav>
 <main>
 <section id="principles"><h2>Design principles${decided ? ` · decided ${esc(decided)}` : ""}</h2>

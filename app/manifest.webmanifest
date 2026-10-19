@@ -1,6 +1,6 @@
 {
-  "name": "Fitness",
-  "short_name": "Fitness",
+  "name": "Easyday",
+  "short_name": "Easyday",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#131316",

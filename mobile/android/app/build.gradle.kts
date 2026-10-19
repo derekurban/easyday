@@ -14,7 +14,7 @@ val keyProps = Properties().apply {
 }
 
 android {
-    namespace = "dev.derekurban.fitness"
+    namespace = "app.easyday"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -33,7 +33,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.derekurban.fitness"
+        applicationId = "app.easyday"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -44,13 +44,13 @@ android {
     productFlavors {
         create("prod") {
             dimension = "env"
-            resValue("string", "app_name", "Fitness")
+            resValue("string", "app_name", "Easyday")
         }
         create("staging") {
             dimension = "env"
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
-            resValue("string", "app_name", "Fitness Staging")
+            resValue("string", "app_name", "Easyday Staging")
         }
     }
 

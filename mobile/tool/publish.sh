@@ -5,7 +5,7 @@
 #   bash tool/publish.sh staging         build one flavour
 #   bash tool/publish.sh --no-build      copy the last builds only
 # Then open http://derek-desktop.tail546211.ts.net:5180/dist/ on the phone. The two flavours install side by side:
-# prod is dev.derekurban.fitness ("Fitness", green icon), staging adds .staging ("Fitness Staging", amber icon).
+# prod is app.easyday ("Easyday", green icon), staging adds .staging ("Easyday Staging", amber icon).
 set -e
 cd "$(dirname "$0")/.."
 flavors="prod staging"
@@ -23,7 +23,7 @@ for f in $flavors; do
   if [ "$build" = 1 ]; then flutter build apk --release --flavor "$f"; fi
   apk="build/app/outputs/flutter-apk/app-$f-release.apk"
   [ -f "$apk" ] || { echo "no release apk at $apk" >&2; exit 1; }
-  out="fitness.apk"; [ "$f" = staging ] && out="fitness-staging.apk"
+  out="easyday.apk"; [ "$f" = staging ] && out="easyday-staging.apk"
   cp "$apk" "../dist/$out"
   size="$(du -h "../dist/$out" | cut -f1)"
   sha="$(sha1sum "../dist/$out" | cut -c1-12)"

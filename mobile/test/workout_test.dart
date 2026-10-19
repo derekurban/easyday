@@ -1,9 +1,9 @@
-import 'package:fitness/data/library.dart';
-import 'package:fitness/data/model.dart';
-import 'package:fitness/logic/after.dart';
-import 'package:fitness/logic/builder.dart';
-import 'package:fitness/logic/rotation.dart';
-import 'package:fitness/logic/workout.dart';
+import 'package:easyday/data/library.dart';
+import 'package:easyday/data/model.dart';
+import 'package:easyday/logic/after.dart';
+import 'package:easyday/logic/builder.dart';
+import 'package:easyday/logic/rotation.dart';
+import 'package:easyday/logic/workout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final t0 = DateTime(2026, 10, 18, 9);
