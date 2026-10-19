@@ -1,4 +1,5 @@
-// Onboarding: how it works, goal, experience, days per week, a location, units.
+// Onboarding: how it works, goal, experience, days per week, a location, units. The first page can instead restore
+// data copied from another install.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -10,6 +11,7 @@ import 'goal_editor.dart';
 import 'how.dart';
 import 'location_editor.dart';
 import 'motion.dart';
+import 'settings.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -92,7 +94,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
             decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
             child: Row(children: [
-              if (step > 0) OutlinedButton.icon(onPressed: () => _go(step - 1), icon: const Icon(LucideIcons.chevronLeft, size: 18), label: const Text('Back')),
+              if (step > 0) OutlinedButton.icon(onPressed: () => _go(step - 1), icon: const Icon(LucideIcons.chevronLeft, size: 18), label: const Text('Back'))
+              else TextButton.icon(onPressed: _restore, icon: const Icon(LucideIcons.clipboardPaste, size: 18), label: const Text('Restore copied data')),
               const Spacer(),
               FilledButton.icon(
                 onPressed: last ? _finish : () => _go(step + 1),
@@ -105,6 +108,17 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ]),
       ),
     );
+  }
+
+  /// Restoring skips the rest of onboarding. The settings screen is not up to ask for permissions, so whatever the copy
+  /// had on is named for turning back on there.
+  Future<void> _restore() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final want = await restoreCopiedData(context);
+    if (want == null) return;
+    final off = [if (want.notify) 'the reminder', if (want.calendar || want.autoTrack) 'the calendar', if (want.location) 'position'];
+    final list = off.length < 2 ? off.join() : '${off.sublist(0, off.length - 1).join(', ')} and ${off.last}';
+    messenger.showSnackBar(SnackBar(content: Text(off.isEmpty ? 'Restored.' : 'Restored. Turn $list back on in Settings.')));
   }
 
   void _finish() {
