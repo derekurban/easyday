@@ -97,9 +97,9 @@ Ranked by how directly each one causes quitting.
   prescription, never a judgement.
 - **Spare minutes.** What is left once the listed exercises fit: more exercises, cardio, or rest. One
   plain setting, tuned by the feel tap.
-- **Coverage.** Which muscle groups recent sets have worked, against what the goal wants. Chooses
-  between candidate exercises; never touches a level. Also carries the cardio and stretching shares of
-  every workout. See `COVERAGE.md`.
+- **Muscle map.** The app's one view of the body: the muscles, and strain points, how much work each
+  has taken (0.00 to 1.00) and how much is left after the strain point decay. Chooses between candidate
+  exercises; never touches a level. See `MUSCLE_MAP.md`.
 - **Timing model.** Learned seconds per set per exercise, including rest, from the gaps between set taps.
 - **Location.** A place the user trains, with an equipment profile. Location decides which exercise
   implements each pattern and how high each progression can go.
@@ -183,13 +183,14 @@ A workout fills the minutes with the exercises the goal lists, then turns three 
 energy pick. The full procedure is in `WORKOUT.md`; the shape is:
 
 1. **Take the next rotation item.** A list of patterns in order. There is no main and no accessory.
-2. **Pick an exercise for each pattern** from what the location has. Where several fit, coverage chooses
-   the one whose muscle group is furthest behind (`COVERAGE.md`). Energy plays no part.
+2. **Pick an exercise for each pattern** from what the location has. Where several fit, the muscle map
+   chooses by strain points: strain-free primary muscles first; a pattern with none sits out for another
+   (`MUSCLE_MAP.md`). Energy plays no part.
 3. **Fit the minutes at normal**, less the warm-up, and spend the spare minutes as the goal says: more
    exercises, cardio, or rest. With the time limit off, the count decides instead and the minutes follow.
    This list is the workout at every energy.
 4. **Turn the dials** for the energy picked: easy is light everywhere with two of the easier exercises at
-   working, the ones furthest behind on coverage; normal is working everywhere; hard is the next level on
+   working, the ones that have waited longest; normal is working everywhere; hard is the next level on
    the hardest, every set, as many exercises as the setting asks. Intent sets the expression (the reps,
    and so the weight), the sets, and the reserve. The expression never changes with energy; a hard day is
    the same sets and minutes one step heavier, so it always fits.
@@ -208,7 +209,7 @@ groups it will work.
 **Movement workouts** bypass all of this. Cardio is a single duration with a perceived-effort tap at the
 end. Mobility is one of a few fixed routines. They exist so that "I don't want to lift" still produces a
 workout rather than nothing. They also appear inside lifting workouts as the cardio and stretching
-shares at the end (`COVERAGE.md`). A warm-up block opens a lifting workout: a few minutes of easy moves,
+shares at the end (`WORKOUT.md`). A warm-up block opens a lifting workout: a few minutes of easy moves,
 none, 3, 5 or 8, inside the minutes, picked on the plan and kept for next time.
 
 ## 8. How the app adjusts
@@ -409,7 +410,6 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 | Warm-up block (on the plan, kept for next time) | 5 minutes | none, 3, 5, 8 minutes |
 | When the planned rest runs out | keep resting | keep resting, start the next set |
 | Show lifting and rest as | minutes | minutes, share of time |
-| Emphasis per muscle group | none | 50 % less to 50 % more |
 | Workouts at the top before a level steps up | 1 | 1 to 5 |
 | Workouts below the bottom before a level steps down | 2 | 1 to 5 |
 | Weeks before an unused level decays | 3 | 2 to 8, or off |
@@ -514,7 +514,7 @@ level. An energy or time they default to does not count as the user's choice.
   the time against the plan, and lifting and rest for the workout and each item.
 - **Exercise card.** Level, average time per set, best total at this level, cost with override, and the
   step guide.
-- **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. Coverage by muscle group over the last rotation. Days active this month. Nothing
+- **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. The strain muscle map of current strain points, a strip per muscle, and the strain points timeline. Days active this month. Nothing
   that resets to zero.
 - **Settings.** The settings of section 9, in plain words, with the reminder, the calendar and the
   locations each in a section of their own.
@@ -557,6 +557,6 @@ stay lean.
 - `EXERCISES.md`: what an exercise is, its levels and how-to, the library, and the indexes it can be browsed by.
 - `WORKOUT.md`: filling the minutes, a level as strength and its expressions, intents and the energy
   dials, spare minutes, and judging against the working level.
-- `COVERAGE.md`: which muscle groups recent sets have worked, the goal's emphasis, how the gap chooses
-  between exercises, and the cardio and stretching shares.
+- `MUSCLE_MAP.md`: the muscles, strain points from set, exercise and workout, their decay, the three shades,
+  the strain points timeline, and how strain points choose between exercises.
 - `IDEAS.md`: things worth keeping that are not being built now.

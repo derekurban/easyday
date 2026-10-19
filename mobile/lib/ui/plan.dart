@@ -66,7 +66,7 @@ class _PlanScreenState extends State<PlanScreen> {
         title: Text(session.name),
         actions: [
           IconButton(
-            onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random()); rungOverrides = {}; order = []; }),
+            onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random(), store.now); rungOverrides = {}; order = []; }),
             icon: const Icon(LucideIcons.shuffle, size: 20), tooltip: 'Reshuffle the exercises',
           ),
         ],
@@ -241,7 +241,7 @@ class _PlanScreenState extends State<PlanScreen> {
     final ex = e.exercise;
     final st = ensureState(s, ex);
     final equipmentHere = s.location(widget.base.locationId)?.equipment ?? const <String>[];
-    final alts = alternatives(s, session, i, equipmentHere);
+    final alts = alternatives(s, session, i, equipmentHere, store.now);
     final ceiling = ceilingFor(ex, equipmentHere);
     var rung = e.rung;
     await showSheet<void>(context, StatefulBuilder(builder: (context, setSheet) {
