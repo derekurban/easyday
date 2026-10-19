@@ -45,6 +45,10 @@ class Settings {
   String? calendarId;        // the calendar to write to; null is the phone's primary
   bool location = false;
   bool circuit = false;  // last chosen workout mode
+  bool timeLimit = true; // last chosen on Today: fit the workout to the minutes, or pick a number of exercises
+  int warmup = 5;        // last chosen warm-up block, minutes (0 = none)
+  bool restAuto = false; // when the planned rest runs out, start the next set as if I'm ready was tapped
+  bool timeAsShare = false; // show lifting and rest as a share of the time, not minutes
   ExerciseIndex index = ExerciseIndex.muscle;  // how the library is grouped for browsing
   String figure = 'male';    // the body map figure: male or female
 
@@ -52,7 +56,8 @@ class Settings {
         'stepUp': stepUp, 'stepDown': stepDown, 'decayWeeks': decayWeeks, 'daysAway': daysAway, 'painRestDays': painRestDays,
         'notify': notify, 'notifyHour': notifyHour, 'calendar': calendar, 'awakeStart': awakeStart, 'awakeEnd': awakeEnd,
         'busyAdjust': busyAdjust, 'busyShort': busyShort, 'busyEasy': busyEasy, 'autoTrack': autoTrack, 'calendarId': calendarId,
-        'location': location, 'circuit': circuit, 'index': _e(index), 'figure': figure,
+        'location': location, 'circuit': circuit, 'timeLimit': timeLimit, 'warmup': warmup, 'restAuto': restAuto, 'timeAsShare': timeAsShare,
+        'index': _e(index), 'figure': figure,
       };
   static Settings fromJson(Map<String, dynamic> j) => Settings()
     ..stepUp = j['stepUp'] ?? 1
@@ -72,6 +77,10 @@ class Settings {
     ..calendarId = j['calendarId']
     ..location = j['location'] ?? false
     ..circuit = j['circuit'] ?? false
+    ..timeLimit = j['timeLimit'] ?? true
+    ..warmup = j['warmup'] ?? 5
+    ..restAuto = j['restAuto'] ?? false
+    ..timeAsShare = j['timeAsShare'] ?? false
     ..index = _p(ExerciseIndex.values, j['index'], ExerciseIndex.muscle)
     ..figure = j['figure'] == 'female' ? 'female' : 'male';
 }
@@ -291,14 +300,18 @@ class ExerciseState {
     ..repsOverride = j['reps'] != null ? _pr(j['reps']) : (j['band'] == null ? null : expressionRange[_p(Expression.values, j['band'], Expression.middle)]);
 }
 
-/// One logged set. reps == null means never attempted.
+/// One logged set. reps == null means never attempted. [start] is when the set began (I'm ready), [at] when the reps
+/// went in; lifting is the time between them, rest everything else.
 class SetLog {
-  SetLog({this.reps, this.at});
+  SetLog({this.reps, this.at, this.start});
   int? reps;
   DateTime? at;
+  DateTime? start;
   bool get attempted => reps != null;
-  Map<String, dynamic> toJson() => {'reps': reps, 'at': _ms(at)};
-  static SetLog fromJson(Map<String, dynamic> j) => SetLog(reps: j['reps'], at: _d(j['at']));
+  /// Under way: started, reps not in yet.
+  bool get lifting => start != null && reps == null;
+  Map<String, dynamic> toJson() => {'reps': reps, 'at': _ms(at), 'start': _ms(start)};
+  static SetLog fromJson(Map<String, dynamic> j) => SetLog(reps: j['reps'], at: _d(j['at']), start: _d(j['start']));
 }
 
 class Warmup {
@@ -371,7 +384,7 @@ class Session {
     required this.id, required this.type, required this.name, required this.itemIndex, required this.locationId,
     required this.energy, required this.timeMinutes, required this.energyChosen, required this.timeChosen, required this.stateAtStart,
     this.kind, this.exercises = const [], this.minutes, this.routine, this.cardio, this.estMinutes = 0, this.cardioMinutes = 0, this.stretchMinutes = 0,
-    this.spareMinutes = 0, this.circuit = false,
+    this.spareMinutes = 0, this.circuit = false, this.warmupMinutes = 0,
   });
   String id;
   String type;           // lift | move
@@ -396,6 +409,10 @@ class Session {
   double relative = 1;   // the whole workout against the user's usual: below 1 lighter, 1 usual, above 1 more
   int pushes = 0;        // exercises trained at the next level today
   bool circuit;          // one set of each exercise per round, instead of all sets of one exercise
+  int warmupMinutes;     // the warm-up block before the lifting
+  /// When each item of the workout started (warm-up, each exercise or the circuit, cardio, stretching), by its key. An
+  /// item runs until the next one starts, so its time includes the rest inside it. The latest is the current item.
+  Map<String, DateTime> itemStarts = {};
   List<int> skipped = [];
   DateTime? startedAt;
   DateTime? endedAt;
@@ -415,7 +432,7 @@ class Session {
         'stretchMinutes': stretchMinutes, 'spareMinutes': spareMinutes, 'relative': relative, 'pushes': pushes,
         'startedAt': _ms(startedAt), 'endedAt': _ms(endedAt), 'stopReason': stopReason == null ? null : _e(stopReason!), 'stopAt': stopAt,
         'feel': feel == null ? null : _e(feel!), 'note': note, 'swappedToMove': swappedToMove, 'circuit': circuit, 'skipped': skipped,
-        'calendarEventId': calendarEventId,
+        'calendarEventId': calendarEventId, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
       };
   static Session fromJson(Map<String, dynamic> j) => Session(
         id: j['id'], type: j['type'], kind: j['kind'], name: j['name'], itemIndex: j['itemIndex'], locationId: j['locationId'],
@@ -425,8 +442,9 @@ class Session {
         exercises: ((j['exercises'] ?? []) as List).map((e) => SessionExercise.fromJson(e)).toList(),
         minutes: j['minutes'], routine: j['routine'], cardio: j['cardio'], estMinutes: j['estMinutes'] ?? 0, cardioMinutes: j['cardioMinutes'] ?? j['bonusCardioMinutes'] ?? 0, stretchMinutes: j['stretchMinutes'] ?? 0,
         spareMinutes: j['spareMinutes'] ?? 0,
-        circuit: j['circuit'] ?? false,
+        circuit: j['circuit'] ?? false, warmupMinutes: j['warmupMinutes'] ?? 0,
       )
+      ..itemStarts = (j['items'] as Map? ?? {}).map((k, v) => MapEntry(k as String, _d(v)!))
       ..relative = (j['relative'] as num?)?.toDouble() ?? 1
       ..pushes = j['pushes'] ?? 0
     ..skipped = List<int>.from(j['skipped'] ?? [])

@@ -124,23 +124,29 @@ Ranked by how directly each one causes quitting.
 
 1. **Open the app.** It detects context: the likely location, days since the last workout, and whether
    the calendar is packed.
-2. **It asks two things, both already answered.** How much energy, and how many minutes. The defaults come
-   from last time and the calendar. After a week away, energy defaults to easy. Changing either is one tap
-   or one drag.
-3. **It shows one workout.** The next item in the rotation, implemented with the current location's
-   equipment, filled for that energy and time. Each exercise shows its level, its sets, and the top of the
-   range to aim for.
-4. **Optional adjustments, one tap each.** Straight sets or circuit.
-   - Swap to a movement workout.
-   - Change location, if the detected one is wrong.
-   - Reshuffle the exercises, swap one for another of the same pattern, or edit today's level. An edit can
-     also be saved as the new level.
-5. **Do the workout.** Loaded hard exercises show two warm-up sets that are never logged. Each set is logged
-   with one tap: hit the top, or how many you got. The last tap can be undone. Timestamps are recorded
-   without asking and nothing counts down. Ending an exercise or the workout before its sets are finished
-   asks one tap for the reason: out of energy, out of time, or something hurts.
-6. **Finish.** An optional one-tap rating: easy, right, or too much. Skipping is fine. Any exercise can be
-   skipped mid-workout without being judged, and the workout can be ended with no reason given.
+2. **Today asks two things, both already answered.** How much energy, and how much time. Time is the minutes
+   the user has, or, with the time limit switched off, how many exercises, starting at the goal's ideal. The
+   defaults come from last time and the calendar. After a week away, energy defaults to easy. Changing either
+   is one tap or one drag.
+3. **It shows what that makes of today.** The next item in the rotation, implemented with the current
+   location's equipment: its name, one line of numbers, and a body map of what it works, with a line or two
+   saying why and what has not been worked lately. Swapping to a movement workout and changing location
+   happen here.
+4. **Plan it.** The plan lays the workout out in order: the warm-up, each exercise with its level, sets and
+   minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another of the same
+   pattern, edit today's level (or save it as the new level), move an exercise up or down, pick the warm-up,
+   leave out cardio or stretching today, and choose one at a time or circuit. Start starts the clock.
+5. **Do the workout.** A strip of the whole workout runs across the top, warm-up to stretching, and one thing
+   is asked at a time. A set is lifting from the moment the user says I'm ready (Start, for the first) until
+   the reps go in: one tap on the exercise's range, with one button for anything under it and one for
+   anything over. Then the guide says rest, with the planned rest as a guide only, and I'm ready starts the
+   next set, or after the last set the next item. Warm-up sets for loaded hard exercises are shown in the
+   rest before them and never logged. The last set can be corrected by tapping it. A later item on the strip
+   can be jumped to; anything passed over is skipped and not judged. Ending the workout early asks one tap
+   for the reason: out of energy, out of time, or something hurts, or none.
+6. **Finish.** An optional one-tap rating: easy, right, or too much. Skipping is fine. Then the workout is
+   logged: one line about what changed, the time it took against the plan, and where it went, lifting and
+   rest.
 7. **The app updates.** History is written, the progression judges each exercise, the timing model updates
    seconds per set, person state is recomputed, the rotation advances, and one line explains what changed.
 
@@ -179,8 +185,9 @@ energy pick. The full procedure is in `WORKOUT.md`; the shape is:
 1. **Take the next rotation item.** A list of patterns in order. There is no main and no accessory.
 2. **Pick an exercise for each pattern** from what the location has. Where several fit, coverage chooses
    the one whose muscle group is furthest behind (`COVERAGE.md`). Energy plays no part.
-3. **Fit the minutes at normal** and spend the spare minutes as the goal says: more exercises, cardio, or
-   rest. This list is the workout at every energy.
+3. **Fit the minutes at normal**, less the warm-up, and spend the spare minutes as the goal says: more
+   exercises, cardio, or rest. With the time limit off, the count decides instead and the minutes follow.
+   This list is the workout at every energy.
 4. **Turn the dials** for the energy picked: easy is light everywhere with two of the easier exercises at
    working, the ones furthest behind on coverage; normal is working everywhere; hard is the next level on
    the hardest, every set, as many exercises as the setting asks. Intent sets the expression (the reps,
@@ -201,7 +208,8 @@ groups it will work.
 **Movement workouts** bypass all of this. Cardio is a single duration with a perceived-effort tap at the
 end. Mobility is one of a few fixed routines. They exist so that "I don't want to lift" still produces a
 workout rather than nothing. They also appear inside lifting workouts as the cardio and stretching
-shares at the end (`COVERAGE.md`). A configurable warm-up and cool-down is in `IDEAS.md`.
+shares at the end (`COVERAGE.md`). A warm-up block opens a lifting workout: a few minutes of easy moves,
+none, 3, 5 or 8, inside the minutes, picked on the plan and kept for next time.
 
 ## 8. How the app adjusts
 
@@ -320,15 +328,22 @@ workouts, and no other thresholds.
 
 The timing model keeps, per exercise, a running average of seconds per set at the user's current reps,
 including the rest that follows. It is seeded by the expression, roughly four minutes for a heavy set and ninety
-seconds for a cost-1 move, and learned from the gap between one set tap and the next, weighted toward
-recent workouts. Three sets of deadlifts price at twelve minutes until the user's own history says
-otherwise.
+seconds for a cost-1 move, and learned from each workout, weighted toward recent ones. Three sets of
+deadlifts price at twelve minutes until the user's own history says otherwise.
 
-The time dial uses it to make the minutes real, as in section 7. After each workout the actual duration
-updates the estimates, so the model follows the user as they get faster or start resting longer.
+Every item on the strip runs from when it starts until the next one does, so an exercise's time holds its
+sets, the rest between them, the rest after the last, and setting up the next. After a workout that time,
+less the change-over and any warm-up sets the plan prices on their own, over the sets done, is what an
+exercise learns from; a circuit shares its time out by sets. The time dial uses the model to make the
+minutes real, as in section 7, so it follows the user as they get faster or start resting longer.
 
-Rest is never prompted and never gates anything. It is recorded and shown on the exercise card as
-history, next to the level, the average time per set, and the best total.
+Two words, used the same way everywhere. **Lifting** is a set, from I'm ready until the reps are in.
+**Rest** is everything between sets: catching your breath, moving to the next exercise and setting it up.
+During a workout the current exercise shows its lifting and rest so far; afterwards the log shows them for
+the workout and for each exercise, in minutes or, by a setting, as a share of the time. Rest never gates
+anything: it counts up, the planned rest (by the exercise's reps, or ninety seconds between rounds of a
+circuit) is only a guide, and the next set starts when the user says so. A setting can make the planned
+rest a timer that starts the next set by itself.
 
 ### 8.5 Decay and breaks: per person
 
@@ -391,6 +406,9 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 | Spare minutes go to | more exercises | more exercises, cardio, rest |
 | Working sets: fewest, ideal, most | 2, 3, 4 | 1 to 6 |
 | Cardio and stretching, share of every workout | 15 % / 10 % | 0 to 50 %, 0 to 30 % |
+| Warm-up block (on the plan, kept for next time) | 5 minutes | none, 3, 5, 8 minutes |
+| When the planned rest runs out | keep resting | keep resting, start the next set |
+| Show lifting and rest as | minutes | minutes, share of time |
 | Emphasis per muscle group | none | 50 % less to 50 % more |
 | Workouts at the top before a level steps up | 1 | 1 to 5 |
 | Workouts below the bottom before a level steps down | 2 | 1 to 5 |
@@ -411,7 +429,9 @@ These cannot be changed by any setting.
 - A level never moves on an easy workout, or on a workout stopped for energy or time.
 - Energy and time change what is in the workout and how much, never the level.
 - A decayed level never falls below where the exercise started.
-- Nothing counts down, and rest never gates anything.
+- Rest never gates anything: it counts up, and the next set starts when the user says so. Only the warm-up,
+  cardio and stretching blocks count down, and the planned rest starts a set by itself only when the user
+  turns that on.
 - At most one reminder per person-state transition.
 - The app may refuse "more". It never refuses "less".
 
@@ -473,19 +493,25 @@ level. An energy or time they default to does not count as the user's choice.
 
 ## 13. What the user sees
 
-- **Today.** The workout first: its name, one line of numbers, a body map of what it targets against what
-  was worked lately with two or three lines saying why, then the rows. The controls sit at the bottom
-  where the thumb is: energy, minutes, reshuffle, move instead, circuit, and the start button. Changing
-  any of them rebuilds the workout in place. A row shows a tag only when today differs from the usual:
-  next level, 85 %, a version down; never an exercise's class.
+- **Today.** How the user is and what that makes of today: the workout's name, one line of numbers, and a
+  body map of what it works with two or three lines saying why and what has not been worked lately. The
+  controls sit at the bottom where the thumb is: energy, time (minutes, or with the time limit off, how
+  many exercises), move instead, and Plan it. Changing any of them rebuilds the workout in place.
+- **Plan.** The workout in order, warm-up to stretching, each exercise with its level, sets and minutes,
+  and a bar of the whole. A row shows a tag only when today differs from the usual: next level, 85 %, a
+  version down; never an exercise's class. Reshuffle, swap, level, move, warm-up, cardio and stretching
+  today, one at a time or circuit, and Start.
 - **Words.** "Progression" and "level" are explained in plain words on first run, on every exercise card, and
   wherever a level can be edited: the progression is every step an exercise can get harder by, the level is the
   step you are on. No screen assumes the user knows the vocabulary. Movement patterns (squat, hinge, push,
   pull) are never a label on a row; they are one index the user can choose to browse by.
-- **During.** The current exercise, its level, and the top of the range to aim for, with large tap
-  targets for hit the top and for a rep count. A stop button that asks one thing: energy, time, or pain.
-  No timer.
-- **After.** The optional feel tap and one line about what changed, such as "bench steps up next time."
+- **During.** The strip of the whole workout, the item under way marked lifting or resting; the current
+  exercise, its level and its sets; a guide that says what to do now ("Go give it your best!", or "Rest up
+  and let us know when you're ready" with the planned rest and what comes next); the lifting and rest so
+  far. At the bottom one thing at a time: the reps while lifting, then I'm ready. A stop button that asks
+  one thing: energy, time, pain, or no reason.
+- **After.** The optional feel tap, then one line about what changed, such as "bench steps up next time",
+  the time against the plan, and lifting and rest for the workout and each item.
 - **Exercise card.** Level, average time per set, best total at this level, cost with override, and the
   step guide.
 - **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. Coverage by muscle group over the last rotation. Days active this month. Nothing

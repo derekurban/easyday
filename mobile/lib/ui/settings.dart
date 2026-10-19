@@ -181,6 +181,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ])),
         ])),
         const SizedBox(height: 20),
+        const SectionHeader('Workout', icon: LucideIcons.timer),
+        const Explain('Lifting is a set, from I\'m ready until your reps are in. Rest is everything between sets: catching your breath, moving to the next exercise and setting it up.'),
+        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ChoiceRow<bool>(label: 'When the planned rest runs out', value: st.restAuto, options: const {false: 'Keep resting', true: 'Start the next set'},
+              hint: st.restAuto ? 'The planned rest is a timer: when it ends, the next set or round starts as if you had tapped I\'m ready.' : 'Rest counts up for as long as you like. The planned time is only a guide.',
+              onChanged: (v) => store.update((_) => st.restAuto = v)),
+          ChoiceRow<bool>(label: 'Show lifting and rest as', value: st.timeAsShare, options: const {false: 'Minutes', true: 'Share of time'},
+              onChanged: (v) => store.update((_) => st.timeAsShare = v)),
+        ])),
+        const SizedBox(height: 20),
         const SectionHeader('Progressions', icon: LucideIcons.listOrdered),
         const Explain(progressionExplainer),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
