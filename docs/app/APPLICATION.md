@@ -131,14 +131,16 @@ Ranked by how directly each one causes quitting.
    the user has, or, with the time limit switched off, how many exercises, starting at the goal's ideal. The
    defaults come from last time and the calendar. After a week away, energy defaults to easy. Changing either
    is one tap or one drag.
-3. **It shows what that makes of today.** The workout the selection rules built for the current location:
-   one line of numbers and a body map of what it works, with a line or two saying which muscles were chosen
-   and why, and what is still carrying strain. Swapping to a movement workout, changing location, and asking
-   for a muscle the plan did not pick happen here.
-4. **Plan it.** The plan lays the workout out in order: the warm-up, each exercise with its level, sets and
-   minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another for the same
-   muscle, edit today's level (or save it as the new level), move an exercise up or down, leave an exercise
-   out today, pick the warm-up, leave out cardio or stretching today, and choose one at a time or circuit. Start starts the clock.
+3. **It shows what that makes of today.** The workout the selection rules built for the current location,
+   named for the muscle groups it works ("Back and biceps day"), one line of numbers, and a muscles panel: a
+   small body figure and what is worked, forced and excluded today. Tapping it opens the muscle picker
+   (`SELECTION.md`, the muscle plan): every group excluded, available or forced, chosen on the body or in a
+   list. Swapping to a movement workout and changing location happen here too.
+4. **The plan is on Today.** Under the name, the workout in order: the warm-up, each exercise with its level,
+   sets and minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another for
+   the same muscle, edit today's level (or save it as the new level), move an exercise up or down, leave an
+   exercise out today, pick the warm-up, leave out cardio or stretching today, and choose one at a time or
+   circuit. Start starts the clock. There is no separate plan screen.
 5. **Do the workout.** A strip of the whole workout runs across the top, warm-up to stretching, and one thing
    is asked at a time. A set is lifting from the moment the user says I'm ready (Start, for the first) until
    the reps go in: one tap on the exercise's range, with one button for anything under it and one for
@@ -505,14 +507,17 @@ level. An energy or time they default to does not count as the user's choice.
 
 ## 13. What the user sees
 
-- **Today.** How the user is and what that makes of today: one line of numbers, and a body map of what it
-  works with two or three lines saying which muscles were chosen and why, and what is still carrying
-  strain. A control to work a muscle the plan did not pick. The controls sit at the bottom where the thumb
-  is: energy, time (minutes, or with the time limit off, how many exercises), move instead, and Plan it. Changing any of them rebuilds the workout in place.
-- **Plan.** The workout in order, warm-up to stretching, each exercise with its level, sets and minutes,
-  and a bar of the whole. A row shows a tag only when today differs from the usual: next level, 85 %, a
-  version down; never an exercise's class. Reshuffle, swap, level, move, warm-up, cardio and stretching
-  today, one at a time or circuit, and Start.
+- **Today.** The day's name from the muscles it works, one line of numbers, the muscles panel (tap for the
+  muscle picker), then the workout in order, warm-up to stretching, each exercise with its level, sets and
+  minutes, and a bar of the whole. A row shows a tag only when today differs from the usual: next level,
+  85 %, a version down, forced; never an exercise's class. Tap a row to swap, change the level, move or leave
+  it out. The controls sit at the bottom where the thumb is: energy, time (minutes, or with the time limit
+  off, how many exercises), move instead, muscles, reshuffle, and Start. Changing any of them rebuilds the
+  workout in place.
+- **The muscle picker.** The body, front and back, with a stack of view tabs at the bottom right: both,
+  front, back, list. A tap on a muscle cycles its group excluded, available, forced; the list has the groups
+  under those three headings, draggable between them. A line above Done previews the day's name, count and
+  minutes as the states change.
 - **Words.** "Progression" and "level" are explained in plain words on first run, on every exercise card, and
   wherever a level can be edited: the progression is every step an exercise can get harder by, the level is the
   step you are on. No screen assumes the user knows the vocabulary.

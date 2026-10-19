@@ -9,6 +9,7 @@ import '../data/library.dart';
 import '../data/model.dart';
 import 'ladder.dart';
 import 'muscle_map.dart';
+import 'muscle_plan.dart';
 import 'person.dart';
 import 'selection.dart';
 
@@ -316,7 +317,7 @@ class BuildOptions {
     required this.energy, required this.minutes, this.locationId, this.picks = const {}, this.rungOverrides = const {},
     this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.circuit = false,
     this.exerciseCount, this.warmupMinutes = 0, this.skipCardio = false, this.skipStretch = false, this.order = const [],
-    this.muscles = const [], this.leftOut = const {}, this.liftInstead = false,
+    this.muscles = const [], this.excluded = const {}, this.leftOut = const {}, this.liftInstead = false,
   });
   final Energy energy;
   final int minutes;
@@ -329,7 +330,8 @@ class BuildOptions {
   final String? locationId;
   final Map<String, String> picks;          // slot -> exercise id
   final Map<String, int> rungOverrides;     // slot -> rung for today
-  final List<String> muscles;               // muscle groups the user asked for by hand today, strained or not
+  final List<String> muscles;               // muscle groups forced today (the muscle plan), strained or not, in the user's order
+  final Set<String> excluded;               // muscle groups excluded today: never picked, not even to fill spare minutes
   final Set<String> leftOut;                // slots the user left out today: the count drops by one
   final bool liftInstead;                   // lift today even though a movement day is due
   final String? moveKind;                   // swap to a movement session: cardio | mobility
@@ -379,7 +381,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   final slots = <_Slot>[];
   final used = <String>[];
   final counts = <String, int>{};
-  final blocked = <String>{};
+  final blocked = <String>{...o.excluded};
   String slotKey(String grp) { counts[grp] = (counts[grp] ?? 0) + 1; return '$grp${counts[grp]}'; }
   for (final grp in o.muscles) {
     if (!muscleGroups.contains(grp)) continue;
@@ -543,13 +545,12 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   )..relative = relative..pushes = out.where((e) => e.nextLevel).length;
 }
 
-/// A workout's name: the first two muscles it works, "Back and chest".
+/// A workout's name: every muscle group it works, in order, as a day: "Chest day", "Back and biceps day",
+/// "Back, triceps and forearms day".
 String workoutName(List<SessionExercise> out) {
   final groups = <String>[];
   for (final e in out) { if (!groups.contains(e.muscle)) groups.add(e.muscle); }
-  if (groups.isEmpty) return 'Workout';
-  if (groups.length == 1) return groups.first;
-  return '${groups[0]} and ${groups[1].toLowerCase()}';
+  return dayName(groups);
 }
 
 /// Seconds one exercise is planned to take, rest after its sets included: what the plan shows beside it.

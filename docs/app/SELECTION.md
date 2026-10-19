@@ -82,15 +82,23 @@ tap leaves it out today; the exercise count drops by one rather than swapping. T
 whether to do something they dislike.
 
 A first appearance is never asked for the next level. A hard day's pushes go to practised exercises. A workout
-is named for the first two muscles it works, "Quads and back".
+is named for every muscle group it works, in order, as a day: "Chest day", "Back and biceps day", "Back, triceps
+and forearms day".
 
 ## The user's own picks
 
 Everything above is a default. The user's pick always stands, for today.
 
-- **Work a muscle.** On Today or the plan, pick any muscle group. It takes a place up to the goal's most, or
-  the last place when the list is full, with the best exercise for it by the rules above. If the muscle is
-  still carrying strain the plan says so and does it anyway.
+- **The muscle plan.** Before the workout is built, every muscle group is in one of three states for today.
+  *Excluded*: not worked, not even to fill spare minutes. *Available*: in the pool selection draws from by the
+  rules above. *Forced*: worked for certain, by an exercise that has it as a primary muscle, taking a place
+  before the rules fill the rest. The defaults come from the muscle map: a group whose most strained muscle is
+  at any shade starts excluded (the threshold is one constant, `excludeFromShade`), the rest start available,
+  nothing starts forced. The muscle picker on Today changes them: a tap on a muscle on the body cycles its
+  group excluded, available, forced; a list view shows the groups under the three headings, each tile
+  draggable up, down and between them, with its strain and its share beside it. Done rebuilds the workout.
+  A forced group still carrying strain is worked anyway, and its why-line says so. When every group is
+  excluded, or nothing here works the available ones, Today says so and offers the picker or a movement day.
 - **Swap.** The swap sheet lists every other exercise for the same muscle available here, in the order above,
   not for me under its own heading. Nothing a user picks changes its word.
 - **Leave it out today.** On any row. The count drops by one.
@@ -113,8 +121,9 @@ Everything above is a default. The user's pick always stands, for today.
 
 ## Where it shows
 
-- **Today:** two or three lines under the body map saying which muscles were chosen and why ("Back: ready and
-  behind this week"), and what is still carrying strain. The control to work a muscle.
+- **Today:** the day's name, the muscles panel (a small figure painted like the picker: forced green, excluded
+  red for strain or dim, available plain) saying what is worked, forced and excluded, and the picker behind it.
+  Each exercise's why-line is on its sheet.
 - **The plan:** a row's tag when it is not for me, with leave it out today; the swap sheet in selection's
   order.
 - **After:** the one row per first-time exercise, after the feel tap.

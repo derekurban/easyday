@@ -163,11 +163,12 @@ _Crop _prepare(_PrepareArgs a) {
 /// Draws one figure into its box: the render scaled to fit, the strained plates filled with the strain red, the
 /// selected ones with the selection blue. [zoom] is the full screen's pinch scale, so an enlarged render resamples sharply.
 class _FigurePainter extends CustomPainter {
-  _FigurePainter(this.m, this.opacity, this.selected, this.zoom) : super(repaint: zoom);
+  _FigurePainter(this.m, this.opacity, this.selected, this.zoom, [this.tints = const {}]) : super(repaint: zoom);
   final MuscleMapData m;
   final Map<int, double> opacity;   // plate id -> fill opacity, by its shade
   final Set<int> selected;
   final ValueListenable<double>? zoom;
+  final Map<int, Color> tints;      // plate id -> a fill colour in place of its strain shade; its alpha is the strength
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -196,7 +197,10 @@ class _FigurePainter extends CustomPainter {
       canvas.restore();
     }
     for (final e in opacity.entries) {
-      if (!selected.contains(e.key)) fillPlate(e.key, strainMultiply, e.value);
+      if (!selected.contains(e.key) && !tints.containsKey(e.key)) fillPlate(e.key, strainMultiply, e.value);
+    }
+    for (final e in tints.entries) {
+      if (!selected.contains(e.key)) fillPlate(e.key, _overPlate(e.value.withValues(alpha: 1)), e.value.a);
     }
     for (final id in selected) {
       fillPlate(id, muscleSelectMultiply, 1);
@@ -205,7 +209,7 @@ class _FigurePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_FigurePainter old) =>
-      old.m != m || old.zoom != zoom || !mapEquals(old.opacity, opacity) || !setEquals(old.selected, selected);
+      old.m != m || old.zoom != zoom || !mapEquals(old.opacity, opacity) || !setEquals(old.selected, selected) || !mapEquals(old.tints, tints);
 }
 
 /// What a tap landed on.
@@ -223,9 +227,14 @@ class MuscleFigure extends StatefulWidget {
   const MuscleFigure({
     super.key, required this.highlight, this.height = 170, this.sides = const ['front', 'back'], this.interactive = true,
     this.keyLabels, this.detail, this.onTap, this.tooltip = true, this.expandable = false, this.title, this.clearAfter = const Duration(seconds: 6),
-    this.zoom, this.figure,
+    this.zoom, this.figure, this.tint = const {}, this.selectable = true,
   });
   final Map<String, double> highlight;
+  /// Muscle name -> a fill colour drawn in place of its strain shade, at the colour's alpha: how the muscle picker
+  /// paints a forced group green and an excluded, strain-free one dim.
+  final Map<String, Color> tint;
+  /// When false a tap only reports the muscle under it through [onTap]: no blue fill, no tooltip, every tap reported.
+  final bool selectable;
   final double height;
   final List<String> sides;
   final bool interactive;
@@ -276,6 +285,7 @@ class _MuscleFigureState extends State<MuscleFigure> {
         if (found != null) break;
       }
     }
+    if (!widget.selectable) { widget.onTap?.call(found); return; }
     final same = found != null && hit != null && hit!.name == found.name;
     final next = (found == null || same) ? null : found;
     final group = <String, Set<int>>{};
@@ -344,7 +354,10 @@ class _MuscleFigureState extends State<MuscleFigure> {
                           painter: _FigurePainter(md, {
                             for (var id = 1; id < 256; id++)
                               if ((opacity[md.plateName[id]] ?? 0) > 0) id: opacity[md.plateName[id]]!,
-                          }, picked, widget.zoom),
+                          }, picked, widget.zoom, {
+                            for (var id = 1; id < 256; id++)
+                              if (widget.tint[md.plateName[id]] != null) id: widget.tint[md.plateName[id]]!,
+                          }),
                         ),
                       );
                     },
