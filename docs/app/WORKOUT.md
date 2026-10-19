@@ -142,6 +142,21 @@ This is what the feel tap tunes. Two "too much" taps in the last four workouts f
 cardio; two "easy" taps flip cardio back. Nothing is ever asked per set, and nothing the user sees is a
 number they have to understand.
 
+## Cardio and stretching
+
+Two sliders in Settings → Goal, each a share of every workout's minutes.
+
+| Slider | Default | Range | What it does |
+|---|---|---|---|
+| Cardio | 15 % | 0 to 50 % | reserved at the end of every workout, after the lifting; also takes any slack the lifting leaves |
+| Stretching | 10 % | 0 to 30 % | reserved last, after cardio; one of the fixed mobility routines sized to the minutes |
+
+A 60-minute workout at the defaults is 45 minutes of lifting, 9 of cardio and 6 of stretching. Cardio is a single
+duration with the effort tap at the end, as in a movement workout. Stretching has no tap. At zero a block
+disappears, and with both at zero any slack is rest and the workout says "no rush." Neither gives strain points
+for now. Movement workouts, a whole session of cardio or mobility, stay as they are: the alternative to lifting,
+one tap away.
+
 ## A time limit, or a number of exercises
 
 Time is the minutes by default. With the time limit switched off on Today, the user picks how many
@@ -156,7 +171,8 @@ spare minutes then, and an easy day keeps the count it was given. The switch is 
    share left out on the plan for today is not taken). Loaded hard exercises also carry their own warm-up
    sets. With the time limit off the window is open and the count decides.
 2. **Pick an exercise per pattern** in the rotation item, from what the location has. Where there is
-   more than one candidate, coverage chooses (`COVERAGE.md`). Energy plays no part.
+   more than one candidate, the muscle map chooses by strain points, and a pattern whose candidates all
+   carry strain on a primary muscle sits out for another (`MUSCLE_MAP.md`). Energy plays no part.
 3. **Assign intents** by the recipe. Each gets its expression, its sets and its target.
 4. **Fit the minutes at normal.** The ideal sets everywhere. Over: exercises go down to the fewest, light
    ones first, then the last on the list; then sets come down to the fewest, the exercise with the most sets
@@ -241,7 +257,7 @@ rounds. Its time is shared out among its exercises by sets.
 
 The goal (`APPLICATION.md` section 6) writes the pattern list, the working set count and the reps-by-cost
 table. Exercises carry cost, levels and how-to (`EXERCISES.md`). The location says what is available
-(`LOCATION.md`). Coverage chooses between candidates (`COVERAGE.md`). The calendar can lower the two
+(`LOCATION.md`). The muscle map chooses between candidates by strain points (`MUSCLE_MAP.md`). The calendar can lower the two
 picks on a busy day (`CALENDAR.md`).
 
 ## Settings
@@ -256,7 +272,7 @@ picks on a busy day (`CALENDAR.md`).
 | Hard day, next level on: tight, usual, long | 1, 2, 3 | Settings → Goal, 0 to 10 |
 | Spare minutes go to | more exercises | Settings → Goal: more exercises, cardio, rest |
 | Difficulty, per exercise | library default | the exercise card: easy, medium, hard |
-| Cardio and stretching, share of every workout | 15 % / 10 % | Settings → Goal, beside the emphasis sliders |
+| Cardio and stretching, share of every workout | 15 % / 10 % | Settings → Goal |
 | Mode | straight sets | the plan, before starting |
 | Warm-up block | 5 minutes | the plan: none, 3, 5, 8; kept for next time |
 | A time limit, or a number of exercises | the minutes | Today, a switch; kept |
@@ -265,7 +281,5 @@ picks on a busy day (`CALENDAR.md`).
 
 ## Open questions
 
-- How many workouts of history coverage needs before easy's catch-up picks beat the goal's order. Two
-  is the guess.
 - Whether the light expression should also be used by the time fit on normal days, picking lighter reps on
   the small exercises when the window is tight, within what the goal allows.

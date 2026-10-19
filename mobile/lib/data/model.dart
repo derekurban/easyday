@@ -408,6 +408,9 @@ class Session {
   int spareMinutes;      // minutes left as rest when spare minutes are for rest
   double relative = 1;   // the whole workout against the user's usual: below 1 lighter, 1 usual, above 1 more
   int pushes = 0;        // exercises trained at the next level today
+  /// Patterns of the rotation item that sit out today for strain points, each with the pattern that took its place.
+  /// Only for the plan; not kept.
+  Map<String, String> satOut = {};
   bool circuit;          // one set of each exercise per round, instead of all sets of one exercise
   int warmupMinutes;     // the warm-up block before the lifting
   /// When each item of the workout started (warm-up, each exercise or the circuit, cardio, stretching), by its key. An

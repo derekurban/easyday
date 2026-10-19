@@ -495,7 +495,8 @@ void main() {
       final after = s.ex['bb_squat']!.secPerSet;
       expect(after, greaterThan(before));
       expect(after, lessThan(300));
-      for (var i = 0; i < 10; i++) { s.plan!.index = 0; run(s, t0.add(Duration(days: i + 1)), gapSeconds: 300); }
+      // three days apart, so the quads are strain-free and the squat comes back every time
+      for (var i = 0; i < 10; i++) { s.plan!.index = 0; run(s, t0.add(Duration(days: 3 * (i + 1))), gapSeconds: 300); }
       expect(s.ex['bb_squat']!.secPerSet, closeTo(300, 5));
     });
 
@@ -528,7 +529,7 @@ void main() {
       expect(back.exercises.firstWhere((e) => e.exId == 'bb_squat').lightened, isTrue, reason: 'first workout back: cost-5 lifts one level down, neutral');
       expect(st.rung, 0);
       s.plan!.index = 0;
-      run(s, t0.add(const Duration(days: 92)));
+      run(s, t0.add(const Duration(days: 94)));   // once the quads are strain-free again
       expect(st.rung, 1, reason: 'the first clean workout at the working level steps straight back up');
       expect(st.costUp, 0);
     });
@@ -613,9 +614,9 @@ void main() {
     test('swaps keep rungs on the exercise and shuffles stay within the pattern', () {
       final s = fresh(template: 'gym');
       final sess = build(s);
-      final alts = alternatives(s, sess, 0, s.locations.first.equipment);
+      final alts = alternatives(s, sess, 0, s.locations.first.equipment, t0);
       expect(alts.every((e) => e.pattern == sess.exercises[0].pattern), isTrue);
-      final picks = shufflePicks(s, sess, s.locations.first.equipment, Random(1));
+      final picks = shufflePicks(s, sess, s.locations.first.equipment, Random(1), t0);
       for (final e in sess.exercises) { expect(exerciseById[picks[e.slot]]!.pattern, e.pattern); }
     });
 

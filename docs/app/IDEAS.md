@@ -6,11 +6,11 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 ## Workout
 
 - **A warm-up that follows the workout.** The warm-up block is one fixed routine; it could lean on the
-  muscles the first exercises use, the way stretching could follow coverage.
+  muscles the first exercises use, the way stretching could follow strain points.
 - **Rep counts past the range.** The reps take one button for anything under the range and one for anything
   over, logged as one rep beyond. An exercise at the top of its progression, chasing a best total, would
   read better with the real count.
-- **Stretching that follows coverage.** The mobility routine at the end picked by which muscle groups
+- **Stretching that follows strain points.** The mobility routine at the end picked by which muscle groups
   were worked today.
 - **An effort budget.** Points per set, summed and capped by energy, was the model until 2026-10-15. It
   balanced well but could not be explained to a user, so energy became three dials and spare minutes a
@@ -34,11 +34,19 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 - **User-made indexes.** A name plus a rule for grouping; the data for it is on every exercise.
 - **Sharing an exercise or a goal** with another person.
 
-## Coverage
+## Muscle map and plans
 
-- **Cardio crediting the lower body a little,** so a runner's plan tilts toward upper work.
-- **A deficit adding a pattern** the goal does not list, rather than only choosing among what it does.
-- **A time-based window** (two weeks) for users whose rotation is long.
+- **Splits and a cycle designer.** Plans made of days, each a focus (full body, upper, lower, push, pull, legs,
+  or a custom set of muscle groups) or a movement day (cardio, mobility, either), in a cycle the user can
+  design: three full-body days then mobility, or a week of five lifting days and two mobility days. Templates for
+  quick starts, and strain points choosing which day is today when the next one's muscles still carry strain.
+- **Emphasis per muscle group.** A slider per group, 50 % less to 50 % more, tilting which exercises the muscle
+  map picks over time. Was part of coverage; never built.
+- **A share target and a deficit.** Coverage's idea of an even share per group over the last rotation, with the
+  furthest behind chosen first. Strain points answer "is this muscle ready"; a deficit would answer "has it
+  had its share". Never built.
+- **Cardio giving the legs strain points,** a little, so a runner's plan tilts toward upper work.
+- **Strain points adding a pattern** the goal does not list, rather than only choosing among what it does.
 
 ## Location and calendar
 

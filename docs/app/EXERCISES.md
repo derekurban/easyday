@@ -95,7 +95,7 @@ from exercise to group, and the data for all five above already exists on every 
 ## How it fits the rest
 
 The workout builder (`WORKOUT.md`) works in movement patterns and asks the library for exercises that fit
-the location's equipment; coverage chooses among them (`COVERAGE.md`); energy turns the dials on each; the
+the location's equipment; the muscle map chooses among them by strain points (`MUSCLE_MAP.md`); energy turns the dials on each; the
 difficulty and the goal pick the expression and so the reps; the progression decides the level; the timing
 model prices the sets in minutes. The index is for the user's eyes only: it never changes what the builder picks. Nothing here changes a
 level except the progression rules and the user's own edit. Movement sessions (cardio and mobility) are not
