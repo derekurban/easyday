@@ -76,16 +76,16 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
 }
 
 /// The muscles the user asked for by hand: remembered, and after three asks in two weeks one line suggests more
-/// emphasis for the group. Never a change.
+/// emphasis for the muscle. Never a change.
 void _learnAsked(AppState s, Session session, DateTime now, List<String> lines) {
   final p = s.plan!;
   for (final e in session.exercises) {
-    if (e.asked && e.attempted.isNotEmpty) p.asked.add((group: e.muscle, at: now));
+    if (e.asked && e.attempted.isNotEmpty) p.asked.add((muscle: e.muscle, at: now));
   }
   p.asked.removeWhere((a) => daysBetween(a.at, now) > askedMuscleDays * 2);
-  for (final grp in moreSuggestions(s, now)) {
-    p.moreSuggested.add(grp);
-    lines.add('You keep asking for ${grp.toLowerCase()}. Set it to more in Settings → Goal if you like.');
+  for (final m in moreSuggestions(s, now)) {
+    p.moreSuggested.add(m);
+    lines.add('You keep asking for $m. Set it to more in Settings → Goal if you like.');
   }
 }
 

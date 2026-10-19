@@ -1,7 +1,7 @@
 // Today: the workout, ready to start. The day's name from the muscles it works ("Back and biceps day"), one line of
 // numbers, then the plan itself: the warm-up, each exercise with its level, sets and minutes, cardio and stretching.
 // Tap an exercise to swap it, change today's level, move it or leave it out; tap the muscles panel to change which
-// muscle groups are excluded, available or forced (the muscle picker). Energy and time sit at the bottom, already
+// muscles are excluded, available or forced (the muscle picker). Energy and time sit at the bottom, already
 // answered, with Start. When today's workout is done, closure.
 import 'dart:math';
 
@@ -86,7 +86,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// Today's muscle plan: the user's, else the defaults from the strain of the moment.
-  MusclePlan _musclePlan(AppState s, DateTime now) => musclePlan ?? MusclePlan(states: defaultMuscleStates(MuscleMap(s).currentStrainPoints(now)), order: muscleGroups);
+  MusclePlan _musclePlan(AppState s, DateTime now) => musclePlan ?? MusclePlan(states: defaultMuscleStates(MuscleMap(s).currentStrainPoints(now)), order: trackedMuscles);
 
   /// Everything the builder needs, from today's answers, the muscle plan and the plan's edits. [asBuilt] leaves the
   /// edits out: the workout as the builder first made it.
@@ -103,7 +103,7 @@ class _TodayScreenState extends State<TodayScreen> {
       energy: energy ?? defaults.energy, minutes: minutes ?? defaults.minutes, locationId: loc?.id, moveKind: moveKind, routine: routine, cardio: cardioId,
       energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, circuit: s.settings.circuit,
       exerciseCount: limit ? null : p.manual ? manualCount : n, warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch,
-      muscles: p.forced, excluded: p.excluded, shuffle: p.shuffle, liftInstead: liftInstead,
+      muscles: p.forced, excluded: p.excluded, shuffle: p.shuffle, manual: p.manual, liftInstead: liftInstead,
       picks: asBuilt ? const {} : picks, rungOverrides: asBuilt ? const {} : rungOverrides, order: asBuilt ? const [] : order, leftOut: asBuilt ? const {} : leftOut,
     );
   }
@@ -198,7 +198,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       title: const Text('Nothing fits today'),
                       subtitle: Text(plan.manual
                           ? 'Manual: only forced muscles are worked, and none is forced. Tap the muscles to force some.'
-                          : plan.excluded.length == muscleGroups.length
+                          : plan.excluded.length == trackedMuscles.length
                               ? 'Every muscle is excluded. Tap the muscles to make some available.'
                               : 'Nothing here works the muscles available. Add equipment to this location, change the muscles, or move instead.'),
                       trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
@@ -270,7 +270,7 @@ class _TodayScreenState extends State<TodayScreen> {
                 IconButton.outlined(onPressed: () => _pickMuscles(context), icon: const Icon(LucideIcons.personStanding, size: 20), tooltip: 'Muscles'),
                 const SizedBox(width: 8),
                 IconButton.outlined(
-                  onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random(), now); rungOverrides = {}; order = []; leftOut = {}; }),
+                  onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random(), now, avoid: plan.excluded); rungOverrides = {}; order = []; leftOut = {}; }),
                   icon: const Icon(LucideIcons.shuffle, size: 20), tooltip: 'Reshuffle the exercises',
                 ),
               ],
@@ -305,9 +305,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final du = context.du;
     final working = <String>[];
     for (final e in session.exercises) { if (!working.contains(e.muscle)) working.add(e.muscle); }
-    final tint = muscleFills(plan.states, chosen: working.toSet(), primary: du.accentStrong);
+    final tint = muscleFills(plan.states, chosen: workedMuscles(session), primary: musclePrimary);
     final forced = plan.forced;
-    final excluded = groupsIn(plan.states, MuscleState.excluded);
+    final excluded = musclesIn(plan.states, MuscleState.excluded);
     String lower(Iterable<String> xs) => listWords(xs.map((g) => g.toLowerCase()));
     return Panel(
       onTap: () => _pickMuscles(context),
@@ -454,7 +454,7 @@ class _TodayScreenState extends State<TodayScreen> {
         if (tag != null) _tag(context, tag, accent: e.nextLevel),
         if (word != null) _tag(context, word, accent: word == 'new' || word == 'forced'),
       ]),
-      subtitle: Text('${e.muscle} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
+      subtitle: Text('${muscleTitle(e.muscle)} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
       isThreeLine: note != null,
       trailing: Text('${max(1, (plannedSeconds(e) / 60).round())} min', style: t.bodySmall),
     );
@@ -515,7 +515,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final ex = e.exercise;
     final st = ensureState(s, ex);
     final equipmentHere = s.location(session.locationId)?.equipment ?? const <String>[];
-    final all = alternatives(s, session, i, equipmentHere, store.now);
+    final all = alternatives(s, session, i, equipmentHere, store.now, avoid: _musclePlan(s, store.now).excluded);
     final alts = all.where((a) => preferenceOf(s.ex[a.id], store.now) != prefNo).toList();
     final notForYou = all.where((a) => preferenceOf(s.ex[a.id], store.now) == prefNo).toList();
     final ceiling = ceilingFor(ex, equipmentHere);
@@ -545,7 +545,7 @@ class _TodayScreenState extends State<TodayScreen> {
         );
       }
       return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(0, 0, 0, 20), children: [
-        SheetHeader(ex.name, subtitle: '${e.muscle} · ${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
+        SheetHeader(ex.name, subtitle: '${muscleTitle(e.muscle)} · ${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
         Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 10), child: Text('Chosen because: ${e.why}.', style: t.bodySmall)),
         if (st.swappedOut >= swapsBeforeAsking)
           Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: Panel(sunk: true, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

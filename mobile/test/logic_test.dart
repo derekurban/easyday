@@ -26,8 +26,8 @@ AppState fresh({String goal = 'muscle', String experience = 'some', String templ
 }
 
 /// The muscle the squat is chosen for, so a test can ask for it again by hand the way the user would.
-const quads = ['Quads'];
-const chest = ['Chest'];
+const quads = ['quads'];
+const chest = ['chest'];
 
 Session build(AppState s, {Energy energy = Energy.normal, int minutes = 35, DateTime? at, List<String> muscles = const []}) =>
     buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, liftInstead: true), at ?? t0);
@@ -448,9 +448,9 @@ void main() {
           if (a.difficulty == b.difficulty) expect(tier(b.intent), greaterThanOrEqualTo(tier(a.intent)), reason: energy.name);
         }
       }
-      s.goal!.setEmphasis('Calves', 1);
-      final sess = build(s, minutes: 60, muscles: const ['Calves']);
-      expect(sess.exercises.first.muscle, 'Calves', reason: 'the muscle the user wants more of leads, whatever its difficulty');
+      s.goal!.setEmphasis('calves', 1);
+      final sess = build(s, minutes: 60, muscles: const ['calves']);
+      expect(sess.exercises.first.muscle, 'calves', reason: 'the muscle the user wants more of leads, whatever its difficulty');
     });
 
     test('a level is strength: heavier and fewer or lighter and more at the same rung, and every rung moves every expression', () {
@@ -613,9 +613,9 @@ void main() {
       final s = fresh(template: 'gym');
       final sess = build(s);
       final alts = alternatives(s, sess, 0, s.locations.first.equipment, t0);
-      expect(alts.every((e) => primaryGroups(e).contains(sess.exercises[0].muscle)), isTrue);
+      expect(alts.every((e) => e.primary.contains(sess.exercises[0].muscle)), isTrue);
       final picks = shufflePicks(s, sess, s.locations.first.equipment, Random(1), t0);
-      for (final e in sess.exercises) { expect(primaryGroups(exerciseById[picks[e.slot]]!), contains(e.muscle)); }
+      for (final e in sess.exercises) { expect(exerciseById[picks[e.slot]]!.primary, contains(e.muscle)); }
     });
 
     test('pounds change the step and the label but not the stored kilograms', () {

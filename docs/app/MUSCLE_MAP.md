@@ -11,7 +11,7 @@ Twenty, named the way people say them: chest; front, side and rear shoulders; bi
 obliques; traps, lats, upper back, lower back; glutes, outer hips, inner thighs, quads, hamstrings, calves; and the
 shins, which are on the figure but no exercise works. Every exercise is tagged with its primary muscles, the ones
 taking the load, and its secondary muscles, the ones helping. The eleven muscle groups of the index in
-`EXERCISES.md` fold these names for browsing; the muscle map itself always works by muscle.
+`EXERCISES.md` fold these names for browsing; the muscle map, selection and its ledgers always work by muscle.
 
 ## Strain points
 

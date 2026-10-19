@@ -156,13 +156,13 @@ class GoalConfig {
   int targetSets(int daysPerWeek) => setsTarget ?? seedSetsTarget(daysPerWeek);
 
   /// A group's emphasis: -1 less, 0 usual, 1 more.
-  int emphasisOf(String group) => emphasis[group] ?? 0;
+  int emphasisOf(String muscle) => emphasis[muscle] ?? 0;
 
   /// A group's target: the sets target scaled by its emphasis, half, one or one and a half.
-  double targetFor(String group, int daysPerWeek) => targetSets(daysPerWeek) * emphasisShare[emphasisOf(group)]!;
+  double targetFor(String muscle, int daysPerWeek) => targetSets(daysPerWeek) * emphasisShare[emphasisOf(muscle)]!;
 
-  void setEmphasis(String group, int v) {
-    if (v == 0) { emphasis.remove(group); } else { emphasis[group] = v.clamp(-1, 1); }
+  void setEmphasis(String muscle, int v) {
+    if (v == 0) { emphasis.remove(muscle); } else { emphasis[muscle] = v.clamp(-1, 1); }
   }
 
   /// The bands for a difficulty, in list order.
@@ -246,7 +246,7 @@ class GoalConfig {
       cardioPct: j['cardioPct'] ?? defaultCardioPct, stretchPct: j['stretchPct'] ?? defaultStretchPct,
       lookBackDays: ((j['lookBackDays'] ?? lookBackDefault) as int).clamp(lookBackMin, lookBackMax),
       setsTarget: j['setsTarget'] == null ? null : (j['setsTarget'] as int).clamp(setsTargetMin, setsTargetMax),
-      emphasis: (j['emphasis'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as int).clamp(-1, 1)))..removeWhere((k, v) => v == 0 || !muscleGroups.contains(k)),
+      emphasis: _emphasisFrom(j['emphasis'] as Map? ?? {}),
       explore: _p(Explore.values, j['explore'], Explore.rarely),
     );
   }
@@ -433,10 +433,26 @@ class SessionExercise {
         ..usualLoadKg = (j['usualLoadKg'] as num?)?.toDouble();
 }
 
-/// The muscle group an exercise is filed under: its first primary muscle's. For older sessions that carried no muscle.
+/// The muscle an exercise is filed under: its first primary muscle. For older sessions that carried no muscle.
 String _groupOf(String exId) {
   final ex = exerciseById[exId];
-  return ex == null || ex.primary.isEmpty ? 'Other' : muscleGroup(ex.primary.first);
+  return ex == null || ex.primary.isEmpty ? 'other' : ex.primary.first;
+}
+
+/// Emphasis as saved: per muscle, or per group before selection ran on muscles, when a group's word spreads to each
+/// of its muscles. A muscle's own word wins over its group's.
+Map<String, int> _emphasisFrom(Map j) {
+  final out = <String, int>{};
+  for (final e in j.entries) {
+    final v = (e.value as int).clamp(-1, 1);
+    if (v == 0 || !muscleGroups.contains(e.key)) continue;
+    for (final m in musclesOfGroup(e.key as String)) { out[m] = v; }
+  }
+  for (final e in j.entries) {
+    final v = (e.value as int).clamp(-1, 1);
+    if (trackedMuscles.contains(e.key)) { if (v == 0) { out.remove(e.key); } else { out[e.key as String] = v; } }
+  }
+  return out;
 }
 
 class Session {
@@ -527,19 +543,20 @@ class Plan {
   Energy energyDefault = Energy.normal;
   int timeDefault = minutesDefault;
   DateTime? continuedOn;  // the day the user chose to start another workout after finishing one
-  List<({String group, DateTime at})> asked = [];  // muscles asked for by hand, for the one line suggesting more emphasis
-  List<String> moreSuggested = [];                 // groups that line has been said for
+  List<({String muscle, DateTime at})> asked = [];  // muscles asked for by hand, for the one line suggesting more emphasis
+  List<String> moreSuggested = [];                  // muscles that line has been said for
   Map<String, dynamic> toJson() => {
         'paused': paused.map((k, v) => MapEntry(k, _ms(v))), 'energyDefault': _e(energyDefault), 'timeDefault': timeDefault, 'continuedOn': _ms(continuedOn),
-        'asked': [for (final a in asked) {'g': a.group, 'at': _ms(a.at)}], 'moreSuggested': moreSuggested,
+        'asked': [for (final a in asked) {'g': a.muscle, 'at': _ms(a.at)}], 'moreSuggested': moreSuggested,
       };
   static Plan fromJson(Map<String, dynamic> j) => Plan()
     ..paused = ((j['paused'] as Map? ?? {}).map((k, v) => MapEntry(k as String, _d(v)!))..removeWhere((k, _) => !exerciseById.containsKey(k)))
     ..energyDefault = _p(Energy.values, j['energyDefault'], Energy.normal)
     ..timeDefault = j['timeDefault'] is int ? j['timeDefault'] : minutesDefault
     ..continuedOn = _d(j['continuedOn'])
-    ..asked = [for (final a in (j['asked'] as List? ?? [])) (group: a['g'] as String, at: _d(a['at'])!)]
-    ..moreSuggested = List<String>.from(j['moreSuggested'] ?? []);
+    // entries from before selection ran on muscles named groups: they are dropped, the window is two weeks anyway
+    ..asked = [for (final a in (j['asked'] as List? ?? [])) if (trackedMuscles.contains(a['g'])) (muscle: a['g'] as String, at: _d(a['at'])!)]
+    ..moreSuggested = [for (final m in List<String>.from(j['moreSuggested'] ?? [])) if (trackedMuscles.contains(m)) m];
 }
 
 class Person {

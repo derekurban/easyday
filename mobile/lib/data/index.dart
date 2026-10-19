@@ -43,8 +43,12 @@ const _muscleFold = {
   'inner thighs': 'Quads', 'quads': 'Quads', 'hamstrings': 'Hamstrings', 'calves': 'Calves',
 };
 
-/// The group a muscle folds onto, or 'Other' (the shins).
+/// The group a muscle folds onto, or 'Other' (the shins). Groups are for browsing the library; selection, its ledgers
+/// and the muscle picker run on the muscles themselves.
 String muscleGroup(String muscle) => _muscleFold[muscle] ?? 'Other';
+
+/// The muscles that fold onto a group: how a setting saved per group spreads to its muscles.
+List<String> musclesOfGroup(String group) => [for (final m in trackedMuscles) if (muscleGroup(m) == group) m];
 
 const _regionOf = {
   'Chest': 'Upper body', 'Back': 'Upper body', 'Shoulders': 'Upper body', 'Biceps': 'Upper body', 'Triceps': 'Upper body', 'Forearms': 'Upper body',

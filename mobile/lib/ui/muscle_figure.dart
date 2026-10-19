@@ -199,8 +199,14 @@ class _FigurePainter extends CustomPainter {
     for (final e in opacity.entries) {
       if (!selected.contains(e.key) && !tints.containsKey(e.key)) fillPlate(e.key, strainMultiply, e.value);
     }
+    // a dark tint leaves the anti-aliased rim of the light plate showing as a thin light line; a groove-coloured edge
+    // traced over the rim, in the tone the fill comes out at, hides it
+    final edge = Paint()..style = PaintingStyle.stroke..strokeWidth = 0.8..color = const Color(0xFF3A3A3A)..isAntiAlias = true;
     for (final e in tints.entries) {
-      if (!selected.contains(e.key)) fillPlate(e.key, _overPlate(e.value.withValues(alpha: 1)), e.value.a);
+      if (selected.contains(e.key)) continue;
+      fillPlate(e.key, _overPlate(e.value.withValues(alpha: 1)), e.value.a);
+      final path = m.fills[e.key];
+      if (path != null && e.value.a > 0.8 && e.value.computeLuminance() < 0.08) canvas.drawPath(path.transform(toBox), edge);
     }
     for (final id in selected) {
       fillPlate(id, muscleSelectMultiply, 1);

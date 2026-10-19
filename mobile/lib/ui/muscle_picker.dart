@@ -1,10 +1,11 @@
-// The muscle picker: today's word on each muscle group (logic/muscle_plan.dart), chosen on the body. Tap muscles to
-// select them (blue, on both figures), then a pill says what the selected ones are today: forced, available or
-// excluded. The figure shows the result the way a muscle map shows a workout: forced groups in the primary green,
-// the available groups the workout chose in the secondary green, the rest of the available ones plain, excluded ones
-// very dark. Shuffle fills the places after the forced groups from the available pool (the Shuffle button draws
-// again); Manual works the forced groups only. A stack of tabs at the bottom right switches between both figures,
-// the front, the back, and a list: the groups under Forced, Available and Excluded, each tile draggable up and down
+// The muscle picker: today's word on each muscle (logic/muscle_plan.dart), chosen on the body, one muscle per plate
+// name, the same muscles selection and its ledgers run on. Tap muscles to select them (blue), then a pill says what the
+// selected ones are today: forced, available or excluded. The figure shows the result the way a muscle map shows a
+// workout: forced muscles in the primary green, available muscles the workout works mainly in the secondary green, the
+// rest of the available ones plain, excluded ones very dark. Shuffle fills the places after the forced muscles from the
+// available pool (Draw again draws anew); Manual works the forced muscles only. A stack of tabs at the bottom right
+// switches between both figures, the front, the back, and a list: the muscles under Forced, Available and Excluded,
+// each tile draggable up and down
 // and between the three. Done hands the plan back to Today, which rebuilds the workout from it.
 import 'dart:math';
 
@@ -22,70 +23,70 @@ import 'motion.dart';
 import 'muscle_figure.dart';
 import 'theme.dart';
 
-/// An excluded group's fill: a very dark gray multiplied over the plate at nearly full strength.
+/// An excluded muscle's fill: a very dark gray multiplied over the plate at nearly full strength.
 const muscleExcluded = Color(0xF2303030);
-/// The secondary strength: the primary colour at this alpha, for the available groups the workout chose.
+/// The forced green: the light theme's accent in both themes, since the figure is the same light gray in both and the
+/// dark theme's paler accent comes out too close to the secondary strength.
+const musclePrimary = Color(0xFF456938);
+/// The secondary strength: the primary colour at this alpha, for the available muscles the workout works mainly.
 const muscleSecondaryAlpha = 0.45;
 
 IconData muscleStateIcon(MuscleState s) => switch (s) { MuscleState.forced => LucideIcons.pin, MuscleState.available => LucideIcons.circleDashed, MuscleState.excluded => LucideIcons.ban };
 
-/// The figure's fills from the states: forced in [primary], the available groups in [chosen] at the secondary
-/// strength, excluded very dark, the rest plain. Groups in [selected] fill the selection blue instead.
+/// The figure's fills from the states: forced in [primary], the available muscles in [chosen] at the secondary
+/// strength, excluded very dark, the rest plain. Muscles in [selected] fill the selection blue instead.
 Map<String, Color> muscleFills(Map<String, MuscleState> states, {required Set<String> chosen, required Color primary, Set<String> selected = const {}}) {
   final tint = <String, Color>{};
-  for (final g in muscleGroups) {
-    final c = selected.contains(g)
+  for (final m in trackedMuscles) {
+    final c = selected.contains(m)
         ? muscleSelect
-        : switch (states[g]) {
+        : switch (states[m]) {
             MuscleState.forced => primary,
             MuscleState.excluded => muscleExcluded,
-            _ => chosen.contains(g) ? primary.withValues(alpha: muscleSecondaryAlpha) : null,
+            _ => chosen.contains(m) ? primary.withValues(alpha: muscleSecondaryAlpha) : null,
           };
-    if (c == null) continue;
-    for (final m in musclesOf(g)) { tint[m] = c; }
+    if (c != null) tint[m] = c;
   }
   return tint;
 }
 
-/// What a group looks like in the list: the plate gray under the same fill the figure gives it.
+/// What a muscle looks like in the list: the plate gray under the same fill the figure gives it.
 Color muscleSwatch(MuscleState? state, {required bool chosen, required Color primary}) => switch (state) {
       MuscleState.forced => Color.lerp(musclePlate, primary, 0.8)!,
       MuscleState.excluded => Color.lerp(musclePlate, const Color(0xFF303030), 0.9)!,
       _ => chosen ? Color.lerp(musclePlate, primary, muscleSecondaryAlpha)! : musclePlate,
     };
 
-/// What a group's strain is in words: "ready", or "medium strain, strain-free Thursday".
-String groupStrainText(StrainPoints current, MuscleMap map, String group, DateTime now) {
-  final shade = groupShade(current, group);
+/// What a muscle's strain is in words: "ready", or "medium strain, strain-free Thursday".
+String muscleStrainText(StrainPoints current, MuscleMap map, String muscle, DateTime now) {
+  final shade = current.shade(muscle);
   if (shade == 0) return 'ready';
-  var free = now;
-  for (final m in musclesOf(group)) { final d = map.strainFreeOn(m, now); if (d.isAfter(free)) free = d; }
-  return '${strainShadeLabels[strainShades - shade]} strain, strain-free ${dayText(free, now)}';
+  return '${strainShadeLabels[strainShades - shade]} strain, strain-free ${dayText(map.strainFreeOn(muscle, now), now)}';
 }
 
-/// The groups a built workout works.
-Set<String> workedGroups(Session session) => {for (final e in session.exercises) e.muscle};
+/// The muscles a built workout works mainly: every primary muscle of its exercises.
+Set<String> workedMuscles(Session session) => {for (final e in session.exercises) ...e.exercise.primary};
 
 class MusclePickerScreen extends StatefulWidget {
   const MusclePickerScreen({super.key, required this.plan, required this.preview});
   final MusclePlan plan;
-  /// The workout the plan would build, for the figure's chosen groups and the line above Done.
+  /// The workout the plan would build, for the figure's chosen muscles and the line above Done.
   final Session Function(MusclePlan plan) preview;
   @override
   State<MusclePickerScreen> createState() => _MusclePickerScreenState();
 }
 
 class _MusclePickerScreenState extends State<MusclePickerScreen> {
-  late MusclePlan plan = widget.plan.copy()..order.addAll([for (final g in muscleGroups) if (!widget.plan.order.contains(g)) g]);
+  late MusclePlan plan = widget.plan.copy()..order.addAll([for (final m in trackedMuscles) if (!widget.plan.order.contains(m)) m]);
   final selected = <String>{};
   String view = 'both';
 
   static const views = {'both': LucideIcons.columns2, 'front': LucideIcons.personStanding, 'back': LucideIcons.flipHorizontal2, 'list': LucideIcons.list};
   static const viewLabel = {'both': 'Both sides', 'front': 'Front', 'back': 'Back', 'list': 'List'};
 
-  void _toggle(String group) {
+  void _toggle(String muscle) {
     HapticFeedback.selectionClick();
-    setState(() { if (!selected.remove(group)) selected.add(group); });
+    setState(() { if (!selected.remove(muscle)) selected.add(muscle); });
   }
 
   void _apply(MuscleState st) {
@@ -103,10 +104,10 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     final map = MuscleMap(s);
     final current = map.currentStrainPoints(now);
     final session = widget.preview(plan);
-    final chosen = workedGroups(session);
+    final chosen = workedMuscles(session);
     final forced = plan.forced;
     final defaults = defaultMuscleStates(current);
-    final changed = muscleGroups.any((g) => plan.states[g] != defaults[g]) || plan.manual || plan.seed > 0;
+    final changed = trackedMuscles.any((m) => plan.states[m] != defaults[m]) || plan.manual || plan.seed > 0;
     // the state the selection shares, when it shares one
     final shared = selected.isEmpty ? null : selected.map((g) => plan.states[g]).toSet().singleOrNull;
     return Scaffold(
@@ -114,7 +115,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
         leading: IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(LucideIcons.x, size: 22), tooltip: 'Close'),
         title: const Text('Muscles'),
         actions: [
-          if (changed) TextButton.icon(onPressed: () => setState(() { plan = MusclePlan(states: defaults, order: muscleGroups); selected.clear(); }), icon: const Icon(LucideIcons.undo2, size: 16), label: const Text('Reset')),
+          if (changed) TextButton.icon(onPressed: () => setState(() { plan = MusclePlan(states: defaults, order: trackedMuscles); selected.clear(); }), icon: const Icon(LucideIcons.undo2, size: 16), label: const Text('Reset')),
         ],
       ),
       body: SafeArea(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -151,7 +152,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
                 duration: m(context, durBase),
                 layoutBuilder: _leftLayout,
                 child: Text(
-                  selected.isEmpty ? 'Tap muscles to select them, then say what they are today.' : '${listWords(selected.toList())} selected',
+                  selected.isEmpty ? 'Tap muscles to select them, then say what they are today.' : '${muscleTitle(listWords(selected))} selected',
                   key: ValueKey(selected.isEmpty ? '' : selected.join()), style: t.bodySmall?.copyWith(color: selected.isEmpty ? null : muscleSelect),
                 ),
               )),
@@ -241,24 +242,23 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
   }
 
   Widget _figure(BuildContext context, Set<String> chosen) {
-    final du = context.du;
-    final tint = muscleFills(plan.states, chosen: chosen, primary: du.accentStrong, selected: selected);
+    final tint = muscleFills(plan.states, chosen: chosen, primary: musclePrimary, selected: selected);
     final sides = view == 'both' ? const ['front', 'back'] : [view];
     return LayoutBuilder(key: ValueKey(view), builder: (context, c) {
       final n = sides.length;
       final height = min(c.maxHeight - 48, (c.maxWidth - 32 - 4 * (n - 1)) / (0.5 * n)).clamp(160.0, 1200.0).toDouble();
       return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 0), child: Wrap(spacing: 12, runSpacing: 4, children: [
-          _swatch(context, muscleSwatch(MuscleState.forced, chosen: true, primary: du.accentStrong), 'Forced'),
-          _swatch(context, muscleSwatch(MuscleState.available, chosen: true, primary: du.accentStrong), 'Chosen'),
+          _swatch(context, muscleSwatch(MuscleState.forced, chosen: true, primary: musclePrimary), 'Forced'),
+          _swatch(context, muscleSwatch(MuscleState.available, chosen: true, primary: musclePrimary), 'Chosen'),
           _swatch(context, musclePlate, 'Available'),
-          _swatch(context, muscleSwatch(MuscleState.excluded, chosen: false, primary: du.accentStrong), 'Excluded'),
+          _swatch(context, muscleSwatch(MuscleState.excluded, chosen: false, primary: musclePrimary), 'Excluded'),
           _swatch(context, Color.lerp(musclePlate, muscleSelect, 0.85)!, 'Selected'),
         ])),
         Expanded(child: Center(child: MuscleFigure(
           key: ValueKey('fig$view'),
           highlight: const {}, tint: tint, sides: sides, height: height, selectable: false, tooltip: false,
-          onTap: (h) { if (h != null && muscleGroups.contains(muscleGroup(h.name))) _toggle(muscleGroup(h.name)); },
+          onTap: (h) { if (h != null && trackedMuscles.contains(h.name)) _toggle(h.name); },
         ))),
       ]);
     });
@@ -274,7 +274,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     ]);
   }
 
-  /// The list: a header per state, the groups under each, every tile draggable up or down and across the headers.
+  /// The list: a header per state, the muscles under each, every tile draggable up or down and across the headers.
   /// A tap selects a tile, like a tap on the figure.
   Widget _list(BuildContext context, StrainPoints current, MuscleMap map, DateTime now, Set<String> chosen) {
     final share = shareOver(context.store.state, now);
@@ -283,7 +283,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     final items = <({MuscleState? header, String? group})>[];
     for (final st in sections) {
       items.add((header: st, group: null));
-      for (final g in groupsIn(plan.states, st, plan.order)) { items.add((header: null, group: g)); }
+      for (final g in musclesIn(plan.states, st, plan.order)) { items.add((header: null, group: g)); }
     }
     return ReorderableListView.builder(
       key: const ValueKey('list'),
@@ -308,7 +308,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
       },
       itemBuilder: (context, i) {
         final it = items[i];
-        if (it.header != null) return _header(context, it.header!, groupsIn(plan.states, it.header!, plan.order).length, key: ValueKey('h${it.header}'));
+        if (it.header != null) return _header(context, it.header!, musclesIn(plan.states, it.header!, plan.order).length, key: ValueKey('h${it.header}'));
         return _tile(context, i, it.group!, current, map, share, now, chosen, key: ValueKey('g${it.group}'));
       },
     );
@@ -336,7 +336,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     final du = context.du;
     final st = plan.states[g]!;
     final on = selected.contains(g);
-    final fill = on ? Color.lerp(musclePlate, muscleSelect, 0.85)! : muscleSwatch(st, chosen: chosen.contains(g), primary: du.accentStrong);
+    final fill = on ? Color.lerp(musclePlate, muscleSelect, 0.85)! : muscleSwatch(st, chosen: chosen.contains(g), primary: musclePrimary);
     final worked = st == MuscleState.forced || (st == MuscleState.available && chosen.contains(g));
     return ReorderableDelayedDragStartListener(
       key: key,
@@ -354,8 +354,8 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
             onTap: () => _toggle(g),
             contentPadding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
             leading: Container(width: 22, height: 22, decoration: BoxDecoration(color: fill, shape: BoxShape.circle, border: Border.all(color: du.line, width: 0.6))),
-            title: Text(g, style: t.bodyLarge?.copyWith(color: st == MuscleState.excluded ? du.inkSecondary : du.ink)),
-            subtitle: Text('${worked ? 'in today\'s workout · ' : ''}${groupStrainText(current, map, g, now)} · ${share.bandWord(g)}'),
+            title: Text(muscleTitle(g), style: t.bodyLarge?.copyWith(color: st == MuscleState.excluded ? du.inkSecondary : du.ink)),
+            subtitle: Text('${worked ? 'in today\'s workout · ' : ''}${muscleStrainText(current, map, g, now)} · ${share.bandWord(g)}'),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(muscleStateIcon(st), size: 16, color: st == MuscleState.forced ? du.accentText : du.inkTertiary),
               ReorderableDragStartListener(index: index, child: Padding(padding: const EdgeInsets.fromLTRB(10, 12, 8, 12), child: Icon(LucideIcons.gripVertical, size: 18, color: du.inkTertiary))),

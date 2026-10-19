@@ -69,7 +69,7 @@ Ranked by how directly each one causes quitting.
 ## 4. Vocabulary
 
 - **Goal.** What the plan is for: how many exercises and sets a workout holds, the rep band for each
-  difficulty, how many sets each muscle group should get over the look-back and which groups get more or
+  difficulty, how many sets each muscle should get over the look-back and which muscles get more or
   less, and how often a movement day replaces a lifting day. Starts from a plain-language template such as
   "get stronger" or "build muscle"; every knob can be changed, and a changed template is a custom goal.
 - **Exercise.** A named movement with specific equipment, tagged with the muscles it works. Barbell bench
@@ -99,9 +99,9 @@ Ranked by how directly each one causes quitting.
   has taken (0.00 to 1.00) and how much is left after the strain point decay. Says which muscles are ready;
   never touches a level. See `MUSCLE_MAP.md`.
 - **Readiness.** A muscle is ready when it is strain-free. The first question selection asks.
-- **Share.** The sets a muscle group has had over the look-back, against the target the goal sets for it,
+- **Share.** The sets a muscle has had over the look-back, against the target the goal sets for it,
   scaled by its emphasis. Behind, on track, or done. The second question selection asks. See `SELECTION.md`.
-- **Emphasis.** Less, usual or more, per muscle group. Scales that group's share target.
+- **Emphasis.** Less, usual or more, per muscle. Scales that muscle's share target.
 - **Preference.** Liked, fine or not for me, per exercise; unrated until the user says. Chooses the exercise
   for a muscle, never the muscle.
 - **Timing model.** Learned seconds per set per exercise, including rest, from the gaps between set taps.
@@ -132,9 +132,9 @@ Ranked by how directly each one causes quitting.
    defaults come from last time and the calendar. After a week away, energy defaults to easy. Changing either
    is one tap or one drag.
 3. **It shows what that makes of today.** The workout the selection rules built for the current location,
-   named for the muscle groups it works ("Back and biceps day"), one line of numbers, and a muscles panel: a
+   named for the muscles it works ("Lats and biceps day"), one line of numbers, and a muscles panel: a
    small body figure and what is worked, forced and excluded today. Tapping it opens the muscle picker
-   (`SELECTION.md`, the muscle plan): every group excluded, available or forced, chosen on the body or in a
+   (`SELECTION.md`, the muscle plan): every muscle excluded, available or forced, chosen on the body or in a
    list. Swapping to a movement workout and changing location happen here too.
 4. **The plan is on Today.** Under the name, the workout in order: the warm-up, each exercise with its level,
    sets and minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another for
@@ -168,16 +168,16 @@ the user asks for it. One workout a day is the shape people recognise; back-to-b
 Onboarding asks for as little as possible and infers the rest from the first few workouts.
 
 - **Goal.** The user's own, named and shaped in plain words. Templates are suggestions that fill every
-  knob at a tap: the reps it likes, how many exercises and sets, the sets each muscle group should get over
+  knob at a tap: the reps it likes, how many exercises and sets, the sets each muscle should get over
   the look-back, how often a movement day comes round. Any knob can be changed right there, or later in settings. The same goes for
   locations: name it, tick what is there, or fill it from a template first.
 - **Experience.** Rough self-rating, used only to seed starting levels conservatively.
-- **Availability.** Rough days per week. Seeds the sets target per muscle group; never fixes days.
+- **Availability.** Rough days per week. Seeds the sets target per muscle; never fixes days.
 - **Locations.** At least one, the user's own: a name and an equipment list, filled from a template such
   as "commercial gym", "home with dumbbells and a bench", or "nothing" if that helps.
 - **Units.** Kilograms or pounds. Loads are stored in kilograms; steps and display follow the chosen unit.
 
-**Goal translation** maps the chosen goal to the reps it likes, the sets each muscle group should get, and
+**Goal translation** maps the chosen goal to the reps it likes, the sets each muscle should get, and
 how often a movement workout comes round. Strength likes heavy and few: its hard exercises train at
 4 to 6, medium ones at 8 to 12, easy ones at 12 to 15. Muscle likes the middle; fitness likes light and
 many (the table is in `WORKOUT.md`). Changing the goal retranslates the plan but keeps every level, so
@@ -376,7 +376,7 @@ down, and the user can pause it again with one tap. Anything longer than a pause
 
 - **After each workout**, one line about what changed and why, such as "Rows step up next time: you hit
   twelve on every set." Or "Bench stays: eight, eight, six. Next time."
-- **Between workouts**: workouts per month, level trend per muscle group, each group's share of the
+- **Between workouts**: workouts per month, level trend per muscle group, each muscle's share of the
   look-back, days active this month. Never streaks.
 - **On each exercise card**: the level, the average time per set, the best total at this level, and the
   cost with its override.
@@ -410,9 +410,9 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 | Setting | Default | Range |
 |---|---|---|
 | The goal: rep ranges tagged by difficulty, movement days | filled from a template | up to six ranges, those sharing a tag cycling by workout |
-| Look-back for a muscle group's share | 7 days | 3 to 14 |
-| Sets per muscle group over the look-back | from days per week: 6, 8 or 10 | 2 to 30 |
-| Emphasis, per muscle group | usual | less, usual, more |
+| Look-back for a muscle's share | 7 days | 3 to 14 |
+| Sets per muscle over the look-back | from days per week: 6, 8 or 10 | 2 to 30 |
+| Emphasis, per muscle | usual | less, usual, more |
 | Try new exercises | rarely | rarely, sometimes, often |
 | Different exercises in a workout: fewest, ideal, most | 2, 4, 6 | 1 to 10 |
 | Reps per exercise | the goal's range for its difficulty | any range |
@@ -516,7 +516,7 @@ level. An energy or time they default to does not count as the user's choice.
   workout in place.
 - **The muscle picker.** The body, front and back, with a stack of view tabs at the bottom right: both,
   front, back, list. Tap muscles to select them, then a pill makes the selected ones forced, available or
-  excluded; the list has the groups under those three headings, draggable between them. Shuffle or Manual at
+  excluded; the list has the muscles under those three headings, draggable between them. Shuffle or Manual at
   the top says whether the workout is drawn from the available pool (Draw again for another draw) or works
   the forced muscles only. A line above Done previews the day's name, count and minutes as the plan changes.
 - **Words.** "Progression" and "level" are explained in plain words on first run, on every exercise card, and
@@ -533,7 +533,7 @@ level. An energy or time they default to does not count as the user's choice.
   step guide.
 - **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. The
   strain muscle map of current strain points, a strip per muscle, and the strain points timeline. Each
-  muscle group's share of the look-back against its target, with its emphasis beside it. Days active this
+  muscle's share of the look-back against its target, with its emphasis beside it. Days active this
   month. Nothing that resets to zero.
 - **Settings.** The settings of section 9, in plain words, with the reminder, the calendar and the
   locations each in a section of their own.

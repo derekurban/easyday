@@ -1,6 +1,7 @@
-// Selection: which muscles a workout works and which exercise works each one. Two ledgers per muscle group, readiness
+// Selection: which muscles a workout works and which exercise works each one. Two ledgers per muscle, readiness
 // (the muscle map) and share (sets over the look-back against a target scaled by emphasis), and one word per exercise
-// (liked, fine, not for me). The ledgers are worked out from logged sets every time, never stored. SELECTION.md.
+// (liked, fine, not for me). The ledgers are worked out from logged sets every time, never stored. The muscles are the
+// map's own (data/index.dart `trackedMuscles`), the same ones the muscle picker shows. SELECTION.md.
 import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
@@ -20,9 +21,12 @@ const swapsBeforeAsking = 3;
 const askedMuscleTimes = 3;
 const askedMuscleDays = 14;
 
-/// The order groups take when nothing else separates them: the big movers first, so a first workout is squat, row,
-/// bench and hinge rather than four small upper-body muscles.
-const selectionOrder = ['Quads', 'Back', 'Chest', 'Hamstrings', 'Glutes', 'Shoulders', 'Core', 'Triceps', 'Biceps', 'Calves', 'Forearms'];
+/// The order muscles take when nothing else separates them: the big movers first, so a first workout is squat, row,
+/// bench and hinge rather than four small muscles.
+const selectionOrder = [
+  'quads', 'upper back', 'chest', 'hamstrings', 'lats', 'front shoulders', 'glutes', 'abs', 'side shoulders', 'triceps',
+  'biceps', 'rear shoulders', 'calves', 'lower back', 'obliques', 'traps', 'forearms', 'outer hips', 'inner thighs',
+];
 
 /// The preference in play: the user's word, else a soft like from a manual pick, else unrated (null).
 String? preferenceOf(ExerciseState? st, DateTime now) {
@@ -35,33 +39,33 @@ String? preferenceOf(ExerciseState? st, DateTime now) {
 /// Liked first, then fine and unrated together, then not for me.
 int preferenceRank(String? p) => p == prefLiked ? 0 : p == prefNo ? 2 : 1;
 
-/// The muscle groups an exercise works mainly.
+/// The muscle groups an exercise works mainly: for browsing and the library's coverage, not for selection.
 Set<String> primaryGroups(Exercise ex) => {for (final m in ex.primary) muscleGroup(m)};
 
-/// The sets each muscle group has had over the look-back, against its target.
+/// The sets each muscle has had over the look-back, against its target.
 class Share {
   Share(this.sets, this.targets, this.lastWorked);
   final Map<String, double> sets;
   final Map<String, double> targets;
   final Map<String, DateTime?> lastWorked;
 
-  double of(String group) => sets[group] ?? 0;
-  double target(String group) => targets[group] ?? 0;
-  double deficit(String group) => target(group) - of(group);
+  double of(String muscle) => sets[muscle] ?? 0;
+  double target(String muscle) => targets[muscle] ?? 0;
+  double deficit(String muscle) => target(muscle) - of(muscle);
 
   /// 0 behind (under half the target), 1 on track (half to just under it), 2 done (the target or more).
-  int band(String group) {
-    final t = target(group);
+  int band(String muscle) {
+    final t = target(muscle);
     if (t <= 0) return 2;
-    final x = of(group);
+    final x = of(muscle);
     return x >= t ? 2 : x < t / 2 ? 0 : 1;
   }
 
-  String bandWord(String group) => const ['behind', 'on track', 'has had its share'][band(group)];
+  String bandWord(String muscle) => const ['behind', 'on track', 'has had its share'][band(muscle)];
 }
 
-/// Share over the goal's look-back, today included, from the attempted sets of every lifting workout: one to the group of
-/// each primary muscle, a half to the group of each secondary one, a light set half of that.
+/// Share over the goal's look-back, today included, from the attempted sets of every lifting workout: one to each
+/// primary muscle, a half to each secondary one, a light set half of that.
 Share shareOver(AppState s, DateTime now) {
   final g = s.goal!;
   final from = dayOf(now).subtract(Duration(days: g.lookBackDays - 1));
@@ -71,44 +75,41 @@ Share shareOver(AppState s, DateTime now) {
     for (final e in x.exercises) { addShare(sets, e.exercise, e.attempted.length.toDouble(), light: e.intent == 'light'); }
   }
   final days = s.profile?.daysPerWeek ?? 3;
-  final targets = {for (final grp in muscleGroups) grp: g.targetFor(grp, days)};
-  final last = <String, DateTime?>{for (final grp in muscleGroups) grp: null};
-  for (final e in MuscleMap(s).lastWorked().entries) {
-    final grp = muscleGroup(e.key);
-    if (e.value != null && (last[grp] == null || e.value!.isAfter(last[grp]!))) last[grp] = e.value;
-  }
-  return Share(sets, targets, last);
+  final targets = {for (final m in trackedMuscles) m: g.targetFor(m, days)};
+  return Share(sets, targets, MuscleMap(s).lastWorked());
 }
 
 /// Add [n] sets of [ex] to a share tally.
 void addShare(Map<String, double> sets, Exercise ex, double n, {bool light = false}) {
   if (n <= 0) return;
   final share = light ? 0.5 : 1.0;
-  final primary = primaryGroups(ex);
-  final secondary = {for (final m in ex.secondary) muscleGroup(m)}..removeAll(primary);
-  for (final grp in primary) { sets[grp] = (sets[grp] ?? 0) + n * share; }
-  for (final grp in secondary) { sets[grp] = (sets[grp] ?? 0) + n * 0.5 * share; }
+  for (final m in ex.primary) { sets[m] = (sets[m] ?? 0) + n * share; }
+  for (final m in ex.secondary) {
+    if (ex.primary.contains(m)) continue;
+    sets[m] = (sets[m] ?? 0) + n * 0.5 * share;
+  }
 }
 
-/// How many lifting workouts in a row, latest first, have worked [group] with [exId]: the run the practised pick has had.
-int runOf(AppState s, String group, String exId) {
+/// How many lifting workouts in a row, latest first, have worked [muscle] with [exId]: the run the practised pick has had.
+int runOf(AppState s, String muscle, String exId) {
   var run = 0;
   for (final x in s.sessions.reversed) {
     if (x.type != 'lift') continue;
-    final here = x.exercises.where((e) => e.attempted.isNotEmpty && primaryGroups(e.exercise).contains(group)).toList();
+    final here = x.exercises.where((e) => e.attempted.isNotEmpty && e.exercise.primary.contains(muscle)).toList();
     if (here.isEmpty) continue;
     if (here.any((e) => e.exId == exId)) { run++; } else { break; }
   }
   return run;
 }
 
-/// Exercises the builder may choose for a muscle group here: that group among the primary muscles, doable with the
-/// equipment, not paused for pain, not in [exclude].
-List<Exercise> candidatesFor(AppState s, String group, Iterable<String> equipment, Iterable<String> exclude, DateTime now) {
+/// Exercises the builder may choose for a muscle here: that muscle among the primary muscles, doable with the
+/// equipment, not paused for pain, not in [exclude], and with none of [avoid] (today's excluded muscles) among its
+/// primary muscles.
+List<Exercise> candidatesFor(AppState s, String muscle, Iterable<String> equipment, Iterable<String> exclude, DateTime now, {Set<String> avoid = const {}}) {
   final ex = exclude.toSet();
   final pausedMuscles = pausedMusclesAt(s, now);
   return exercises.where((e) =>
-      primaryGroups(e).contains(group) && available(e, equipment) && !ex.contains(e.id) &&
+      e.primary.contains(muscle) && available(e, equipment) && !ex.contains(e.id) && !e.primary.any(avoid.contains) &&
       !s.plan!.paused.containsKey(e.id) && !e.primary.any(pausedMuscles.contains)).toList();
 }
 
@@ -132,7 +133,7 @@ List<Exercise> firstTimers(AppState s, Session session) => [
     ];
 
 /// The one line on why an exercise was chosen, from the two ledgers and the word.
-String whyLine({required String group, required bool ready, required int band, required int emphasis, String? preference, bool fresh = false, bool asked = false}) {
+String whyLine({required bool ready, required int band, required int emphasis, String? preference, bool fresh = false, bool asked = false}) {
   final parts = <String>[];
   if (asked) parts.add('you asked for it');
   parts.add(ready ? 'ready' : 'still carrying strain');
@@ -145,18 +146,15 @@ String whyLine({required String group, required bool ready, required int band, r
   return parts.join(', ');
 }
 
-/// The emphasis a group should move to after being asked for by hand [askedMuscleTimes] times in [askedMuscleDays] days:
-/// the line is said once per group. Returns the groups to say it for.
+/// The muscles that should move to more emphasis after being asked for by hand [askedMuscleTimes] times in
+/// [askedMuscleDays] days: the line is said once per muscle. Returns the muscles to say it for.
 List<String> moreSuggestions(AppState s, DateTime now) {
   final p = s.plan!;
   final since = now.subtract(const Duration(days: askedMuscleDays));
   final counts = <String, int>{};
-  for (final a in p.asked) { if (!a.at.isBefore(since)) counts[a.group] = (counts[a.group] ?? 0) + 1; }
+  for (final a in p.asked) { if (!a.at.isBefore(since)) counts[a.muscle] = (counts[a.muscle] ?? 0) + 1; }
   return [for (final e in counts.entries) if (e.value >= askedMuscleTimes && s.goal!.emphasisOf(e.key) < 1 && !p.moreSuggested.contains(e.key)) e.key];
 }
 
-/// When each muscle group was worked last, from the muscle map.
-Map<String, DateTime?> lastWorkedByGroup(AppState s) => shareOver(s, DateTime.now()).lastWorked;
-
-/// Days since a group was worked, or null.
-int? daysSinceWorked(Share share, String group, DateTime now) => share.lastWorked[group] == null ? null : daysAgo(share.lastWorked[group]!, now);
+/// Days since a muscle was worked, or null.
+int? daysSinceWorked(Share share, String muscle, DateTime now) => share.lastWorked[muscle] == null ? null : daysAgo(share.lastWorked[muscle]!, now);

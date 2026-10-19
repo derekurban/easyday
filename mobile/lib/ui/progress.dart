@@ -109,11 +109,11 @@ class ProgressScreen extends StatelessWidget {
         SectionHeader('Sets per muscle, last ${g.lookBackDays} days', icon: LucideIcons.layers),
         Panel(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 6), child: Text(
-            'Against ${g.targetSets(s.profile?.daysPerWeek ?? 3)} sets a group, half with less emphasis and one and a half with more. Behind is under half; done is the target. The workout goes to the muscles that are ready and furthest behind. Tap the word to change the emphasis.',
+            'Against ${g.targetSets(s.profile?.daysPerWeek ?? 3)} sets a muscle, half with less emphasis and one and a half with more. Behind is under half; done is the target. The workout goes to the muscles that are ready and furthest behind. Tap the word to change the emphasis.',
             style: t.bodySmall)),
-          for (final grp in muscleGroups)
+          for (final grp in trackedMuscles)
             Padding(padding: const EdgeInsets.fromLTRB(16, 5, 16, 5), child: Row(children: [
-              SizedBox(width: 92, child: Text(grp, style: t.bodyMedium)),
+              SizedBox(width: 112, child: Text(muscleTitle(grp), style: t.bodyMedium, overflow: TextOverflow.ellipsis)),
               Expanded(child: Meter(share.target(grp) <= 0 ? 1 : (share.of(grp) / share.target(grp)).clamp(0.0, 1.0), height: 8)),
               const SizedBox(width: 10),
               SizedBox(width: 60, child: Text('${n(share.of(grp))} of ${n(share.target(grp))}', style: t.labelSmall, textAlign: TextAlign.right)),

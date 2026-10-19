@@ -12,7 +12,7 @@ never stored; the word is the user's own.
 
 - **Readiness.** Can this muscle work today. A muscle is ready when it is strain-free (`MUSCLE_MAP.md`). A
   muscle carrying strain waits.
-- **Share.** Should this muscle work today. The sets a muscle group has had over the look-back, against the
+- **Share.** Should this muscle work today. The sets a muscle has had over the look-back, against the
   target the goal sets for it, scaled by its emphasis. Three bands: behind, on track, done.
 - **Preference.** Which exercise, once the muscle is chosen. Liked, fine or not for me, the user's own word on
   each exercise; unrated until they say.
@@ -23,24 +23,31 @@ muscle that is behind never jumps the queue past one that is ready.
 
 ## Share
 
-- **Counting.** A working set gives one to the group of each primary muscle and a half to the group of each
-  secondary one. A light set gives half of that, as strain points do. Sets attempted count; sets planned and
+- **Counting.** A working set gives one to each primary muscle and a half to each secondary one. A light set gives half of that, as strain points do. Sets attempted count; sets planned and
   never started do not.
 - **The look-back.** The last seven days, today included, by calendar days like the rest of the app. A setting,
   3 to 14 days.
-- **The target.** Sets per muscle group over the look-back, one number for every group, seeded from days per
+- **The target.** Sets per muscle over the look-back, one number for every muscle, seeded from days per
   week: 6 for two days, 8 for three, 10 for four or more. A setting, 2 to 30. Ten sets a week per muscle is
   where the research puts a good return for growth; strength flattens earlier.
-- **Emphasis.** Less, usual or more, per group: half, one, and one and a half times the target. "More back"
-  keeps the back behind for longer, so it is picked more often, goes earlier in the workout and takes spare
+- **Emphasis.** Less, usual or more, per muscle: half, one, and one and a half times the target. "More lats"
+  keeps the lats behind for longer, so it is picked more often, goes earlier in the workout and takes spare
   minutes first. It is never achieved by cramming: strain still caps a muscle at full in one day. More comes
   from frequency and priority across the look-back, which is what the volume and order research supports.
 - **The bands.** Behind is under half the target. On track is half to just under it. Done is the target or
   more. Done is the lowest priority, never a cap: a muscle that has had its share still works when nothing
   else is ready and behind.
 
-The groups are the eleven of the muscle index (`EXERCISES.md`): chest, back, shoulders, biceps, triceps,
-forearms, core, glutes, quads, hamstrings, calves.
+The muscles are the map's own nineteen (`MUSCLE_MAP.md`), every one but the shins: chest; front, side and
+rear shoulders; biceps, triceps, forearms; abs, obliques; traps, lats, upper back, lower back; glutes, outer
+hips, inner thighs, quads, hamstrings, calves. Selection, the share ledger, emphasis and the muscle picker all
+run on these, so what the user taps on the body is what the ledgers count. The eleven groups of the muscle
+index (`EXERCISES.md`) are for browsing the library only. Saved emphasis from before, which was per group,
+spreads to each of the group's muscles.
+
+Small muscles that compound lifts barely reach as a helper (outer hips, side shoulders) start furthest
+behind, so with nothing else to separate them they come up early and often. Emphasis less on them, or a
+target scaled by size, is the knob if that is too much (open questions).
 
 ## Which muscles
 
@@ -82,27 +89,27 @@ tap leaves it out today; the exercise count drops by one rather than swapping. T
 whether to do something they dislike.
 
 A first appearance is never asked for the next level. A hard day's pushes go to practised exercises. A workout
-is named for every muscle group it works, in order, as a day: "Chest day", "Back and biceps day", "Back, triceps
-and forearms day".
+is named for every muscle its places went to, in order, as a day: "Chest day", "Lats and biceps day",
+"Upper back, triceps and forearms day". Long names are known and left for later.
 
 ## The user's own picks
 
 Everything above is a default. The user's pick always stands, for today.
 
-- **The muscle plan.** Before the workout is built, every muscle group is in one of three states for today.
-  *Excluded*: not worked, not even to fill spare minutes. *Available*: in the pool selection draws from by the
+- **The muscle plan.** Before the workout is built, every muscle is in one of three states for today.
+  *Excluded*: never takes a place, not even to fill spare minutes, and no exercise works it as a primary
+  muscle (a forced muscle whose every exercise works an excluded one too still gets one). *Available*: in the pool selection draws from by the
   rules above. *Forced*: worked for certain, by an exercise that has it as a primary muscle, taking a place
-  before the rules fill the rest. The defaults come from the muscle map: a group whose most strained muscle is
-  at any shade starts excluded (the threshold is one constant, `excludeFromShade`), the rest start available,
+  before the rules fill the rest. The defaults come from the muscle map: a muscle at any shade starts excluded (the threshold is one constant, `excludeFromShade`), the rest start available,
   nothing starts forced. The muscle picker on Today changes them: tap muscles on the body to select them
-  (blue), then one of three pills says what the selected ones are today. A list view shows the groups under
+  (blue), then one of three pills says what the selected ones are today. A list view shows the muscles under
   the three headings, each tile draggable up, down and between them, with its strain and its share beside it.
-  The figure shows the result like a muscle map: forced groups in the primary green, the available groups
+  The figure shows the result like a muscle map: forced muscles in the primary green, the available muscles
   the workout chose in the secondary green, the other available ones plain, excluded ones very dark.
-  *Shuffle* (the default) fills the places after the forced groups from the available pool by the rules
-  above, and Draw again takes ready groups at random instead of by share; *Manual* works the forced groups
-  only. Done rebuilds the workout. A forced group still carrying strain is worked anyway, and its why-line
-  says so. When every group is excluded, or nothing here works the available ones, Today says so and offers
+  *Shuffle* (the default) fills the places after the forced muscles from the available pool by the rules
+  above, and Draw again takes ready muscles at random instead of by share; *Manual* works the forced muscles
+  only. Done rebuilds the workout. A forced muscle still carrying strain is worked anyway, and its why-line
+  says so. When every muscle is excluded, or nothing here works the available ones, Today says so and offers
   the picker or a movement day.
 - **Swap.** The swap sheet lists every other exercise for the same muscle available here, in the order above,
   not for me under its own heading. Nothing a user picks changes its word.
@@ -133,10 +140,10 @@ Everything above is a default. The user's pick always stands, for today.
 - **The plan:** a row's tag when it is not for me, with leave it out today; the swap sheet in selection's
   order.
 - **After:** the one row per first-time exercise, after the feel tap.
-- **Progress:** the share strip: the eleven groups, sets over the look-back against each one's target, the
+- **Progress:** the share strip: the nineteen muscles, sets over the look-back against each one's target, the
   emphasis word beside each, tappable to change it.
 - **The exercise card:** the preference word.
-- **Settings → Goal:** the look-back, the sets target, emphasis per group, how often to try something new.
+- **Settings → Goal:** the look-back, the sets target, emphasis per muscle, how often to try something new.
 
 ## What it reads
 
@@ -158,7 +165,7 @@ Everything above is a default. The user's pick always stands, for today.
 
 ## Guardrails
 
-- Less is half, never none. A group with no sets for two look-backs gets one line on Progress, no nudge.
+- Less is half, never none. A muscle with no sets for two look-backs gets one line on Progress, no nudge.
 - Done is never a cap.
 - A first appearance is never a push, and something new never lands on a hard day or on the first muscle.
 - Every pick carries its why in one line, built from the two ledgers and the word.
@@ -176,8 +183,8 @@ selection, and selection never hears from it.
 | Setting | Default | Range | Where |
 |---|---|---|---|
 | Look-back | 7 days | 3 to 14 | Settings → Goal |
-| Sets per muscle group over the look-back | 6, 8 or 10, by days per week | 2 to 30 | Settings → Goal |
-| Emphasis, per muscle group | usual | less, usual, more | Settings → Goal, Progress |
+| Sets per muscle over the look-back | 6, 8 or 10, by days per week | 2 to 30 | Settings → Goal |
+| Emphasis, per muscle | usual | less, usual, more | Settings → Goal, Progress |
 | Try new exercises | rarely | rarely (one in 8), sometimes (one in 4), often (one in 2) | Settings → Goal |
 | Preference, per exercise | unrated | liked, fine, not for me | the exercise card, the swap sheet, after a workout |
 
@@ -187,7 +194,9 @@ swaps; the four weeks a soft like lasts; the two weeks and three picks for the e
 ## Open questions
 
 - Whether one exercise per muscle is too strict on a day the user built by hand.
-- Whether a group's target should come from capacity instead of a setting (`IDEAS.md`).
+- Whether a muscle's target should come from capacity instead of a setting (`IDEAS.md`), or be scaled by its
+  size, so the small muscles stop coming up as often as the big ones.
+- Whether the day's name should fold muscles back into groups ("Back day" for lats and upper back).
 - Whether an exercise that pays off more behind muscles should beat library rank. Tried and dropped: it made a
   sumo deadlift the first quads pick over the barbell squat.
 - Whether a soft like should last four weeks or fade with appearances.
