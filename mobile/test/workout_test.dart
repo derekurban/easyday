@@ -2,7 +2,6 @@ import 'package:easyday/data/library.dart';
 import 'package:easyday/data/model.dart';
 import 'package:easyday/logic/after.dart';
 import 'package:easyday/logic/builder.dart';
-import 'package:easyday/logic/rotation.dart';
 import 'package:easyday/logic/workout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,7 +14,7 @@ AppState fresh({String template = 'home_full'}) {
   final tpl = templates.firstWhere((t) => t.id == template);
   s.locations = [Location(id: 'l1', name: tpl.name, template: tpl.id, equipment: tpl.equipment.toList())];
   s.lastLocationId = 'l1';
-  initPlan(s);
+  s.plan = Plan();
   return s;
 }
 

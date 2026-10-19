@@ -6,6 +6,7 @@ import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import '../logic/ladder.dart';
+import '../logic/selection.dart';
 import 'app.dart';
 import 'how.dart';
 import 'theme.dart';
@@ -101,6 +102,19 @@ class ExerciseCardScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Text('How much one hard set takes out of the whole body. Hard exercises get the reps you like; easier ones get more reps and less weight. A hard day pushes the hardest ones first.', style: t.bodySmall),
           if (st.costOverride != null) TextButton.icon(onPressed: () => store.update((_) => st.costOverride = null), icon: const Icon(LucideIcons.rotateCcw, size: 16), label: const Text('Back to the default')),
+        ])),
+        const SizedBox(height: 20),
+        const SectionHeader('Your word', icon: LucideIcons.heart),
+        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ChoiceRow<String>(
+            label: 'This exercise is',
+            value: st.preference ?? 'unrated',
+            options: {'unrated': 'Unrated', prefLiked: preferenceLabel[prefLiked]!, prefFine: preferenceLabel[prefFine]!, prefNo: preferenceLabel[prefNo]!},
+            hint: 'Liked goes first for its muscle; fine and unrated take their turn; not for me fills a place only when nothing else here is ready, and the plan says so. Never changes a level.'
+                '${st.swappedOut > 0 ? ' Swapped out ${st.swappedOut} time${st.swappedOut == 1 ? '' : 's'} in a row.' : ''}'
+                '${st.preference == null && st.likedUntil != null && store.now.isBefore(st.likedUntil!) ? ' Counts as liked for now: you picked it by hand.' : ''}',
+            onChanged: (v) => store.update((_) { st.preference = v == 'unrated' ? null : v; st.swappedOut = 0; }),
+          ),
         ])),
       ]),
     );

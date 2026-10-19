@@ -10,6 +10,7 @@ import '../data/model.dart';
 import '../logic/builder.dart';
 import '../logic/calendar.dart';
 import '../logic/ladder.dart';
+import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'exercise_card.dart';
@@ -30,16 +31,18 @@ class _PlanScreenState extends State<PlanScreen> {
   Map<String, String> picks = {};
   Map<String, int> rungOverrides = {};
   List<String> order = [];
+  Set<String> leftOut = {};
   int? warmup;
   bool skipCardio = false;
   bool skipStretch = false;
 
-  BuildOptions _options(AppState s) {
+  BuildOptions _options(AppState s, {bool asBuilt = false}) {
     final b = widget.base;
     return BuildOptions(
-      energy: b.energy, minutes: b.minutes, locationId: b.locationId, picks: picks, rungOverrides: rungOverrides,
+      energy: b.energy, minutes: b.minutes, locationId: b.locationId, picks: asBuilt ? const {} : picks, rungOverrides: asBuilt ? const {} : rungOverrides,
       energyChosen: b.energyChosen, timeChosen: b.timeChosen, circuit: s.settings.circuit, exerciseCount: b.exerciseCount,
-      warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch, order: order,
+      warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch, order: asBuilt ? const [] : order,
+      muscles: b.muscles, leftOut: asBuilt ? const {} : leftOut, liftInstead: b.liftInstead,
     );
   }
 
@@ -66,7 +69,7 @@ class _PlanScreenState extends State<PlanScreen> {
         title: Text(session.name),
         actions: [
           IconButton(
-            onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random(), store.now); rungOverrides = {}; order = []; }),
+            onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random(), store.now); rungOverrides = {}; order = []; leftOut = {}; }),
             icon: const Icon(LucideIcons.shuffle, size: 20), tooltip: 'Reshuffle the exercises',
           ),
         ],
@@ -141,9 +144,25 @@ class _PlanScreenState extends State<PlanScreen> {
     final store = context.store;
     store.update((s) {
       if (warmup != null) s.settings.warmup = warmup!;
+      // the exercises the builder put on the plan that were swapped out: their count in a row goes up
+      if (picks.isNotEmpty) {
+        final built = buildSession(s, _options(s, asBuilt: true), store.now);
+        final chosen = session.exercises.map((e) => e.exId).toSet();
+        noteSwappedOut(s, [for (final e in built.exercises) if (picks.containsKey(e.slot) && !chosen.contains(e.exId)) e.exId]);
+      }
       startWorkout(s, session, store.now);
     });
     Navigator.of(context).pop(true);
+  }
+
+  Widget _tag(BuildContext context, String text, {bool accent = false}) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Padding(padding: const EdgeInsets.only(left: 6), child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: accent ? du.accentSubtle : du.sunk, borderRadius: BorderRadius.circular(999), border: Border.all(color: accent ? du.accentLine : du.line, width: 0.6)),
+      child: Text(text, style: t.labelSmall?.copyWith(color: accent ? du.accentText : du.inkSecondary, letterSpacing: 0)),
+    ));
   }
 
   Widget _blockRow(BuildContext context, IconData icon, String title, String subtitle, int minutes, VoidCallback onTap) {
@@ -164,23 +183,20 @@ class _PlanScreenState extends State<PlanScreen> {
   Widget _exerciseRow(BuildContext context, Session session, int i) {
     final e = session.exercises[i];
     final t = Theme.of(context).textTheme;
-    final du = context.du;
     final note = rungNote(e.exercise, e.rung);
     final unit = e.exercise.repLabel == 'seconds' ? ' s' : '';
     final rung = e.rungLabel == e.exercise.name ? 'standard' : e.rungLabel;
     final tag = e.nextLevel ? 'next level' : e.intent == intentLight ? (e.exercise.loaded ? '${(easyShare * 100).round()} %' : 'a version down') : e.lightened ? 'eased after a break' : e.edited ? 'edited' : null;
+    final word = context.store.state.ex[e.exId]?.preference == prefNo ? 'not for you' : e.fresh ? 'new' : null;
     return ListTile(
       onTap: () => _exerciseSheet(context, session, i),
       leading: IconBadge(exerciseIcon(e.exercise), size: 36),
       title: Row(children: [
         Flexible(child: Text(e.exercise.name, overflow: TextOverflow.ellipsis)),
-        if (tag != null) Padding(padding: const EdgeInsets.only(left: 6), child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-          decoration: BoxDecoration(color: e.nextLevel ? du.accentSubtle : du.sunk, borderRadius: BorderRadius.circular(999), border: Border.all(color: e.nextLevel ? du.accentLine : du.line, width: 0.6)),
-          child: Text(tag, style: t.labelSmall?.copyWith(color: e.nextLevel ? du.accentText : du.inkSecondary, letterSpacing: 0)),
-        )),
+        if (tag != null) _tag(context, tag, accent: e.nextLevel),
+        if (word != null) _tag(context, word, accent: word == 'new'),
       ]),
-      subtitle: Text('$rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
+      subtitle: Text('${e.muscle} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
       isThreeLine: note != null,
       trailing: Text('${max(1, (plannedSeconds(e) / 60).round())} min', style: t.bodySmall),
     );
@@ -241,21 +257,56 @@ class _PlanScreenState extends State<PlanScreen> {
     final ex = e.exercise;
     final st = ensureState(s, ex);
     final equipmentHere = s.location(widget.base.locationId)?.equipment ?? const <String>[];
-    final alts = alternatives(s, session, i, equipmentHere, store.now);
+    final all = alternatives(s, session, i, equipmentHere, store.now);
+    final alts = all.where((a) => preferenceOf(s.ex[a.id], store.now) != prefNo).toList();
+    final notForYou = all.where((a) => preferenceOf(s.ex[a.id], store.now) == prefNo).toList();
     final ceiling = ceilingFor(ex, equipmentHere);
     var rung = e.rung;
+    var showNotForYou = false;
     await showSheet<void>(context, StatefulBuilder(builder: (context, setSheet) {
       final t = Theme.of(context).textTheme;
       final du = context.du;
       final floor = ex.loaded ? floorRung(s, ex, st) : 0;
+      Widget alt(Exercise a) {
+        final ast = s.ex[a.id];
+        final word = preferenceOf(ast, store.now);
+        return ListTile(
+          leading: IconBadge(exerciseIcon(a), size: 36),
+          title: Text(a.name),
+          subtitle: Text('${ast != null ? rungLabel(s, a, ast, ast.rung) : 'not yet practised'} · ${difficultyLabel[difficultyInPlay(a, ast)]}${word != null ? ' · ${preferenceLabel[word]!.toLowerCase()}' : ''}'),
+          trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
+          onTap: () {
+            // a manual pick of an unrated exercise counts as liked for a while; a rated one keeps its word
+            store.update((x) { final target = ensureState(x, a); if (target.preference == null) target.likedUntil = store.now.add(const Duration(days: softLikeDays)); });
+            setState(() {
+              picks[e.slot] = a.id;
+              rungOverrides.remove(e.slot);
+            });
+            Navigator.pop(context);
+          },
+        );
+      }
       return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(0, 0, 0, 20), children: [
-        SheetHeader(ex.name, subtitle: '${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
-        if (session.exercises.length > 1)
-          Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: Row(children: [
-            Expanded(child: OutlinedButton.icon(onPressed: i == 0 ? null : () { _move(session, i, -1); Navigator.pop(context); }, icon: const Icon(LucideIcons.arrowUp, size: 18), label: const Text('Move up'))),
+        SheetHeader(ex.name, subtitle: '${e.muscle} · ${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
+        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 10), child: Text('Chosen because: ${e.why}.', style: t.bodySmall)),
+        if (st.swappedOut >= swapsBeforeAsking)
+          Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: Panel(sunk: true, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('You keep swapping this one out. Still like it?', style: t.bodyMedium),
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, children: [
+              for (final w in [prefLiked, prefFine, prefNo])
+                ActionChip(label: Text(preferenceLabel[w]!), onPressed: () { store.update((_) { st.preference = w; st.swappedOut = 0; }); setSheet(() {}); }),
+            ]),
+          ]))),
+        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: Row(children: [
+          if (session.exercises.length > 1) ...[
+            Expanded(child: OutlinedButton.icon(onPressed: i == 0 ? null : () { _move(session, i, -1); Navigator.pop(context); }, icon: const Icon(LucideIcons.arrowUp, size: 18), label: const Text('Up'))),
             const SizedBox(width: 8),
-            Expanded(child: OutlinedButton.icon(onPressed: i == session.exercises.length - 1 ? null : () { _move(session, i, 1); Navigator.pop(context); }, icon: const Icon(LucideIcons.arrowDown, size: 18), label: const Text('Move down'))),
-          ])),
+            Expanded(child: OutlinedButton.icon(onPressed: i == session.exercises.length - 1 ? null : () { _move(session, i, 1); Navigator.pop(context); }, icon: const Icon(LucideIcons.arrowDown, size: 18), label: const Text('Down'))),
+            const SizedBox(width: 8),
+          ],
+          Expanded(child: OutlinedButton.icon(onPressed: () { setState(() => leftOut.add(e.slot)); Navigator.pop(context); }, icon: const Icon(LucideIcons.circleOff, size: 18), label: const Text('Skip'))),
+        ])),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -287,23 +338,20 @@ class _PlanScreenState extends State<PlanScreen> {
               Expanded(child: OutlinedButton.icon(onPressed: rung == st.rung ? null : () { store.update((x) => setRung(x, ex, rung)); setState(() => rungOverrides.remove(e.slot)); Navigator.pop(context); }, icon: const Icon(LucideIcons.save, size: 18), label: const Text('Save as my level'))),
             ]),
             const SizedBox(height: 20),
-            if (alts.isNotEmpty) const SectionHeader('Swap for', icon: LucideIcons.replace),
+            if (alts.isNotEmpty || notForYou.isNotEmpty) SectionHeader('Swap for', icon: LucideIcons.replace, trailing: alts.isEmpty ? null : Text('ready first, then liked', style: t.labelSmall)),
           ]),
         ),
-        for (final a in alts)
+        for (final a in alts) alt(a),
+        if (notForYou.isNotEmpty) ...[
           ListTile(
-            leading: IconBadge(exerciseIcon(a), size: 36),
-            title: Text(a.name),
-            subtitle: Text('${s.ex[a.id] != null ? rungLabel(s, a, s.ex[a.id]!, s.ex[a.id]!.rung) : 'not yet practised'} · ${difficultyLabel[difficultyInPlay(a, s.ex[a.id])]}'),
-            trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-            onTap: () {
-              setState(() {
-                picks[e.slot] = a.id;
-                rungOverrides.remove(e.slot);
-              });
-              Navigator.pop(context);
-            },
+            leading: const IconBadge(LucideIcons.thumbsDown, size: 36),
+            title: Text('Not for you (${notForYou.length})'),
+            subtitle: const Text('Picked only when nothing else here fits. Yours to choose anyway.'),
+            trailing: Icon(showNotForYou ? LucideIcons.chevronUp : LucideIcons.chevronDown, size: 18, color: du.inkTertiary),
+            onTap: () => setSheet(() => showNotForYou = !showNotForYou),
           ),
+          if (showNotForYou) for (final a in notForYou) alt(a),
+        ],
         const SizedBox(height: 8),
         Center(child: TextButton.icon(onPressed: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseCardScreen(ex.id))); }, icon: const Icon(LucideIcons.bookOpen, size: 18), label: const Text('Open the exercise card'))),
       ]);

@@ -13,6 +13,7 @@ import '../logic/after.dart';
 import '../logic/builder.dart';
 import '../logic/calendar.dart';
 import '../logic/ladder.dart';
+import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'motion.dart';
@@ -29,6 +30,7 @@ class _SessionScreenState extends State<SessionScreen> {
   bool finishing = false;     // the feel question is showing
   Finish? pendingFinish;      // stop reason chosen, waiting for feel
   String? note;               // after finishSession: the one line
+  List<Exercise>? toRate;     // first-time exercises still to get a word, shown before the log
   int? effort;
   bool editing = false;       // the reps reopened to correct the last set
   Timer? _tick;
@@ -81,7 +83,7 @@ class _SessionScreenState extends State<SessionScreen> {
   Widget build(BuildContext context) {
     final store = context.store;
     final session = store.state.active!;
-    if (note != null) return _done(context, note!);
+    if (note != null) return (toRate ?? const []).isNotEmpty ? _rate(context) : _done(context, note!);
     if (finishing) return _feel(context, session);
     if (session.type == 'move') return _move(context, session);
     if (session.exercises.isEmpty) return _feel(context, session);
@@ -534,9 +536,40 @@ class _SessionScreenState extends State<SessionScreen> {
     final f = Finish(feel: feel, stopReason: p?.stopReason, stopAt: p?.stopAt, effort: effort);
     finishSession(store.state, session, f, store.now);
     note = session.note;
+    toRate = firstTimers(store.state, session);
     store.state.active = session; // keep the screen until Done is tapped
     setState(() {});
     _autoTrack(store.state, session);
+  }
+
+  /// Something new today: one row per first-time exercise, a word each, skippable (SELECTION.md).
+  Widget _rate(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final store = context.store;
+    final list = toRate!;
+    return Scaffold(
+      appBar: AppBar(title: Text(list.length == 1 ? 'Something new today' : 'New today'), automaticallyImplyLeading: false),
+      body: Column(children: [
+        Expanded(child: ListView(padding: const EdgeInsets.all(20), children: [
+          Text('One tap each, or skip. Liked goes first for its muscle; not for me is picked only when nothing else fits.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
+          const SizedBox(height: 16),
+          for (var i = 0; i < list.length; i++)
+            Reveal(delay: Duration(milliseconds: 50 * i), child: Padding(padding: const EdgeInsets.only(bottom: 10), child: Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [IconBadge(exerciseIcon(list[i]), size: 36), const SizedBox(width: 10), Expanded(child: Text(list[i].name, style: t.titleMedium))]),
+              const SizedBox(height: 8),
+              ChoiceRow<String>(
+                value: store.state.ex[list[i].id]?.preference ?? '',
+                options: {prefLiked: preferenceLabel[prefLiked]!, prefFine: preferenceLabel[prefFine]!, prefNo: preferenceLabel[prefNo]!},
+                icons: const {prefLiked: LucideIcons.heart, prefFine: LucideIcons.check, prefNo: LucideIcons.thumbsDown},
+                onChanged: (v) => store.update((x) => ensureState(x, list[i]).preference = v),
+              ),
+            ])))),
+        ])),
+        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(
+          onPressed: () => setState(() => toRate = []), icon: const Icon(LucideIcons.chevronRight, size: 18), label: const Text('Continue')))),
+      ]),
+    );
   }
 
   /// With auto-track on, a workout that started is written to the calendar from start to end. Never one that did not.

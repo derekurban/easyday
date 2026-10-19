@@ -1,4 +1,4 @@
-// Exercise library, equipment, patterns, goals, progressions. Pure data and small pure helpers.
+// Exercise library, equipment, goals, progressions, routines. Pure data and small pure helpers.
 import 'howto.dart';
 
 class EquipmentGroup {
@@ -57,27 +57,6 @@ final templates = [
 
 /// The template id of a location made by hand.
 const customLocation = 'custom';
-
-class Pattern {
-  const Pattern(this.id, this.name, {required this.main});
-  final String id;
-  final String name;
-  final bool main;
-}
-
-const patterns = {
-  'squat': Pattern('squat', 'Squat', main: true),
-  'hinge': Pattern('hinge', 'Hinge', main: true),
-  'push': Pattern('push', 'Push', main: true),
-  'pull': Pattern('pull', 'Pull', main: true),
-  'core': Pattern('core', 'Core', main: false),
-  'carry': Pattern('carry', 'Carry', main: false),
-  'arms': Pattern('arms', 'Arms', main: false),
-  'shoulders': Pattern('shoulders', 'Shoulders', main: false),
-  'legs': Pattern('legs', 'Legs', main: false),
-};
-
-String patternName(String id) => patterns[id]?.name ?? id;
 
 class RepRange {
   const RepRange(this.lo, this.hi);
@@ -230,6 +209,8 @@ class Exercise {
   });
   final String id;
   final String name;
+  /// A library tag (squat, hinge, push, pull, core, carry, arms, shoulders, legs). Not used by the app: selection works
+  /// in muscles (SELECTION.md).
   final String pattern;
   /// Any one of the listed equipment sets must be fully available. [[]] means nothing needed.
   final List<List<String>> needs;
@@ -778,22 +759,6 @@ bool available(Exercise ex, Iterable<String> have) {
   final set = have.toSet();
   return ex.needs.any((need) => need.every(set.contains));
 }
-
-/// Rotation items are written in patterns. Mains come first, then accessories.
-/// Rotation items are written in patterns, in priority order. The goal says how many a workout plans.
-class RotationItem {
-  const RotationItem({required this.name, required this.focus, required this.patterns});
-  final String name;
-  final String focus;
-  final List<String> patterns;
-}
-
-const liftItems = [
-  RotationItem(name: 'Workout A', focus: 'legs, chest, back', patterns: ['squat', 'push', 'pull', 'core', 'arms']),
-  RotationItem(name: 'Workout B', focus: 'hips, back, chest', patterns: ['hinge', 'pull', 'push', 'carry', 'arms', 'core']),
-  RotationItem(name: 'Workout C', focus: 'legs, back, chest', patterns: ['squat', 'pull', 'push', 'shoulders', 'legs', 'core']),
-  RotationItem(name: 'Workout D', focus: 'hips, chest, back', patterns: ['hinge', 'push', 'pull', 'arms', 'core', 'legs']),
-];
 
 class Move {
   const Move(this.n, this.how);
