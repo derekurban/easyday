@@ -296,35 +296,6 @@ class RangeBand extends StatelessWidget {
   }
 }
 
-/// The rotation as a row of day pills.
-class RotationPreview extends StatelessWidget {
-  const RotationPreview(this.rotation, {super.key, this.current});
-  final List<RotationEntry> rotation;
-  final int? current;
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
-    return Wrap(spacing: 6, runSpacing: 6, children: [
-      for (var i = 0; i < rotation.length; i++)
-        AnimatedContainer(
-          duration: m(context, durBase),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: i == current ? du.accentSubtle : du.sunk,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: i == current ? du.accentStrong : du.line, width: 0.6),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(rotation[i].type == 'lift' ? LucideIcons.dumbbell : moveIcon(rotation[i].kind), size: 13, color: i == current ? du.accentText : du.inkSecondary),
-            const SizedBox(width: 5),
-            Text(rotation[i].type == 'lift' ? rotation[i].name : (rotation[i].kind == 'cardio' ? 'Move' : 'Mobility'), style: t.labelMedium?.copyWith(color: i == current ? du.accentText : du.inkSecondary)),
-          ]),
-        ),
-    ]);
-  }
-}
-
 /// Label above a value, with an icon. Four of these make a card.
 class StatTile extends StatelessWidget {
   const StatTile({super.key, required this.label, required this.value, this.icon, this.hint});

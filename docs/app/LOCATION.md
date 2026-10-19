@@ -26,7 +26,7 @@ Two things that share a name:
 
 ## What it changes
 
-- **Which exercises fill the workout.** Equipment decides which exercises can take each slot, and how far a
+- **Which exercises fill the workout.** Equipment decides which exercises selection may choose, and how far a
   bodyweight progression can go (loading gear such as a vest or dip belt opens levels above the top version).
   Levels belong to the exercise, not the place, so switching location never resets anything.
 - **The location default.** With the integration on and a saved place nearby, Today and the planning flow
@@ -75,8 +75,8 @@ foreground version has proved useful.
 
 ## How it fits the rest
 
-Location is the equipment side of the workout builder. The rotation is written in slot types; the location
-says which exercises can fill them here. A user with two saved places and the integration on never thinks
+Location is the equipment side of selection. Selection works in muscles; the location says which exercises
+for each muscle can be done here. A user with two saved places and the integration on never thinks
 about it: the right equipment list is there when the app opens. A user with one place never needs the
 integration at all. See `APPLICATION.md` section 11 for how substitution between places keeps levels, and
 `CALENDAR.md` for planning and the other default that sets itself.

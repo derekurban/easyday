@@ -2,8 +2,8 @@
 
 The muscle map is the app's one view of the body: the muscles by the names people use, and strain points, how much
 work each muscle has taken and how much of it is still there. Anything that asks about a muscle asks the muscle
-map: the figure on Today and Progress, the strain points timeline, and the workout builder when it chooses between
-exercises. It never touches a level, a working set, or a verdict. It replaces muscle coverage.
+map: the figure on Today and Progress, the strain points timeline, and selection when it asks which muscles are ready. It never touches a level, a
+working set, or a verdict.
 
 ## The muscles
 
@@ -67,28 +67,22 @@ the same three shades.
 
 ## What it changes
 
-Which exercises the builder picks, and nothing else. The rotation item still lists the patterns; strain points
-decide how each is filled.
+Which muscles are ready, and nothing else. Selection (`SELECTION.md`) asks two things of it:
 
-- **Which exercise fills a pattern.** Candidates whose primary muscles are all strain-free come first. Among those,
-  the one whose most strained primary muscle sits at the lowest shade once today's plan so far is added. Within
-  the same shade, the usual order: practised first, then the library's. On a regular schedule the same exercises
-  keep coming back; they change when strain says so.
-- **Which patterns sit out.** When no candidate for a pattern has strain-free primary muscles, the pattern sits out
-  today and another pattern with a strain-free candidate takes its place, the way a pain pause is filled. When
-  none has one, the least strained candidate stays and the plan says what is still carrying strain.
-- **Which pattern spare minutes add.** More exercises takes the pattern whose candidate sits at the lowest shade
-  with today's plan added, among those with strain-free primary muscles; ties keep the usual order, dropped
-  patterns first.
-- **Shuffle and the swap sheet.** Both order the alternatives the same way, strain-free first.
+- **Is a muscle ready.** A muscle is ready when it is strain-free. A muscle carrying strain waits, however far
+  behind its share it is. Only the user's own pick of a muscle overrides this, and the plan says so.
+- **How strained a candidate's muscles are with today's plan so far.** Once an exercise is on the plan, its
+  strain points from workout are added before the next is chosen, so the next exercise goes to a fresh muscle
+  rather than one the plan has already worked. Among ready candidates the lowest shade comes first.
 
-A user's own pick for a slot always stands.
+Shuffle and the swap sheet read the same two answers. Which muscle is behind, which exercise is preferred, and
+how much a workout holds are not the muscle map's to decide.
 
 ## Where it shows
 
 - **Today:** the strain muscle map of the planned workout, its strain points from workout planned. A tap tells a
-  muscle's strain points from this workout and what it carries now. The lines beside it say what the workout works,
-  what is still carrying strain, and which patterns sit out and why.
+  muscle's strain points from this workout and what it carries now. The lines beside it say what the workout works and
+  what is still carrying strain.
 - **Progress:** the strain muscle map of current strain points, a line on what is strained and what is strain-free,
   and for each muscle a fourteen-day strip of its strain points at the end of each day, with when it was last
   worked.
@@ -110,11 +104,12 @@ strain-free, and when each muscle was last worked. The figure takes strain point
 - Change a level, a working set count, the time fit, or how a workout is judged. The easy day's two working turns
   still go to the exercises that have waited longest.
 - Add a set to chase a muscle, or let one muscle pass 1.00.
+- Choose a muscle for being behind, or an exercise for being liked. Those are selection's to decide.
 
 ## How it fits the rest
 
-The builder (`WORKOUT.md`) decides how many exercises and sets there are and at what level; the muscle map decides
-which exercises fill the patterns. The muscle index (`EXERCISES.md`) folds the muscles into groups for browsing.
+Selection (`SELECTION.md`) decides which muscles and which exercises; the builder (`WORKOUT.md`) decides how many
+exercises and sets there are and at what level; the muscle map says which muscles are ready. The muscle index (`EXERCISES.md`) folds the muscles into groups for browsing.
 Progression (`APPLICATION.md` section 8) never hears from it.
 
 ## Settings
@@ -134,5 +129,4 @@ All fixed for now.
 
 - Whether a set at the next level on a hard day should give more than a working set.
 - Whether cardio should give the legs a little.
-- Plans that read strain points to choose the day, not only the exercises: splits and a cycle designer
-  (`IDEAS.md`).
+- Whether big muscles and heavy compounds should decay slower than small ones (`IDEAS.md`).

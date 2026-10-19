@@ -9,16 +9,16 @@ The logic in `lib/logic/` is the spec in `../docs/app/APPLICATION.md` (sections 
 | Path | What |
 |---|---|
 | `lib/data/library.dart` | Exercise library: 137 built-in exercises (loaded ones standalone, bodyweight ones as progressions of levels), equipment, location and goal templates, routines |
-| `lib/data/index.dart` | Indexes: the five ways the library can be grouped for browsing (muscle group, body region, movement pattern, equipment, progression type) |
+| `lib/data/index.dart` | Indexes: the five ways the library can be grouped for browsing (muscle group, body region, equipment, progression type, difficulty), and the twenty muscle names folding onto eleven groups |
 | `lib/data/howto.dart` | How-to text per level for every bodyweight progression |
 | `lib/integrations.dart` | Notifications (daily reminder), calendar (busy minutes today), location (nearest saved place) |
 | `lib/data/model.dart` | Persisted state with hand-written JSON |
 | `lib/data/store.dart` | One JSON blob in shared preferences, plus the shiftable clock |
 | `lib/logic/ladder.dart` | Levels: what one means per exercise, ceilings, labels, cost in play, timing seeds (the code still says rung/ladder; the UI says level/progression) |
-| `lib/logic/builder.dart` | Builds a workout: the same exercises at every energy; intents (light / working / extra) set the expression, sets and reserve; the minutes are filled, spare minutes go where the goal says, cardio and stretching close it (docs/app/WORKOUT.md) |
+| `lib/logic/selection.dart` | Selection: the share ledger (sets per muscle group over the look-back against a target scaled by emphasis), the user's word per exercise (liked / fine / not for me), the turn for something new, swaps in a row, the why-line (docs/app/SELECTION.md) |
+| `lib/logic/builder.dart` | Builds a workout: picks the muscles (ready, then furthest behind) and an exercise for each, then the same exercises at every energy; intents (light / working / extra) set the expression, sets and reserve; the minutes are filled, spare minutes go where the goal says, cardio and stretching close it (docs/app/WORKOUT.md) |
 | `lib/logic/after.dart` | After a workout: each exercise judged against its working level (neutral / hit / step up now / hold / miss), timing model, the feel tap moving spare minutes, defaults, the one line |
 | `lib/logic/person.dart` | Person state and nudges |
-| `lib/logic/rotation.dart` | The rotation |
 | `lib/ui/` | Screens: onboarding, today (with the done-for-today state), session (straight sets or circuit), exercise card, catalog (grouped by the chosen index), progress, settings. `theme.dart` carries the design-system tokens, `widgets.dart` the shared controls, `motion.dart` the motion tokens |
 | `tool/` | The dev loop, `icons.py`, `publish.sh` (below) |
 
@@ -118,11 +118,11 @@ renamed, relabelled or made a dropdown in a form. See `../docs/app/FEEDBACK.md`.
 ## Words
 
 The spec and the UI say **progression** and **level**; the code still says ladder and rung in a few places (`ladder.dart`,
-`rung` fields). The UI says **workout**; the code says `Session`. Movement patterns (squat, hinge, push, pull, ...) are
-internal to the builder and never shown.
+`rung` fields). The UI says **workout**; the code says `Session`. The library still carries a movement-pattern tag per
+exercise (squat, hinge, push, pull, ...); nothing reads it. There is no rotation: every workout is built from the
+muscles when the user shows up (`docs/app/SELECTION.md`).
 
 ## Not in this build yet
 
-Diagrams and the step guides with visuals (see `../docs/`). The rotation (which slot types each workout
-holds) is fixed; the goal decides how many of them a workout plans. The reminder is a fixed line at a fixed hour; it does
+Diagrams and the step guides with visuals (see `../docs/`). The reminder is a fixed line at a fixed hour; it does
 not yet know whether today's workout is already done.

@@ -6,6 +6,8 @@ import '../data/library.dart';
 import '../data/model.dart';
 import 'builder.dart' show changeSeconds, warmupSetsSeconds;
 import 'ladder.dart';
+import 'person.dart';
+import 'selection.dart';
 import 'workout.dart';
 
 class Finish {
@@ -43,7 +45,7 @@ void undoSet(Session session, int exIdx) {
 
 String _reps(Iterable<SetLog> sets) => sets.where((x) => x.attempted).map((x) => x.reps).join(', ');
 
-/// Finish: write history, judge each exercise, update timing, budgets, defaults, rotation, and the note.
+/// Finish: write history, judge each exercise, update timing, budgets, defaults, and the note.
 void finishSession(AppState s, Session session, Finish f, DateTime now) {
   session.endedAt = now;
   session.feel = f.feel;
@@ -56,11 +58,12 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
     _judge(s, session, now, lines);
     _learnTiming(s, session);
     if (f.stopReason == StopReason.pain && f.stopAt != null && f.stopAt! < session.exercises.length) {
-      final pattern = session.exercises[f.stopAt!].pattern;
-      s.plan!.paused[pattern] = now.add(Duration(days: s.settings.painRestDays));
-      lines.insert(0, '${session.exercises[f.stopAt!].exercise.name} and similar moves rest for ${s.settings.painRestDays} days, then come back one level down.');
+      final ex = session.exercises[f.stopAt!].exercise;
+      s.plan!.paused[ex.id] = now.add(Duration(days: s.settings.painRestDays));
+      lines.insert(0, '${ex.name} and its muscles rest for ${s.settings.painRestDays} days, then it comes back one level down.');
     }
     _learnSpare(s, session, lines);
+    _learnAsked(s, session, now, lines);
   } else {
     lines.add(session.kind == 'cardio' ? 'Movement counts. The next workout is ready tomorrow.' : 'Mobility done. The next workout is ready tomorrow.');
   }
@@ -70,8 +73,20 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
   s.sessions.add(session);
   s.active = null;
   s.lastLocationId = session.locationId ?? s.lastLocationId;
-  final plan = s.plan!;
-  plan.index = (plan.index + 1) % plan.rotation.length;
+}
+
+/// The muscles the user asked for by hand: remembered, and after three asks in two weeks one line suggests more
+/// emphasis for the group. Never a change.
+void _learnAsked(AppState s, Session session, DateTime now, List<String> lines) {
+  final p = s.plan!;
+  for (final e in session.exercises) {
+    if (e.asked && e.attempted.isNotEmpty) p.asked.add((group: e.muscle, at: now));
+  }
+  p.asked.removeWhere((a) => daysBetween(a.at, now) > askedMuscleDays * 2);
+  for (final grp in moreSuggestions(s, now)) {
+    p.moreSuggested.add(grp);
+    lines.add('You keep asking for ${grp.toLowerCase()}. Set it to more in Settings → Goal if you like.');
+  }
 }
 
 /// The verdict for one exercise, read against its working level. Intent is never an input. WORKOUT.md, "Judging".
@@ -110,6 +125,7 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
     st.appearances++;
     st.lastDoneAt = now;
     st.decayPeriodsApplied = 0;
+    st.swappedOut = 0;
     if (session.skipped.contains(idx)) continue;
     if (session.stopReason == StopReason.pain && session.stopAt == idx) continue;
     if (e.edited && e.rung != st.rung) continue; // today's rung was edited but not saved: nothing to judge against

@@ -1,68 +1,79 @@
 """Draw the Android launcher icons from the brand mark in ../app/icon.svg.
 
-The mark is two brackets around a bar, the closing bracket in the accent green, on a dark rounded square.
-Rather than rasterising the SVG (no cairo here) this redraws its three stroked paths with Pillow, supersampled.
+The mark is two brackets around a dumbbell tilted 45 degrees, the closing bracket in the accent green, on a dark
+rounded square. Its proportions follow the design system's logo: a square frame, arms 15.6% of the bracket height,
+and strokes at 1.3x the logo's weight so they hold up at launcher sizes. Everything sits inside Android's safe zone.
+
+Rather than rasterising the SVG (no cairo here) this redraws it with Pillow, supersampled. Every stroke is horizontal
+or vertical before the tilt, so each one is an exact rounded rectangle. The dumbbell is drawn upright on a mask and
+rotated, and colour is painted through masks so rotated edges stay clean.
 
   python -I tool/icons.py          writes prod icons under android/app/src/main/res and staging ones under
                                    android/app/src/staging/res (amber closing bracket, so the two are told apart)
 
 Legacy ic_launcher.png is the full rounded square. The adaptive icon (API 26+) is a solid background colour
-plus a transparent foreground with the glyph inside the safe zone, and a white monochrome layer for themed icons.
+plus a transparent foreground with the mark inside the safe zone, and a white monochrome layer for themed icons.
 """
 import os
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageDraw
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 INK, PAPER = (27, 27, 27, 255), (238, 238, 238, 255)
 ACCENT = {'prod': (134, 171, 122, 255), 'staging': (224, 160, 48, 255)}
 SS = 4  # supersample
 
-# the SVG: a 64-unit box, the paths in a 100-unit space transformed by translate(-0.8) scale(0.656)
-LEFT = [(30, 22), (20, 22), (20, 78), (30, 78)]
-RIGHT = [(70, 22), (80, 22), (80, 78), (70, 78)]
-BAR = [[(34, 50), (66, 50)], [(34, 42), (34, 58)], [(42, 37), (42, 63)], [(58, 37), (58, 63)], [(66, 42), (66, 58)]]
+# the SVG's 100-unit tile: what the launcher shows. Brackets: (x, y) points, stroke width.
+W = 7.09
+LEFT = [(30.05, 21), (21, 21), (21, 79), (30.05, 79)]
+RIGHT = [(69.95, 21), (79, 21), (79, 79), (69.95, 79)]
+# the dumbbell before rotate(-45 50 50): the bar as a stroke, the plates as (x, y, w, h, corner radius)
+BAR, BAR_W = [(32, 50), (68, 50)], 5.32
+PLATES = [(34.36, 38, 10.28, 24, 2), (55.36, 38, 10.28, 24, 2), (27.78, 42.5, 7.44, 15, 1.8), (64.78, 42.5, 7.44, 15, 1.8)]
+TILE_RADIUS = 22
 
 
-def stroke(d, pts, width, color, tf):
-    """A polyline with round caps and joins."""
-    p = [tf(x, y) for x, y in pts]
+def stroke(d, pts, width, tf):
+    """A polyline of horizontal and vertical segments with round caps and joins, one rounded rectangle per segment."""
     r = width / 2
-    for a, b in zip(p, p[1:]):
-        d.line([a, b], fill=color, width=max(1, round(width)))
-    for x, y in p:
-        d.ellipse([x - r, y - r, x + r, y + r], fill=color)
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        (ax, ay), (bx, by) = tf(min(x0, x1), min(y0, y1)), tf(max(x0, x1), max(y0, y1))
+        d.rounded_rectangle([ax - r, ay - r, bx + r, by + r], radius=r, fill=255)
 
 
-def glyph(d, unit, accent, mono=None, offset=(0, 0)):
-    """Draw the mark with the 64-unit box scaled by `unit` pixels and shifted by `offset`."""
+def masks(s, unit, off):
+    """Paper and accent masks at s pixels, the 100-unit tile scaled by `unit` pixels and shifted by `off`."""
     def tf(x, y):
-        return (offset[0] + (-0.8 + 0.656 * x) * unit, offset[1] + (-0.8 + 0.656 * y) * unit)
-    w9, w8 = 9 * 0.656 * unit, 8 * 0.656 * unit
-    fg = mono or PAPER
-    stroke(d, LEFT, w9, fg, tf)
-    for seg in BAR:
-        stroke(d, seg, w8, fg, tf)
-    stroke(d, RIGHT, w9, mono or accent, tf)
+        return (off + x * unit, off + y * unit)
+    paper, accent, bell = (Image.new('L', (s, s), 0) for _ in range(3))
+    stroke(ImageDraw.Draw(paper), LEFT, W * unit, tf)
+    stroke(ImageDraw.Draw(accent), RIGHT, W * unit, tf)
+    d = ImageDraw.Draw(bell)
+    stroke(d, BAR, BAR_W * unit, tf)
+    for x, y, w, h, r in PLATES:
+        d.rounded_rectangle([*tf(x, y), *tf(x + w, y + h)], radius=r * unit, fill=255)
+    bell = bell.rotate(45, resample=Image.BICUBIC, center=tf(50, 50))  # Pillow turns counterclockwise, as SVG's -45 does
+    return ImageChops.lighter(paper, bell), accent
+
+
+def paint(im, paper, accent, colours):
+    im.paste(colours[0], (0, 0), paper)
+    im.paste(colours[1], (0, 0), accent)
+    return im
 
 
 def legacy(size, accent):
     s = size * SS
     im = Image.new('RGBA', (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    unit = s / 64
-    d.rounded_rectangle([0, 0, s - 1, s - 1], radius=14 * unit, fill=INK)
-    glyph(d, unit, accent)
+    ImageDraw.Draw(im).rounded_rectangle([0, 0, s - 1, s - 1], radius=TILE_RADIUS * s / 100, fill=INK)
+    paint(im, *masks(s, s / 100, 0), (PAPER, accent))
     return im.resize((size, size), Image.LANCZOS)
 
 
 def foreground(size, accent, mono=False):
-    """108-unit adaptive canvas; the 64-unit box spans 80 units so the glyph sits inside the 66-unit safe circle."""
+    """108-unit adaptive canvas; launchers show the middle 72, so that is where the 100-unit tile goes."""
     s = size * SS
     im = Image.new('RGBA', (s, s), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    unit = s * 80 / 108 / 64
-    off = (s - 64 * unit) / 2
-    glyph(d, unit, accent, mono=PAPER if mono else None, offset=(off, off))
+    paint(im, *masks(s, s * 72 / 108 / 100, s * 18 / 108), (PAPER, PAPER if mono else accent))
     return im.resize((size, size), Image.LANCZOS)
 
 

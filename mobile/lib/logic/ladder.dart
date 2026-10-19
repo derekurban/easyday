@@ -1,6 +1,7 @@
 // The ladder: what a rung means for each exercise, where it starts, where it tops out, and how it is shown.
 import 'dart:math';
 
+import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 
@@ -111,7 +112,8 @@ int difficultyInPlay(Exercise ex, ExerciseState? st) {
   return (base + (st?.costUp ?? 0) - (st?.costDown ?? 0)).clamp(1, 3);
 }
 
-/// Starting state for an exercise: from experience, or from history with another loaded exercise in the pattern.
+/// Starting state for an exercise: from experience, or from history with another loaded exercise for the same primary
+/// muscle, the most practised one.
 ExerciseState ensureState(AppState s, Exercise ex) {
   final existing = s.ex[ex.id];
   if (existing != null) return existing;
@@ -123,8 +125,9 @@ ExerciseState ensureState(AppState s, Exercise ex) {
     var base = ex.startKg![exp] / pctFor(middleReps);
     ExerciseState? knownSt;
     Exercise? known;
+    final group = ex.primary.isEmpty ? null : muscleGroup(ex.primary.first);
     for (final other in exercises) {
-      if (other.pattern != ex.pattern || other.id == ex.id || !other.loaded) continue;
+      if (other.id == ex.id || !other.loaded || other.primary.isEmpty || muscleGroup(other.primary.first) != group) continue;
       final o = s.ex[other.id];
       if (o == null || o.appearances == 0) continue;
       if (knownSt == null || o.appearances > knownSt.appearances) { knownSt = o; known = other; }

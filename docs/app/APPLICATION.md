@@ -68,14 +68,12 @@ Ranked by how directly each one causes quitting.
 
 ## 4. Vocabulary
 
-- **Goal.** What the plan is for: what each workout covers, in priority order and up to how many, the rep
-  band for each difficulty, and how often a movement day replaces a lifting day. Starts from a plain-language template such as
+- **Goal.** What the plan is for: how many exercises and sets a workout holds, the rep band for each
+  difficulty, how many sets each muscle group should get over the look-back and which groups get more or
+  less, and how often a movement day replaces a lifting day. Starts from a plain-language template such as
   "get stronger" or "build muscle"; every knob can be changed, and a changed template is a custom goal.
-- **Movement pattern.** The building block of a plan: squat, hinge, push, pull, carry, core, arms,
-  shoulders, legs, plus cardio and mobility blocks. Plans are written in patterns, not exercises. There is
-  no main or accessory pattern; there is an order.
-- **Exercise.** A specific implementation of a pattern with specific equipment. Barbell bench press and
-  dumbbell floor press are two exercises for the same push pattern.
+- **Exercise.** A named movement with specific equipment, tagged with the muscles it works. Barbell bench
+  press and dumbbell floor press are two exercises for the chest.
 - **Progression and level.** Every exercise is a progression. A level is one notch harder: the next weight step for a
   barbell or machine, the next pair for dumbbells, the next variant for a bodyweight exercise. The user's
   position on each progression is their level.
@@ -98,22 +96,27 @@ Ranked by how directly each one causes quitting.
 - **Spare minutes.** What is left once the listed exercises fit: more exercises, cardio, or rest. One
   plain setting, tuned by the feel tap.
 - **Muscle map.** The app's one view of the body: the muscles, and strain points, how much work each
-  has taken (0.00 to 1.00) and how much is left after the strain point decay. Chooses between candidate
-  exercises; never touches a level. See `MUSCLE_MAP.md`.
+  has taken (0.00 to 1.00) and how much is left after the strain point decay. Says which muscles are ready;
+  never touches a level. See `MUSCLE_MAP.md`.
+- **Readiness.** A muscle is ready when it is strain-free. The first question selection asks.
+- **Share.** The sets a muscle group has had over the look-back, against the target the goal sets for it,
+  scaled by its emphasis. Behind, on track, or done. The second question selection asks. See `SELECTION.md`.
+- **Emphasis.** Less, usual or more, per muscle group. Scales that group's share target.
+- **Preference.** Liked, fine or not for me, per exercise; unrated until the user says. Chooses the exercise
+  for a muscle, never the muscle.
 - **Timing model.** Learned seconds per set per exercise, including rest, from the gaps between set taps.
-- **Location.** A place the user trains, with an equipment profile. Location decides which exercise
-  implements each pattern and how high each progression can go.
-- **Rotation.** The ordered list of workouts in the plan. The next workout is always the next item,
-  regardless of the calendar.
-- **Workout.** One visit. Built from the next item in the rotation, implemented for the current location,
-  filled for the chosen energy and time.
+- **Location.** A place the user trains, with an equipment profile. Location decides which exercises can be
+  done and how high each progression can go.
+- **Workout.** One visit. Built when the user shows up, from the muscles most behind among those ready,
+  with the exercises the location allows, filled for the chosen energy and time. There is no schedule and no
+  fixed list of workouts; every visit is built fresh from history.
 - **Movement workout.** The alternative to a lifting workout: a cardio duration or a short mobility
   routine. Requires no decisions beyond picking it.
 - **Set outcome.** Hit the top, a rep count below it, or not attempted. See section 8.
 - **Mode.** Straight sets (all sets of one exercise, then the next) or circuit (one set of each exercise per
   round). Chosen before starting; it changes the order, nothing else.
 - **Index.** A way of grouping the library for browsing: by muscle group (the default), body region,
-  movement pattern, equipment, or progression type. The user picks one; it never changes what gets built.
+  equipment, progression type, or difficulty. The user picks one; it never changes what gets built.
 - **Stop reason.** Why a workout ended early: out of energy, out of time, something hurts, or no reason.
   No reason is allowed and carries no penalty: nothing is judged and no default moves.
 - **Decay.** What happens to a level, and to a cost, when an exercise is not practised for a while.
@@ -128,14 +131,14 @@ Ranked by how directly each one causes quitting.
    the user has, or, with the time limit switched off, how many exercises, starting at the goal's ideal. The
    defaults come from last time and the calendar. After a week away, energy defaults to easy. Changing either
    is one tap or one drag.
-3. **It shows what that makes of today.** The next item in the rotation, implemented with the current
-   location's equipment: its name, one line of numbers, and a body map of what it works, with a line or two
-   saying why and what has not been worked lately. Swapping to a movement workout and changing location
-   happen here.
+3. **It shows what that makes of today.** The workout the selection rules built for the current location:
+   one line of numbers and a body map of what it works, with a line or two saying which muscles were chosen
+   and why, and what is still carrying strain. Swapping to a movement workout, changing location, and asking
+   for a muscle the plan did not pick happen here.
 4. **Plan it.** The plan lays the workout out in order: the warm-up, each exercise with its level, sets and
-   minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another of the same
-   pattern, edit today's level (or save it as the new level), move an exercise up or down, pick the warm-up,
-   leave out cardio or stretching today, and choose one at a time or circuit. Start starts the clock.
+   minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another for the same
+   muscle, edit today's level (or save it as the new level), move an exercise up or down, leave an exercise
+   out today, pick the warm-up, leave out cardio or stretching today, and choose one at a time or circuit. Start starts the clock.
 5. **Do the workout.** A strip of the whole workout runs across the top, warm-up to stretching, and one thing
    is asked at a time. A set is lifting from the moment the user says I'm ready (Start, for the first) until
    the reps go in: one tap on the exercise's range, with one button for anything under it and one for
@@ -148,10 +151,11 @@ Ranked by how directly each one causes quitting.
    logged: one line about what changed, the time it took against the plan, and where it went, lifting and
    rest.
 7. **The app updates.** History is written, the progression judges each exercise, the timing model updates
-   seconds per set, person state is recomputed, the rotation advances, and one line explains what changed.
+   seconds per set, person state is recomputed, and one line explains what changed.
 
 There is no step where the user plans, chooses exercises, or decides on weights. There is no "Tuesday
-workout" to miss. Whenever they come back, the next workout is waiting.
+workout" to miss and no list to fall behind on. Whenever they come back, a workout built from where their
+body is now is waiting.
 
 **Closure.** A finished workout closes the day. Today shows what changed and that the next workout is
 ready tomorrow; nothing else is waiting. The next workout appears on the next calendar day, or at once if
@@ -162,47 +166,49 @@ the user asks for it. One workout a day is the shape people recognise; back-to-b
 Onboarding asks for as little as possible and infers the rest from the first few workouts.
 
 - **Goal.** The user's own, named and shaped in plain words. Templates are suggestions that fill every
-  knob at a tap: what a workout covers, the reps it likes, how many exercises and sets, how often a
-  movement day comes round. Any knob can be changed right there, or later in settings. The same goes for
+  knob at a tap: the reps it likes, how many exercises and sets, the sets each muscle group should get over
+  the look-back, how often a movement day comes round. Any knob can be changed right there, or later in settings. The same goes for
   locations: name it, tick what is there, or fill it from a template first.
 - **Experience.** Rough self-rating, used only to seed starting levels conservatively.
-- **Availability.** Rough days per week. Used to choose the rotation length, not to fix days.
+- **Availability.** Rough days per week. Seeds the sets target per muscle group; never fixes days.
 - **Locations.** At least one, the user's own: a name and an equipment list, filled from a template such
   as "commercial gym", "home with dumbbells and a bench", or "nothing" if that helps.
 - **Units.** Kilograms or pounds. Loads are stored in kilograms; steps and display follow the chosen unit.
 
-**Goal translation** maps the chosen goal to the order patterns are covered in, the reps it likes, and
-how much of the rotation is movement workouts. Strength likes heavy and few: its hard exercises train at
+**Goal translation** maps the chosen goal to the reps it likes, the sets each muscle group should get, and
+how often a movement workout comes round. Strength likes heavy and few: its hard exercises train at
 4 to 6, medium ones at 8 to 12, easy ones at 12 to 15. Muscle likes the middle; fitness likes light and
 many (the table is in `WORKOUT.md`). Changing the goal retranslates the plan but keeps every level, so
 changing goals never means starting over: the weight follows the reps.
 
 ## 7. Building a workout
 
-A workout fills the minutes with the exercises the goal lists, then turns three dials on each to match the
-energy pick. The full procedure is in `WORKOUT.md`; the shape is:
+A workout fills the minutes with exercises for the muscles that need them most, then turns three dials on
+each to match the energy pick. Selection is in `SELECTION.md` and the fit in `WORKOUT.md`; the shape is:
 
-1. **Take the next rotation item.** A list of patterns in order. There is no main and no accessory.
-2. **Pick an exercise for each pattern** from what the location has. Where several fit, the muscle map
-   chooses by strain points: strain-free primary muscles first; a pattern with none sits out for another
-   (`MUSCLE_MAP.md`). Energy plays no part.
+1. **Pick the muscles.** Ready muscles first, the ones that are strain-free. Among them, the ones furthest
+   behind their share over the look-back, emphasis first. As many as the goal's ideal count of exercises.
+2. **Pick an exercise for each muscle** from what the location has: ready, then preferred, then practised.
+   Nothing here reads energy.
 3. **Fit the minutes at normal**, less the warm-up, and spend the spare minutes as the goal says: more
-   exercises, cardio, or rest. With the time limit off, the count decides instead and the minutes follow.
-   This list is the workout at every energy.
+   exercises for the next muscles behind, cardio, or rest. With the time limit off, the count decides
+   instead and the minutes follow. This list is the workout at every energy.
 4. **Turn the dials** for the energy picked: easy is light everywhere with two of the easier exercises at
    working, the ones that have waited longest; normal is working everywhere; hard is the next level on
    the hardest, every set, as many exercises as the setting asks. Intent sets the expression (the reps,
    and so the weight), the sets, and the reserve. The expression never changes with energy; a hard day is
    the same sets and minutes one step heavier, so it always fits.
 5. **Cardio and stretching close it** with their shares. More minutes always mean at least as many sets.
-6. **Order it** hardest first; at the same difficulty, extra and working before light. Every row and the
+6. **Order it** emphasised muscles first, then hardest first; at the same difficulty, extra and working
+   before light. Every row and the
    whole workout are shown against the user's usual: "60 %", "usual", "+1 set".
 
 Energy never changes a level, never changes which exercises are in the workout, and never changes how an
 exercise is judged. It only decides which intent each exercise gets today.
 
-The user can reshuffle the exercises of today's workout, or swap any one of them for another exercise of the
-same pattern available at the location. Levels follow the exercise, so a swap never costs progress. A swap is
+The user can reshuffle the exercises of today's workout, swap any one of them for another exercise for the
+same muscle available at the location, or ask for a muscle the plan did not pick. Levels follow the
+exercise, so a swap never costs progress. A swap is
 repriced in minutes. Every exercise carries a how-to at its level, and the workout shows the muscle
 groups it will work.
 
@@ -239,7 +245,7 @@ Stop reasons are separate from set outcomes, and each one has one owner:
 - **Out of energy.** Nudges the energy default toward easy. The one exercise it cut mid-way at the working
   level is a miss; everything after it is not attempted.
 - **Out of time.** Nudges the time default toward short. Never a progression signal.
-- **Something hurts.** Pauses the pattern. See 8.6.
+- **Something hurts.** Pauses the exercise and its muscles. See 8.6.
 
 Why this matters: "I couldn't" and "I didn't want to" look identical in a set count but mean opposite
 things. One says the level is too high. The other says the day was too big. Confusing them makes the app
@@ -283,8 +289,8 @@ variants are further levels. Otherwise the hardest variant is the ceiling.
 **At the ceiling.** When no higher level exists, the range opens upward and the target becomes beating the
 best total reps across the sets. There is always a next thing without inventing equipment.
 
-**Starting levels.** From experience level, or from the user's history with another exercise in the same
-pattern, scaled and clamped between half and double.
+**Starting levels.** From experience level, or from the user's history with another exercise for the same
+primary muscle, scaled and clamped between half and double.
 
 ### 8.3 Energy and cost: per workout
 
@@ -360,15 +366,16 @@ rest a timer that starts the next set by itself.
 
 ### 8.6 Pain
 
-A pain stop pauses that pattern for the pain rest period, default seven days. The workout builder
-substitutes another pattern or a movement block. The pattern returns on its own one level down, and the
-user can pause it again with one tap. Anything longer than a pause needs a human, not an app.
+A pain stop pauses that exercise and its primary muscles for the pain rest period, default seven days.
+Selection fills the workout from the muscles that are not paused. The exercise returns on its own one level
+down, and the user can pause it again with one tap. Anything longer than a pause needs a human, not an app.
 
 ### 8.7 To the human, always
 
 - **After each workout**, one line about what changed and why, such as "Rows step up next time: you hit
   twelve on every set." Or "Bench stays: eight, eight, six. Next time."
-- **Between workouts**: workouts per month, level trend per pattern, days active this month. Never streaks.
+- **Between workouts**: workouts per month, level trend per muscle group, each group's share of the
+  look-back, days active this month. Never streaks.
 - **On each exercise card**: the level, the average time per set, the best total at this level, and the
   cost with its override.
 
@@ -400,7 +407,11 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 
 | Setting | Default | Range |
 |---|---|---|
-| The goal: what to cover in order, rep ranges tagged by difficulty, movement days | filled from a template | any order; up to six ranges, those sharing a tag cycling by workout |
+| The goal: rep ranges tagged by difficulty, movement days | filled from a template | up to six ranges, those sharing a tag cycling by workout |
+| Look-back for a muscle group's share | 7 days | 3 to 14 |
+| Sets per muscle group over the look-back | from days per week: 6, 8 or 10 | 2 to 30 |
+| Emphasis, per muscle group | usual | less, usual, more |
+| Try new exercises | rarely | rarely, sometimes, often |
 | Different exercises in a workout: fewest, ideal, most | 2, 4, 6 | 1 to 10 |
 | Reps per exercise | the goal's range for its difficulty | any range |
 | Hard day, next level on: tight, usual, long | 1, 2, 3 | 0 to 10 |
@@ -414,9 +425,10 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 | Workouts below the bottom before a level steps down | 2 | 1 to 5 |
 | Weeks before an unused level decays | 3 | 2 to 8, or off |
 | Days away before easy is the default | 7 | 5 to 21 |
-| Days a pattern rests after pain | 7 | 3 to 28 |
+| Days an exercise and its muscles rest after pain | 7 | 3 to 28 |
 | Difficulty of an exercise (per exercise, on its card) | library default | easy, medium, hard |
-| Index the library is grouped by | muscle group | muscle group, body region, movement pattern, equipment, progression type, difficulty |
+| Preference for an exercise (per exercise, on its card and the swap sheet) | unrated | liked, fine, not for me |
+| Index the library is grouped by | muscle group | muscle group, body region, equipment, progression type, difficulty |
 | Reminder, calendar, position | each off | their own sections; `CALENDAR.md` and `LOCATION.md` list theirs |
 
 Everything else in section 8 is a fixed rule or learned.
@@ -454,10 +466,10 @@ default do that work without a mode.
   to inventory their dumbbells.
 - Location is chosen once per workout, defaulting to the last used or the detected one.
 - A one-off "no equipment today" override exists for hotels and travel without creating a location.
-- Continuity across locations comes from patterns: the plan tracks levels per exercise, but the rotation
-  is written in patterns, so switching location swaps exercises without resetting anything. When a
-  pattern's usual exercise is unavailable, the substitute's level comes from the user's history with that
-  substitute, or a conservative estimate if there is none.
+- Continuity across locations comes from muscles: levels live on exercises and selection works in muscles,
+  so switching location changes the exercises without resetting anything. An exercise never done before
+  takes its level from the user's history with another exercise for the same muscle, or a conservative
+  estimate if there is none.
 - Equipment decides how high a bodyweight progression goes. A vest, a dip belt or a loadable backpack adds
   loaded levels; without them the hardest variant is the ceiling.
 
@@ -472,8 +484,8 @@ one thing:
   a finished workout is written back. Its own section in Settings (`CALENDAR.md`).
 - **Location.** Picks the nearest saved location when the app opens, if the user saved a position for it.
 
-Scheduling is sequence-based. The rotation has no days attached. The calendar matters only for gentle
-suggestions and for the gap detection that drives person state.
+There is no schedule. A workout is built from history whenever the user shows up. The calendar matters only
+for gentle suggestions and for the gap detection that drives person state.
 
 Automations observe context and change defaults. They never start a workout, log anything, or move a
 level. An energy or time they default to does not count as the user's choice.
@@ -493,18 +505,17 @@ level. An energy or time they default to does not count as the user's choice.
 
 ## 13. What the user sees
 
-- **Today.** How the user is and what that makes of today: the workout's name, one line of numbers, and a
-  body map of what it works with two or three lines saying why and what has not been worked lately. The
-  controls sit at the bottom where the thumb is: energy, time (minutes, or with the time limit off, how
-  many exercises), move instead, and Plan it. Changing any of them rebuilds the workout in place.
+- **Today.** How the user is and what that makes of today: one line of numbers, and a body map of what it
+  works with two or three lines saying which muscles were chosen and why, and what is still carrying
+  strain. A control to work a muscle the plan did not pick. The controls sit at the bottom where the thumb
+  is: energy, time (minutes, or with the time limit off, how many exercises), move instead, and Plan it. Changing any of them rebuilds the workout in place.
 - **Plan.** The workout in order, warm-up to stretching, each exercise with its level, sets and minutes,
   and a bar of the whole. A row shows a tag only when today differs from the usual: next level, 85 %, a
   version down; never an exercise's class. Reshuffle, swap, level, move, warm-up, cardio and stretching
   today, one at a time or circuit, and Start.
 - **Words.** "Progression" and "level" are explained in plain words on first run, on every exercise card, and
   wherever a level can be edited: the progression is every step an exercise can get harder by, the level is the
-  step you are on. No screen assumes the user knows the vocabulary. Movement patterns (squat, hinge, push,
-  pull) are never a label on a row; they are one index the user can choose to browse by.
+  step you are on. No screen assumes the user knows the vocabulary.
 - **During.** The strip of the whole workout, the item under way marked lifting or resting; the current
   exercise, its level and its sets; a guide that says what to do now ("Go give it your best!", or "Rest up
   and let us know when you're ready" with the planned rest and what comes next); the lifting and rest so
@@ -514,8 +525,10 @@ level. An energy or time they default to does not count as the user's choice.
   the time against the plan, and lifting and rest for the workout and each item.
 - **Exercise card.** Level, average time per set, best total at this level, cost with override, and the
   step guide.
-- **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. The strain muscle map of current strain points, a strip per muscle, and the strain points timeline. Days active this month. Nothing
-  that resets to zero.
+- **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. The
+  strain muscle map of current strain points, a strip per muscle, and the strain points timeline. Each
+  muscle group's share of the look-back against its target, with its emphasis beside it. Days active this
+  month. Nothing that resets to zero.
 - **Settings.** The settings of section 9, in plain words, with the reminder, the calendar and the
   locations each in a section of their own.
 
@@ -557,6 +570,8 @@ stay lean.
 - `EXERCISES.md`: what an exercise is, its levels and how-to, the library, and the indexes it can be browsed by.
 - `WORKOUT.md`: filling the minutes, a level as strength and its expressions, intents and the energy
   dials, spare minutes, and judging against the working level.
+- `SELECTION.md`: which muscles a workout works and which exercise works each one: readiness, share and
+  emphasis, preference, trying something new, and the user's own picks.
 - `MUSCLE_MAP.md`: the muscles, strain points from set, exercise and workout, their decay, the three shades,
-  the strain points timeline, and how strain points choose between exercises.
+  the strain points timeline, and readiness.
 - `IDEAS.md`: things worth keeping that are not being built now.

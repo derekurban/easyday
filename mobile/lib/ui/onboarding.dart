@@ -5,7 +5,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/library.dart';
 import '../data/model.dart';
-import '../logic/rotation.dart';
 import 'app.dart';
 import 'goal_editor.dart';
 import 'how.dart';
@@ -47,12 +46,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       (title: 'How much have you lifted?', blurb: 'Only used to pick a conservative first level on each exercise. It corrects itself in a workout or two.', body: Column(children: [
         for (final e in experiences) OptionCard(icon: experienceIcon(e.id), title: e.name, blurb: e.blurb, selected: experience == e.id, onTap: () => setState(() => experience = e.id)),
       ])),
-      (title: 'How many days a week, roughly?', blurb: 'Sets the length of the rotation. There are no fixed days: whenever you come back, the next workout is waiting.', body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      (title: 'How many days a week, roughly?', blurb: 'Seeds how many sets each muscle group aims for over a week. There are no fixed days: whenever you come back, a workout built from where your body is now is waiting.', body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ChoiceRow<int>(value: days, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, onChanged: (v) => setState(() => days = v)),
         const SizedBox(height: 8),
-        Text('Your rotation', style: t.labelMedium),
-        const SizedBox(height: 6),
-        RotationPreview(buildRotation(goal, days)),
+        Text('About ${seedSetsTarget(days)} sets per muscle group every ${goal.lookBackDays} days. Change it any time in Settings → Goal.', style: t.bodySmall),
       ])),
       (title: 'Where do you train?', blurb: 'Name the place and tick what is there. A template fills the list; you can add more places later.',
           body: LocationEditor(location: location, showPosition: false, onChanged: () => setState(() {}))),
@@ -131,7 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       s.lastLocationId = location.id;
       s.units = units;
       s.seenHow = true;
-      initPlan(s);
+      s.plan = Plan();
     });
   }
 }

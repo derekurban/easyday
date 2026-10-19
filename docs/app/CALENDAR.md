@@ -80,7 +80,7 @@ disagree, the user can see when the app last looked and can tap to look again, r
 one is right.
 
 **Auto-track.** Start and end times are recorded locally for every workout, calendar or not. With
-auto-track on, finishing a workout writes "Workout A · 42 min at Commercial gym" from start to end on the
+auto-track on, finishing a workout writes "Workout · 42 min at Commercial gym" from start to end on the
 chosen calendar, with the description updated to what actually happened: the exercises, the levels used,
 the sets and reps, and the one line about what changed. If a planned event exists for that day it is
 converted into the log rather than duplicated. A plain stop still logs. Nothing is written for a workout
@@ -144,6 +144,6 @@ the declinable event and the two-way sync wait on the planning flow (`IDEAS.md`)
 ## Open questions
 
 - Whether the suggested slot should be written every morning or only when the user plans one.
-- How far ahead planning should reach: today and tomorrow, or the whole rotation.
+- How far ahead planning should reach: today and tomorrow, or further.
 - Whether a free gap should prefer the user's usual hour over the earliest gap once there is history.
 - Whether to read tomorrow as well, so a quiet evening before a packed day can suggest training tonight.
