@@ -75,7 +75,13 @@ Each set is work plus rest plus transition, rounded up to the next 15 seconds.
 | Rest after | by expression, above |
 | Transition | 15 s per set, plus 60 s per change of exercise |
 | Warm-up sets | two, 60 s each, on loaded hard exercises; never logged |
-| Circuit mode | rest 45 s flat, change 20 s |
+| Warm-up block | 5 minutes before the first exercise, inside the minutes; none, 3, 5 or 8 on the plan |
+| Circuit mode | moving between exercises is rest; 90 s planned between rounds |
+
+An exercise's time is learned whole: from the moment its first set starts to the start of the next item, so
+the rest between sets, the rest after the last one and setting up the next are all in it. A set is lifting
+from I'm ready to the reps; everything else is rest. Neither is ever asked for; both come from the two taps
+the workout needs anyway.
 
 ## The working level
 
@@ -136,10 +142,19 @@ This is what the feel tap tunes. Two "too much" taps in the last four workouts f
 cardio; two "easy" taps flip cardio back. Nothing is ever asked per set, and nothing the user sees is a
 number they have to understand.
 
+## A time limit, or a number of exercises
+
+Time is the minutes by default. With the time limit switched off on Today, the user picks how many
+exercises instead, between the goal's fewest and most and starting at its ideal, and the minutes follow:
+the list is that many exercises at the ideal sets, the last on the list going first and the same growth
+order as spare minutes adding more, and cardio and stretching keep their shares of the whole. There are no
+spare minutes then, and an easy day keeps the count it was given. The switch is remembered.
+
 ## How it is built
 
-1. **The window** is the minutes picked, minus the cardio and stretching shares. There is no separate
-   warm-up block yet (`IDEAS.md`); loaded hard exercises carry their own warm-up sets.
+1. **The window** is the minutes picked, minus the warm-up block and the cardio and stretching shares (a
+   share left out on the plan for today is not taken). Loaded hard exercises also carry their own warm-up
+   sets. With the time limit off the window is open and the count decides.
 2. **Pick an exercise per pattern** in the rotation item, from what the location has. Where there is
    more than one candidate, coverage chooses (`COVERAGE.md`). Energy plays no part.
 3. **Assign intents** by the recipe. Each gets its expression, its sets and its target.
@@ -157,9 +172,10 @@ number they have to understand.
 7. **Order** hardest first, while the user is fresh; at the same difficulty, extra and working before
    light.
 
-The user can reshuffle, swap any exercise for another of the same pattern available here, or edit today's
-level from the row. Levels follow the exercise, so none of that costs progress. A swap is repriced in
-minutes; if it no longer fits, one line says what moved.
+On the plan the user can reshuffle, swap any exercise for another of the same pattern available here,
+edit today's level, or move an exercise up or down; their order then stands for today. Levels follow the
+exercise, so none of that costs progress. A swap is repriced in minutes; if it no longer fits, one line
+says what moved.
 
 ## A worked example
 
@@ -206,8 +222,10 @@ The feel tap tunes spare minutes and nothing else. The one line after the workou
 
 ## Modes
 
-Straight sets or circuit, chosen before starting; it changes the order and the time pricing, nothing
-else. In circuit mode the timing model credits the gap to the exercise whose set ended it.
+Straight sets or circuit, chosen on the plan; it changes the order and the time pricing, nothing else.
+Straight sets put each exercise on the strip as its own item. A circuit is one item: one set of each
+exercise, round by round, with moving between them counted as rest and a planned ninety seconds between
+rounds. Its time is shared out among its exercises by sets.
 
 ## What it never does
 
@@ -239,7 +257,11 @@ picks on a busy day (`CALENDAR.md`).
 | Spare minutes go to | more exercises | Settings → Goal: more exercises, cardio, rest |
 | Difficulty, per exercise | library default | the exercise card: easy, medium, hard |
 | Cardio and stretching, share of every workout | 15 % / 10 % | Settings → Goal, beside the emphasis sliders |
-| Mode | straight sets | Today, before starting |
+| Mode | straight sets | the plan, before starting |
+| Warm-up block | 5 minutes | the plan: none, 3, 5, 8; kept for next time |
+| A time limit, or a number of exercises | the minutes | Today, a switch; kept |
+| When the planned rest runs out | keep resting | Settings → Workout: keep resting, start the next set |
+| Show lifting and rest as | minutes | Settings → Workout: minutes, share of time |
 
 ## Open questions
 

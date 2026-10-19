@@ -1,23 +1,22 @@
-// Today: two questions already answered, one workout, one start button. When today's workout is done, closure.
-import 'dart:math';
-
+// Today: how you are and what that makes of today. Energy, and either the minutes you have or how many exercises,
+// both already answered; the body map of what the workout works and what has waited; then Plan it. When today's
+// workout is done, closure.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import '../integrations.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
 import '../logic/calendar.dart';
-import '../logic/ladder.dart';
 import '../logic/muscles.dart';
 import '../logic/person.dart';
 import 'app.dart';
 import 'muscle_figure.dart';
-import 'exercise_card.dart';
-import 'how.dart';
 import 'motion.dart';
+import 'plan.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -30,9 +29,8 @@ class TodayScreen extends StatefulWidget {
 class _TodayScreenState extends State<TodayScreen> {
   Energy? energy;
   int? minutes;
+  int? count;
   String? locationId;
-  Map<String, String> picks = {};
-  Map<String, int> rungOverrides = {};
   String? moveKind;
   String? routine;
   String? cardioId;
@@ -74,6 +72,9 @@ class _TodayScreenState extends State<TodayScreen> {
     final defaults = defaultsFor(s, now, busyShare: day?.busyShare);
     final e = energy ?? defaults.energy;
     final mins = minutes ?? defaults.minutes;
+    final g = s.goal!;
+    final limit = s.settings.timeLimit;
+    final n = (count ?? g.exercises.ideal).clamp(g.exercises.min, g.exercises.max);
     final loc = s.location(locationId ?? nearbyId);
     final item = s.plan!.rotation[s.plan!.index];
     final ps = personState(s, now);
@@ -82,14 +83,16 @@ class _TodayScreenState extends State<TodayScreen> {
     if (finishedToday(s, now) && !continuedToday(s, now)) return _doneForToday(context, s, now);
 
     final opts = BuildOptions(
-      energy: e, minutes: mins, locationId: loc?.id, picks: picks, rungOverrides: rungOverrides, moveKind: moveKind, routine: routine, cardio: cardioId,
+      energy: e, minutes: mins, locationId: loc?.id, moveKind: moveKind, routine: routine, cardio: cardioId,
       energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, circuit: s.settings.circuit,
+      exerciseCount: limit ? null : n, warmupMinutes: s.settings.warmup,
     );
     final session = buildSession(s, opts, now);
     final est = estimateMinutes(session);
     final setCount = session.exercises.fold(0, (a, x) => a + x.sets.length);
-    final fingerprint = '${session.type}|${session.exercises.map((x) => '${x.exId}:${x.sets.length}:${x.rung}').join(',')}|${session.cardioMinutes}|${session.stretchMinutes}|${session.spareMinutes}';
+    final fingerprint = '${session.type}|${session.exercises.map((x) => '${x.exId}:${x.sets.length}:${x.rung}').join(',')}';
     final muscles = workoutMuscles(session);
+    final lift = session.type == 'lift';
 
     return Scaffold(
       appBar: AppBar(
@@ -129,50 +132,37 @@ class _TodayScreenState extends State<TodayScreen> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
                     child: Row(children: [
-                      IconBadge(session.type == 'lift' ? LucideIcons.dumbbell : moveIcon(session.kind), accent: true),
+                      IconBadge(lift ? LucideIcons.dumbbell : moveIcon(session.kind), accent: true),
                       const SizedBox(width: 12),
                       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(session.name, style: t.titleLarge),
-                        Text(session.type == 'lift'
+                        Text(lift
                             ? '${session.exercises.length} exercise${session.exercises.length == 1 ? '' : 's'} · $setCount sets · about $est min · ${_usualText(session)}'
                             : (session.kind == 'cardio' ? 'easy pace, your minutes' : 'a few minutes each'), style: t.bodySmall),
                       ])),
                     ]),
                   ),
-                  if (session.type == 'lift' && session.exercises.isNotEmpty) ...[
+                  if (lift && session.exercises.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
                       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         MuscleFigure(highlight: muscles, height: 170, keyLabels: const ['main', 'helping'], expandable: true, title: session.name,
                             detail: (h) => _muscleDetail(session, h)),
                         const SizedBox(width: 14),
                         Expanded(child: Padding(padding: const EdgeInsets.only(top: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          for (final line in _whyLines(muscles))
+                          for (final line in _whyLines(s, now, muscles))
                             Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(line, style: t.bodySmall?.copyWith(color: du.ink))),
                         ]))),
                       ]),
                     ),
-                  ],
-                  const Divider(),
-                  if (session.type == 'lift') ...[
-                    for (var i = 0; i < session.exercises.length; i++) _exerciseRow(context, session, i),
-                    if (session.cardioMinutes > 0 || session.stretchMinutes > 0 || session.spareMinutes > 0)
-                      Padding(padding: const EdgeInsets.fromLTRB(16, 6, 16, 14), child: Row(children: [
-                        Icon(LucideIcons.footprints, size: 14, color: du.inkTertiary), const SizedBox(width: 6),
-                        Expanded(child: Text([
-                          if (session.cardioMinutes > 0 || session.stretchMinutes > 0)
-                            'then ${[if (session.cardioMinutes > 0) '${session.cardioMinutes} min cardio', if (session.stretchMinutes > 0) '${session.stretchMinutes} min stretching'].join(' and ')}',
-                          if (session.spareMinutes > 0) '${session.spareMinutes} min to spare, no rush',
-                        ].join(' · '), style: t.bodySmall)),
-                      ])),
-                    if (session.exercises.isEmpty) const ListTile(leading: IconBadge(LucideIcons.circleOff, size: 36), title: Text('Nothing fits here'), subtitle: Text('Add equipment to this location, or switch to a movement workout.')),
-                  ] else
-                    _moveBody(context, session),
+                  if (lift && session.exercises.isEmpty)
+                    const ListTile(leading: IconBadge(LucideIcons.circleOff, size: 36), title: Text('Nothing fits here'), subtitle: Text('Add equipment to this location, or move instead.')),
+                  if (!lift) ...[const Divider(), _moveBody(context, session)],
                 ]),
               ),
             ),
             const SizedBox(height: 10),
-            if (s.settings.calendar) _calendarLine(context, mins),
+            if (s.settings.calendar && limit) _calendarLine(context, mins),
             Padding(padding: const EdgeInsets.only(top: 6), child: Row(children: [
               Icon(ps.state == PersonState.active ? LucideIcons.circleCheck : ps.state == PersonState.atRisk ? LucideIcons.hourglass : LucideIcons.sunrise, size: 14, color: du.inkTertiary),
               const SizedBox(width: 6),
@@ -188,51 +178,72 @@ class _TodayScreenState extends State<TodayScreen> {
               SizedBox(width: 56, child: Text('Energy', style: t.labelMedium)),
               Expanded(child: Segmented<Energy>(value: e, options: {for (final v in Energy.values) v: energyLabel[v]!}, icons: {for (final v in Energy.values) v: energyIcon(v)}, onChanged: (v) => setState(() => energy = v))),
             ]),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Row(children: [
               SizedBox(width: 56, child: Text('Time', style: t.labelMedium)),
-              Expanded(child: SliderTheme(
-                data: SliderTheme.of(context).copyWith(trackHeight: 4, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9), overlayShape: const RoundSliderOverlayShape(overlayRadius: 18)),
-                child: Slider(
-                  value: mins.toDouble(), min: minutesMin.toDouble(), max: minutesMax.toDouble(), divisions: (minutesMax - minutesMin) ~/ minutesStep,
-                  label: '$mins min', semanticFormatterCallback: (v) => '${v.round()} minutes',
-                  onChanged: (v) => setState(() => minutes = clampMinutes(v.round())),
-                ),
-              )),
-              SizedBox(width: 56, child: Text('$mins min', style: t.titleMedium?.copyWith(color: du.accentText), textAlign: TextAlign.right)),
+              Expanded(child: Text(limit ? 'Fit it to the minutes I have' : 'No limit, pick how many exercises', style: t.bodySmall)),
+              Switch(value: limit, onChanged: (v) => store.update((x) => x.settings.timeLimit = v)),
             ]),
-            if (defaults.busy != null && (minutes == null || (defaults.busy == 'easy' && energy == null)))
-              Padding(padding: const EdgeInsets.only(bottom: 6), child: Row(children: [
-                Icon(LucideIcons.calendarDays, size: 13, color: du.accentText), const SizedBox(width: 6),
-                Expanded(child: Text('Calendar ${day!.busyPct} % full today, so ${defaults.busy == 'easy' ? 'easy and ' : ''}$busyDayMinutes minutes by default.', style: t.labelSmall?.copyWith(color: du.accentText))),
-              ])),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(trackHeight: 4, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9), overlayShape: const RoundSliderOverlayShape(overlayRadius: 18)),
+              child: limit
+                  ? Row(key: const ValueKey('minutes'), children: [
+                      Expanded(child: Slider(
+                        value: mins.toDouble(), min: minutesMin.toDouble(), max: minutesMax.toDouble(), divisions: (minutesMax - minutesMin) ~/ minutesStep,
+                        label: '$mins min', semanticFormatterCallback: (v) => '${v.round()} minutes',
+                        onChanged: (v) => setState(() => minutes = clampMinutes(v.round())),
+                      )),
+                      SizedBox(width: 76, child: Text('$mins min', style: t.titleMedium?.copyWith(color: du.accentText), textAlign: TextAlign.right)),
+                    ])
+                  : Row(key: const ValueKey('count'), children: [
+                      Expanded(child: Slider(
+                        value: n.toDouble(), min: g.exercises.min.toDouble(), max: g.exercises.max.toDouble(),
+                        divisions: g.exercises.max > g.exercises.min ? g.exercises.max - g.exercises.min : null,
+                        label: '$n', semanticFormatterCallback: (v) => '${v.round()} exercises',
+                        onChanged: g.exercises.max > g.exercises.min ? (v) => setState(() => count = v.round()) : null,
+                      )),
+                      SizedBox(width: 112, child: Text('$n exercise${n == 1 ? '' : 's'}', style: t.titleMedium?.copyWith(color: du.accentText), textAlign: TextAlign.right)),
+                    ]),
+            ),
+            if (limit && defaults.busy != null && (minutes == null || (defaults.busy == 'easy' && energy == null)))
+              _hint(context, LucideIcons.calendarDays, 'Calendar ${day!.busyPct} % full today, so ${defaults.busy == 'easy' ? 'easy and ' : ''}$busyDayMinutes minutes by default.'),
+            if (!limit)
+              _hint(context, LucideIcons.info, 'Your usual is ${g.exercises.ideal}, between ${g.exercises.min} and ${g.exercises.max} in Settings. About $est min.'),
+            const SizedBox(height: 4),
             Row(children: [
-              if (session.type == 'lift')
-                IconButton.outlined(onPressed: () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random()); rungOverrides = {}; }), icon: const Icon(LucideIcons.shuffle, size: 20), tooltip: 'Reshuffle the exercises'),
               if (moveKind != null && item.type == 'lift')
                 IconButton.outlined(onPressed: () => setState(() => moveKind = null), icon: const Icon(LucideIcons.dumbbell, size: 20), tooltip: 'Lift instead')
               else
                 IconButton.outlined(onPressed: () => _moveSheet(context, loc), icon: Icon(moveIcon('cardio'), size: 20), tooltip: moveKind != null || item.type == 'move' ? 'Change movement' : 'Move instead'),
-              if (session.type == 'lift' && session.exercises.length > 1)
-                IconButton.outlined(
-                  onPressed: () => store.update((x) => x.settings.circuit = !x.settings.circuit), isSelected: s.settings.circuit,
-                  style: IconButton.styleFrom(backgroundColor: s.settings.circuit ? du.accentSubtle : du.surface, foregroundColor: s.settings.circuit ? du.accentText : du.ink, side: BorderSide(color: s.settings.circuit ? du.accentStrong : du.line, width: s.settings.circuit ? 1.5 : 0.6)),
-                  icon: const Icon(LucideIcons.repeat, size: 20), tooltip: s.settings.circuit ? 'Circuit: one set of each, round and round' : 'Straight sets. Tap for circuit',
-                ),
               const SizedBox(width: 8),
               Expanded(child: SizedBox(
                 height: 52,
-                child: FilledButton.icon(
-                  onPressed: session.type == 'lift' && session.exercises.isEmpty ? null : () => _start(context, session),
-                  icon: const Icon(LucideIcons.play, size: 20),
-                  label: Text('Start · ${session.name}', overflow: TextOverflow.ellipsis),
-                ),
+                child: lift
+                    ? FilledButton.icon(
+                        onPressed: session.exercises.isEmpty ? null : () => _plan(context, opts),
+                        icon: const Icon(LucideIcons.chevronRight, size: 20), iconAlignment: IconAlignment.end,
+                        label: const Text('Plan it'),
+                      )
+                    : FilledButton.icon(
+                        onPressed: () => _startMove(context, session),
+                        icon: const Icon(LucideIcons.play, size: 20),
+                        label: Text('Start · ${session.name}', overflow: TextOverflow.ellipsis),
+                      ),
               )),
             ]),
           ]),
         ),
       ]),
     );
+  }
+
+  Widget _hint(BuildContext context, IconData icon, String text) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Padding(padding: const EdgeInsets.only(bottom: 4), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icon, size: 13, color: du.accentText)), const SizedBox(width: 6),
+      Expanded(child: Text(text, style: t.labelSmall?.copyWith(color: du.accentText))),
+    ]));
   }
 
   /// For a tapped muscle: which of today's exercises use it.
@@ -246,17 +257,28 @@ class _TodayScreenState extends State<TodayScreen> {
     return [if (main.isNotEmpty) 'Main in ${main.join(', ')}.', if (helping.isNotEmpty) 'Helps in ${helping.join(', ')}.'].join(' ');
   }
 
-  /// What the workout works: the main muscles, then the helping ones.
-  List<String> _whyLines(Map<String, double> muscles) {
+  /// What the workout works, the main muscles then the helping ones, and what has waited longest.
+  List<String> _whyLines(AppState s, DateTime now, Map<String, double> muscles) {
     String names(Iterable<String> xs) {
       final l = xs.toList();
       return l.length <= 1 ? l.join() : '${l.sublist(0, l.length - 1).join(', ')} and ${l.last}';
     }
     final main = muscles.entries.where((e) => e.value >= primaryStrength).map((e) => e.key).toList();
     final helping = muscles.entries.where((e) => e.value < primaryStrength).map((e) => e.key).toList();
+    // the muscle groups not worked for a week or more, and not in today's workout, longest first
+    final todayGroups = muscles.keys.map(muscleGroup).toSet();
+    final last = <String, DateTime>{};
+    for (final e in lastWorked(s).entries) {
+      if (e.value == null) continue;
+      final grp = muscleGroup(e.key);
+      if (last[grp] == null || e.value!.isAfter(last[grp]!)) last[grp] = e.value!;
+    }
+    final waited = last.entries.where((e) => !todayGroups.contains(e.key) && daysAgo(e.value, now) >= 7).toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
     return [
       if (main.isNotEmpty) 'Works ${names(main)}.',
       if (helping.isNotEmpty) 'Also ${names(helping)}.',
+      if (waited.isNotEmpty) 'Not lately: ${waited.take(2).map((e) => '${e.key.toLowerCase()} ${daysAgo(e.value, now)} days').join(', ')}.',
     ];
   }
 
@@ -314,28 +336,6 @@ class _TodayScreenState extends State<TodayScreen> {
     return '${stateLabel[ps.state]} · ${ps.daysSince == 0 ? 'trained today' : '${ps.daysSince} day${ps.daysSince == 1 ? '' : 's'} since the last workout'}';
   }
 
-  Widget _exerciseRow(BuildContext context, Session session, int i) {
-    final e = session.exercises[i];
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
-    final note = rungNote(e.exercise, e.rung);
-    final unit = e.exercise.repLabel == 'seconds' ? ' s' : '';
-    final rung = e.rungLabel == e.exercise.name ? 'standard' : e.rungLabel;
-    final tag = e.nextLevel ? 'next level' : e.intent == intentLight ? (e.exercise.loaded ? '${(easyShare * 100).round()} %' : 'a version down') : e.lightened ? 'eased after a break' : e.edited ? 'edited' : null;
-    return ListTile(
-      onTap: () => _exerciseSheet(context, session, i),
-      leading: IconBadge(exerciseIcon(e.exercise), size: 36),
-      title: Text(e.exercise.name),
-      subtitle: Text('$rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
-      isThreeLine: note != null,
-      trailing: tag == null ? null : Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(color: e.nextLevel ? du.accentSubtle : du.sunk, borderRadius: BorderRadius.circular(999), border: Border.all(color: e.nextLevel ? du.accentLine : du.line, width: 0.6)),
-        child: Text(tag, style: t.labelSmall?.copyWith(color: e.nextLevel ? du.accentText : du.inkSecondary, letterSpacing: 0)),
-      ),
-    );
-  }
-
   Widget _moveBody(BuildContext context, Session session) {
     if (session.kind == 'cardio') {
       final c = cardio.firstWhere((x) => x.id == session.cardio, orElse: () => cardio.last);
@@ -347,10 +347,15 @@ class _TodayScreenState extends State<TodayScreen> {
     ]);
   }
 
-  void _start(BuildContext context, Session session) {
+  Future<void> _plan(BuildContext context, BuildOptions opts) async {
+    final started = await Navigator.of(context).push<bool>(MaterialPageRoute(builder: (_) => PlanScreen(base: opts)));
+    if (started == true && mounted) setState(() { moveKind = null; energy = null; minutes = null; count = null; });
+  }
+
+  void _startMove(BuildContext context, Session session) {
     final store = context.store;
     store.update((s) => startSession(s, session, store.now));
-    setState(() { picks = {}; rungOverrides = {}; moveKind = null; energy = null; minutes = null; });
+    setState(() { moveKind = null; energy = null; minutes = null; count = null; });
   }
 
   /// The suggested slot and when the calendar was last read, with a tap to read it again.
@@ -388,7 +393,7 @@ class _TodayScreenState extends State<TodayScreen> {
           onTap: () => Navigator.pop(context, l.id),
         ),
     ]));
-    if (id != null) setState(() { locationId = id; picks = {}; rungOverrides = {}; });
+    if (id != null) setState(() => locationId = id);
   }
 
   Future<void> _moveSheet(BuildContext context, Location? loc) async {
@@ -409,70 +414,5 @@ class _TodayScreenState extends State<TodayScreen> {
         routine = r.$2;
       }
     });
-  }
-
-  Future<void> _exerciseSheet(BuildContext context, Session session, int i) async {
-    final store = context.store;
-    final s = store.state;
-    final e = session.exercises[i];
-    final ex = e.exercise;
-    final st = ensureState(s, ex);
-    final loc = s.location(locationId ?? nearbyId);
-    final equipmentHere = loc?.equipment ?? const <String>[];
-    final alts = alternatives(s, session, i, equipmentHere);
-    final ceiling = ceilingFor(ex, equipmentHere);
-    var rung = e.rung;
-    await showSheet<void>(context, StatefulBuilder(builder: (context, setSheet) {
-      final t = Theme.of(context).textTheme;
-      final du = context.du;
-      final floor = ex.loaded ? floorRung(s, ex, st) : 0;
-      return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(0, 0, 0, 20), children: [
-        SheetHeader(ex.name, subtitle: '${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const SectionHeader("Today's level", icon: LucideIcons.circleDot),
-            const Explain(levelExplainer),
-            Panel(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-              child: Column(children: [
-                Row(children: [
-                  IconButton.outlined(onPressed: rung > floor ? () => setSheet(() => rung--) : null, icon: const Icon(LucideIcons.minus), tooltip: 'Level down'),
-                  Expanded(child: AnimatedSwitcher(
-                    duration: m(context, durBase),
-                    transitionBuilder: (c, a) => FadeTransition(opacity: a, child: ScaleTransition(scale: Tween(begin: 0.95, end: 1.0).animate(a), child: c)),
-                    child: Column(key: ValueKey(rung), children: [
-                      Text(rungLabel(s, ex, st, rung, e.range), style: t.titleMedium?.copyWith(color: rung == st.rung ? du.ink : du.accentText), textAlign: TextAlign.center),
-                      Text(rungNote(ex, rung) ?? (rung == st.rung ? 'your level' : rung > st.rung ? '${rung - st.rung} up from your level' : '${st.rung - rung} down from your level'), style: t.bodySmall, textAlign: TextAlign.center),
-                    ]),
-                  )),
-                  IconButton.outlined(onPressed: ceiling == null || rung < ceiling ? () => setSheet(() => rung++) : null, icon: const Icon(LucideIcons.plus), tooltip: 'Level up'),
-                ]),
-                const SizedBox(height: 8),
-                AnimatedSwitcher(duration: m(context, durBase), child: Text(howAt(ex, rung), key: ValueKey('how$rung'), style: t.bodySmall)),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: OutlinedButton.icon(onPressed: rung == e.rung ? null : () { setState(() => rungOverrides[e.slot] = rung); Navigator.pop(context); }, icon: const Icon(LucideIcons.calendarDays, size: 18), label: const Text('Just today'))),
-              const SizedBox(width: 8),
-              Expanded(child: OutlinedButton.icon(onPressed: rung == st.rung ? null : () { store.update((x) => setRung(x, ex, rung)); setState(() => rungOverrides.remove(e.slot)); Navigator.pop(context); }, icon: const Icon(LucideIcons.save, size: 18), label: const Text('Save as my level'))),
-            ]),
-            const SizedBox(height: 20),
-            if (alts.isNotEmpty) const SectionHeader('Swap for', icon: LucideIcons.replace),
-          ]),
-        ),
-        for (final a in alts)
-          ListTile(
-            leading: IconBadge(exerciseIcon(a), size: 36),
-            title: Text(a.name),
-            subtitle: Text('${s.ex[a.id] != null ? rungLabel(s, a, s.ex[a.id]!, s.ex[a.id]!.rung) : 'not yet practised'} · ${difficultyLabel[difficultyInPlay(a, s.ex[a.id])]}'),
-            trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-            onTap: () { setState(() { picks[e.slot] = a.id; rungOverrides.remove(e.slot); }); Navigator.pop(context); },
-          ),
-        const SizedBox(height: 8),
-        Center(child: TextButton.icon(onPressed: () { Navigator.pop(context); Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseCardScreen(ex.id))); }, icon: const Icon(LucideIcons.bookOpen, size: 18), label: const Text('Open the exercise card'))),
-      ]);
-    }));
   }
 }

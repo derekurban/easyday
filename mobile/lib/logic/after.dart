@@ -4,7 +4,9 @@ import 'dart:math';
 
 import '../data/library.dart';
 import '../data/model.dart';
+import 'builder.dart' show changeSeconds, warmupSetsSeconds;
 import 'ladder.dart';
+import 'workout.dart';
 
 class Finish {
   Finish({this.feel, this.stopReason, this.stopAt, this.effort});
@@ -204,10 +206,29 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
   }
 }
 
-/// Seconds per set per exercise, learned from the gap between one set tap and the next. Weighted toward recent workouts.
-/// In a circuit the previous tap belongs to another exercise, so each gap is credited to the exercise whose set ended it.
+/// Seconds per set per exercise, weighted toward recent workouts. A workout moved through with I'm ready teaches from
+/// each item's whole time, rest and setting up included: less the change-over and any warm-up sets the plan prices on
+/// their own, over the sets done. A circuit shares its time out by sets. Older workouts, with only the reps taps,
+/// teach from the gap between one tap and the next.
 void _learnTiming(AppState s, Session session) {
   const alpha = 0.3;
+  if (session.itemStarts.isNotEmpty) {
+    final end = session.endedAt ?? DateTime.now();
+    for (final item in workoutItems(session)) {
+      if (!item.lifting || !session.itemStarts.containsKey(item.key)) continue;
+      final done = item.exercises.where((i) => session.exercises[i].attempted.isNotEmpty).toList();
+      final sets = done.fold(0, (a, i) => a + session.exercises[i].attempted.length);
+      if (sets == 0) continue;
+      final secs = itemEnd(session, item, end).difference(session.itemStarts[item.key]!).inSeconds.toDouble();
+      final overhead = done.fold(0.0, (a, i) => a + changeSeconds + (session.exercises[i].warmups.isNotEmpty ? warmupSetsSeconds : 0));
+      final perSet = ((secs - overhead) / sets).clamp(20.0, 600.0);
+      for (final i in done) {
+        final st = s.ex[session.exercises[i].exId];
+        if (st != null) st.secPerSet = st.secPerSet * (1 - alpha) + perSet * alpha;
+      }
+    }
+    return;
+  }
   if (session.circuit) {
     final taps = <(DateTime, String)>[];
     for (final e in session.exercises) {

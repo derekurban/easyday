@@ -1,11 +1,13 @@
 // Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
-// settings, breaks, updates, feedback, and (staging only) prototype tools.
+// settings, breaks, updates, feedback, your data (copy and restore), and (staging only) prototype tools.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
+import '../data/store.dart';
 import '../features.dart';
 import '../integrations.dart';
 import '../logic/after.dart';
@@ -179,6 +181,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ])),
         ])),
         const SizedBox(height: 20),
+        const SectionHeader('Workout', icon: LucideIcons.timer),
+        const Explain('Lifting is a set, from I\'m ready until your reps are in. Rest is everything between sets: catching your breath, moving to the next exercise and setting it up.'),
+        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ChoiceRow<bool>(label: 'When the planned rest runs out', value: st.restAuto, options: const {false: 'Keep resting', true: 'Start the next set'},
+              hint: st.restAuto ? 'The planned rest is a timer: when it ends, the next set or round starts as if you had tapped I\'m ready.' : 'Rest counts up for as long as you like. The planned time is only a guide.',
+              onChanged: (v) => store.update((_) => st.restAuto = v)),
+          ChoiceRow<bool>(label: 'Show lifting and rest as', value: st.timeAsShare, options: const {false: 'Minutes', true: 'Share of time'},
+              onChanged: (v) => store.update((_) => st.timeAsShare = v)),
+        ])),
+        const SizedBox(height: 20),
         const SectionHeader('Progressions', icon: LucideIcons.listOrdered),
         const Explain(progressionExplainer),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -201,6 +213,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const SizedBox(height: 20),
         const SectionHeader('Feedback', icon: LucideIcons.messageSquareText),
         const FeedbackPanel(),
+        const SizedBox(height: 20),
+        const SectionHeader('Your data', icon: LucideIcons.hardDrive),
+        Panel(padding: EdgeInsets.zero, child: Column(children: [
+          ListTile(leading: const IconBadge(LucideIcons.copy, size: 36), title: const Text('Copy your data'),
+              subtitle: const Text('Profile, locations, levels and history, as text. Paste it into another install to move everything there.'), onTap: () => _copyData(context)),
+          ListTile(leading: const IconBadge(LucideIcons.clipboardPaste, size: 36), title: const Text('Restore copied data'),
+              subtitle: const Text('Replaces everything on this phone with data copied from this app.'), onTap: () => _restoreData(context)),
+        ])),
         if (prototypeTools) ...[
           const SizedBox(height: 20),
           const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
@@ -357,6 +377,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       s.clockOffsetDays += 2;
     });
     _say(context, store.state.sessions.last.note);
+  }
+
+  Future<void> _copyData(BuildContext context) async {
+    await Clipboard.setData(ClipboardData(text: context.store.exportJson()));
+    if (context.mounted) _say(context, 'Copied. Open the other install and restore it there.');
+  }
+
+  /// Takes a copy from the clipboard after a confirm. Notifications, the calendar and position come in off and each asks
+  /// for its permission again, since this install may not have it yet.
+  Future<void> _restoreData(BuildContext context) async {
+    final store = context.store;
+    final raw = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
+    if (!context.mounted) return;
+    if (raw == null || !Store.looksLikeData(raw)) { _say(context, 'The clipboard holds no copied data. Copy it in the other install first.'); return; }
+    final ok = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
+      title: const Text('Replace everything?'),
+      content: const Text('Profile, locations, levels and history on this phone become the copied ones. There is no undo.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Keep')), FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Replace'))],
+    ));
+    if (ok != true || !context.mounted) return;
+    if (!store.importJson(raw)) { _say(context, 'That data could not be read. Nothing changed.'); return; }
+    final want = store.state.settings;
+    final notify = want.notify, calendar = want.calendar, autoTrack = want.autoTrack, location = want.location;
+    store.update((x) { x.settings.notify = false; x.settings.calendar = false; x.settings.autoTrack = false; x.settings.location = false; });
+    _say(context, 'Restored.');
+    if (notify) await _toggleNotify(context, true);
+    if (calendar && context.mounted) await _toggleCalendar(context, true);
+    if (autoTrack && context.mounted) await _toggleAutoTrack(context, true);
+    if (location && context.mounted) await _toggleLocation(context, true);
   }
 
   Future<void> _confirmReset(BuildContext context) async {
