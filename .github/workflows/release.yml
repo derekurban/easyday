@@ -19,7 +19,8 @@ on:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  # A new push to a pull request supersedes its check build; release builds always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write
@@ -32,6 +33,10 @@ jobs:
         working-directory: mobile
     env:
       TARGET: ${{ github.base_ref || github.ref_name }}
+      # The runner image's preinstalled NDK and CMake (android/app/build.gradle.kts); if the image drops them, Gradle
+      # downloads them as before.
+      ORG_GRADLE_PROJECT_ciNdkVersion: 29.0.14206865
+      ORG_GRADLE_PROJECT_ciCmakeVersion: 3.31.5
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +52,12 @@ jobs:
           flutter-version: '3.41.5'
           channel: stable
           cache: true
+
+      # Restores Gradle's dependencies and build cache (a warm build is ~3.5 min faster). Only release pushes write
+      # it, since saving costs ~30 s; pull requests read their target branch's.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name != 'push' }}
 
       - name: Version
         id: version
