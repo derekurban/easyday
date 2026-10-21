@@ -16,9 +16,10 @@ about the engine to set it up.
   sweet spot. A tight day falls toward the fewest and never below it unless the minutes cannot hold even
   that. A long day, one where the ideal list fills no more than half the window, or a hard day, grows toward
   the most. Nothing else ever reaches the most.
-- **A level is strength, not a weight.** A loaded exercise's level is an estimated max; a bodyweight
-  exercise's level is a version. The level never says how many reps. The workout chooses an
-  **expression** of it, and the weight follows (below).
+- **A level is a weight you can name.** A loaded exercise's level is its working weight in its home reps,
+  and one level is one plate step: 155 lb, 160, 165, never a weight skipped. A bodyweight exercise's level
+  is a version. A day with other reps chooses another **expression** of the same level, and the weight is
+  carried to it (below).
 - **Energy is three dials, never a pick.** The list is built once, at normal, and fitted to the minutes.
   Energy then turns the dials on exactly that list: each exercise gets an intent for today, light,
   working or extra, and intent sets the expression, the sets and the reserve. Easy, normal and hard show
@@ -40,7 +41,7 @@ finer number underneath; the user never sees it.
 
 ## Expressions
 
-| Expression | Reps | Weight, as a share of the level | Rest after a set |
+| Expression | Reps | Weight, as a share of a max | Rest after a set |
 |---|---|---|---|
 | Heavy and few | 4 to 7 | about 85 % | 3 minutes |
 | Middle | 8 to 12 | about 70 % | 90 seconds |
@@ -55,10 +56,17 @@ and medium, light tagged easy; Endurance is one light range tagged all three; Mi
 middle range also tagged hard, so hard lifts alternate heavy and middle, A and C heavy, B and D middle. Any
 range can be edited to any numbers and retagged in its sheet. Any exercise can be set to its own range on
 its card, for the lifter who wants seven on the bench and many on the calves whatever the list says. The
-weight share follows the range from the same table, so a custom range lands at a sensible weight. Hitting the top of the range in any expression
-raises the level by one step, and every expression moves by at least one plate step per level, so progress
-is always visible whichever reps the user likes. Changing the reps changes the weight, never the level.
-For bodyweight, the version is the weight: the light expression is one version down for more reps.
+weight share follows the range from the same table, so a custom range lands at a sensible weight.
+
+**The home reps.** A loaded exercise keeps its level in its home reps: the range set on its card, else the
+first range the goal tags its difficulty with. There the level is the weight on the bar, and a level is
+exactly one plate step (2.5 kg on a bar, 2 kg on dumbbells; 5 lb, or 10 lb where the step is 5 kg or more).
+Another range, the B workout of Mixed, carries the level by the table above, rounded to a plate step, and
+is shown as that day's weight beside the level; a lighter range can round two levels to the same weight. A
+changed goal, card range or unit lays the levels again around the current one: the level number stays and
+its weight is carried to the new reps, so the weight the user lifts barely moves. Hitting the top of the
+range raises the level by one step in any expression. For bodyweight, the version is the weight: the light
+expression is one version down for more reps.
 
 Holds keep their own ranges in seconds. Bodyweight versions keep their floor, so a version is never asked
 for fewer reps than make sense for it. Max estimates get loose past twelve reps, so the light expression

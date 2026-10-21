@@ -110,10 +110,10 @@ const expressionRange = {Expression.heavy: heavyReps, Expression.middle: middleR
 const easyShare = 0.85;
 /// An easy day's lifting window, as a share of the normal one: fewer exercises at full sets, the rest is cardio or rest.
 const easyWindowShare = 0.67;
-/// The lightest share of a max any band lifts; the level steps the max by one plate step over it.
+/// The lightest share of a max any band lifts: the percent table stops here.
 const lightestShare = 0.6;
 
-/// Share of the level (an estimated max) a band lifts: the top of the range is about the max, by Epley.
+/// Share of an estimated max a band lifts: the top of the range is about the max, by Epley. Carries a level between reps.
 double pctFor(RepRange r) => (1 / (1 + r.hi / 30)).clamp(lightestShare, 0.9);
 /// Rest after a set, by band. Generous on purpose; the timing model replaces it.
 int restFor(RepRange r) => r.hi <= 7 ? 180 : r.hi <= 12 ? 90 : 60;
@@ -304,10 +304,12 @@ class Location {
 
 /// Everything the app knows about one exercise for this person: the rung, the streaks, the cost drift, the timing.
 class ExerciseState {
-  ExerciseState({required this.rung, required this.startRung, this.baseKg, required this.secPerSet});
+  ExerciseState({required this.rung, required this.startRung, this.baseKg, this.baseReps, this.baseStepKg, required this.secPerSet});
   int rung;
   int startRung;          // decay never goes below this; a saved edit moves it
-  double? baseKg;         // loaded exercises: the estimated max at rung 0; the level steps it, the expression picks the weight
+  double? baseKg;         // loaded exercises: the working weight at rung 0 in [baseReps]; each level adds [baseStepKg]
+  RepRange? baseReps;     // the reps the base is kept in, the home reps; null before version 7, when the base was a max
+  double? baseStepKg;     // the plate step the levels were laid on
   int topRun = 0;         // sessions in a row with every attempted set at the top
   int shortRun = 0;       // sessions in a row with a set below the bottom
   int appearances = 0;
@@ -328,14 +330,15 @@ class ExerciseState {
   DateTime? likedUntil;   // a manual pick of an unrated exercise counts as liked until then
 
   Map<String, dynamic> toJson() => {
-        'rung': rung, 'startRung': startRung, 'baseKg': baseKg, 'topRun': topRun, 'shortRun': shortRun, 'appearances': appearances,
+        'rung': rung, 'startRung': startRung, 'baseKg': baseKg, 'baseReps': baseReps == null ? null : _rr(baseReps!), 'baseStep': baseStepKg, 'topRun': topRun, 'shortRun': shortRun, 'appearances': appearances,
         'calibrating': calibrating, 'decayedBy': decayedBy, 'decayPeriodsApplied': decayPeriodsApplied, 'lastDoneAt': _ms(lastDoneAt),
         'costOverride': costOverride, 'costUp': costUp, 'costDown': costDown, 'ceilingRun': ceilingRun, 'bestTotal': bestTotal, 'secPerSet': secPerSet,
         'lastWorkingAt': _ms(lastWorkingAt), 'reps': repsOverride == null ? null : _rr(repsOverride!),
         'preference': preference, 'swappedOut': swappedOut, 'likedUntil': _ms(likedUntil),
       };
   static ExerciseState fromJson(Map<String, dynamic> j) => ExerciseState(
-        rung: j['rung'], startRung: j['startRung'], baseKg: (j['baseKg'] as num?)?.toDouble(), secPerSet: (j['secPerSet'] as num).toDouble())
+        rung: j['rung'], startRung: j['startRung'], baseKg: (j['baseKg'] as num?)?.toDouble(),
+        baseReps: j['baseReps'] == null ? null : _pr(j['baseReps']), baseStepKg: (j['baseStep'] as num?)?.toDouble(), secPerSet: (j['secPerSet'] as num).toDouble())
     ..topRun = j['topRun'] ?? 0
     ..shortRun = j['shortRun'] ?? 0
     ..appearances = j['appearances'] ?? 0
@@ -578,7 +581,7 @@ class Person {
 }
 
 class AppState {
-  int version = 6;
+  int version = 7;
   Profile? profile;
   GoalConfig? goal;
   List<Location> locations = [];
@@ -612,7 +615,7 @@ class AppState {
       ..settings = Settings.fromJson(j['settings'] ?? {})
       ..plan = j['plan'] == null ? null : Plan.fromJson(j['plan'])
       ..ex = (j['ex'] as Map? ?? {}).map((k, v) => MapEntry(k as String, ExerciseState.fromJson(v)))
-      ..version = 6
+      ..version = 7
       ..person = Person.fromJson(j['person'] ?? {})
       ..sessions = ((j['sessions'] ?? []) as List).map((x) => Session.fromJson(x)).toList()
       ..active = j['active'] == null ? null : Session.fromJson(j['active'])
@@ -681,8 +684,9 @@ void _migrateBenchRacks(AppState s) {
   }
 }
 
-/// Before version 4 a loaded exercise's base was its working weight; now it is an estimated max. Lift it by the share the
-/// old goal trained at, so the weights the user sees do not change.
+/// Before version 4 a loaded exercise's base was its working weight; versions 4 to 6 kept an estimated max, which
+/// ladder.dart lays on a grid in the home reps from version 7. Lift it by the share the old goal trained at, so the
+/// weights the user sees do not change.
 void _migrateMaxes(AppState s, Map<String, dynamic> j) {
   final tpl = (j['goal'] as Map?)?['template'];
   final pct = tpl == 'strength' ? 0.85 : (tpl == 'fit' || tpl == 'feel') ? 0.60 : 0.70;

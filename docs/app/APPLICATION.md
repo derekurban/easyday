@@ -324,7 +324,7 @@ three steps:
 - Bodyweight ceiling cleared for a few workouts in a row: difficulty in play goes down one step. The
   exercise that was the hard thing becomes the medium thing, and the next version is offered as the new
   hard thing.
-- Loaded exercises mostly move by level instead. Difficulty stays, the max climbs.
+- Loaded exercises mostly move by level instead. Difficulty stays, the weight climbs.
 
 **Spare minutes learn.** Two "too much" feel taps in the last four workouts flip "more exercises" to
 cardio; two "easy" taps flip cardio back. A tap after a plain stop does not count. No question is ever

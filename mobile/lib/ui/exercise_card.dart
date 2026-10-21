@@ -72,7 +72,7 @@ class ExerciseCardScreen extends StatelessWidget {
         Padding(padding: const EdgeInsets.only(top: 8), child: Text(
           ex.ladder != null && ceilingFor(ex, equipmentHere) != null
               ? 'No loading gear here, so ${ex.ladder!.variants.last.name.toLowerCase()} is the top. There, the target becomes beating your best total. Tap a level to make it yours.'
-              : ex.loaded ? 'Each level is about ${ex.assist ? fmtLevelStep(s, ex) : '${fmtLevelStep(s, ex)} more'} at these reps. Heavier and fewer or lighter and more is the same level; the weight follows the reps. Tap a level to make it yours.' : 'Tap a level to make it yours.',
+              : ex.loaded ? 'Each level is ${ex.assist ? fmtLevelStep(s, ex) : '${fmtLevelStep(s, ex)} more'} for ${rangeText(range)}. A day with other reps carries your level to them, heavier and fewer or lighter and more. Tap a level to make it yours.' : 'Tap a level to make it yours.',
           style: t.bodySmall,
         )),
         const SizedBox(height: 20),

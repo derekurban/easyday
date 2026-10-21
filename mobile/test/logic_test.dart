@@ -115,7 +115,7 @@ void main() {
           'plank': ExerciseState(rung: 4, startRung: 1, secPerSet: 60).toJson(),     // old: RKC plank, now gone
         };
       final back = AppState.fromJson(jsonDecode(jsonEncode(old)));
-      expect(back.version, 6);
+      expect(back.version, 7);
       expect(back.ex.containsKey('ez_curl'), isFalse);
       expect(back.ex['bb_curl']!.rung, 4, reason: 'the EZ bar curl is the barbell curl now');
       expect(rungLabel(back, exerciseById['situp']!, back.ex['situp']!, back.ex['situp']!.rung), 'Sit-ups');
@@ -541,7 +541,7 @@ void main() {
       expect(sess.exercises.first.muscle, 'calves', reason: 'the muscle the user wants more of leads, whatever its difficulty');
     });
 
-    test('a level is strength: heavier and fewer or lighter and more at the same rung, and every rung moves every expression', () {
+    test('a level is a weight in its home reps, one plate step a level; other reps carry it, heavier and fewer or lighter and more', () {
       final s = fresh(goal: 'strength', template: 'gym');
       final ex = exerciseById['bb_squat']!;
       final st = ensureState(s, ex);
@@ -560,11 +560,23 @@ void main() {
       expect(todayRange(s, ex, liftIndex: 1), const RepRange(5, 8));
       st.repsOverride = null;
       s.goal!.bands = strengthBands();
-      for (final band in [heavyReps, middleReps, lightReps, const RepRange(20, 25)]) {
-        for (var r = 0; r < 12; r++) {
-          expect(loadFor(s, ex, st, r + 1, band), greaterThan(loadFor(s, ex, st, r, band)), reason: '$band rung $r');
+      // the squat is hard, so its home is heavy: there every level is exactly one plate step, no weight skipped
+      expect(homeRange(s, ex), heavyReps);
+      for (final units in ['kg', 'lb']) {
+        s.units = units;
+        final step = stepKg(s, ex);
+        for (var r = 0; r < 30; r++) {
+          expect(loadFor(s, ex, st, r + 1) - loadFor(s, ex, st, r), closeTo(step, 1e-9), reason: '$units rung $r');
+          expect(rungForLoad(s, ex, st, loadFor(s, ex, st, r)), r);
+        }
+        // lighter reps carry the level down, so a level can round to the same weight there, but never to less
+        for (final band in [middleReps, lightReps, const RepRange(20, 25)]) {
+          for (var r = 0; r < 30; r++) {
+            expect(loadFor(s, ex, st, r + 1, band), greaterThanOrEqualTo(loadFor(s, ex, st, r, band)), reason: '$units $band rung $r');
+          }
         }
       }
+      s.units = 'kg';
       expect(rungForLoad(s, ex, st, loadFor(s, ex, st, 5, lightReps), lightReps), 5);
       // changing the reps the goal likes changes the weight, not the level
       final before = st.rung;
