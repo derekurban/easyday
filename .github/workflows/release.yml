@@ -7,26 +7,55 @@
 # <version> is pubspec.yaml's version name; versionCode = 100000 + this workflow's run number, so every build is
 # higher than the last and than any local build.
 #
-# A pull request into staging or main runs the same build for the target's flavour as a check, without releasing (the
-# APK is kept as a run artifact).
+# Checks (analyze, test) and the APK build run side by side; a release waits for both. A failing check cancels the
+# run, so a broken build is never finished or published. A pull request into staging or main runs both without
+# releasing (the APK is kept as a run artifact); a push to dev runs only the checks.
 name: release
 
 on:
   push:
-    branches: [staging, main]
+    branches: [dev, staging, main]
   pull_request:
     branches: [staging, main]
 
 concurrency:
   group: release-${{ github.ref }}
-  # A new push to a pull request supersedes its check build; release builds always finish.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # A newer push supersedes a pull request's or dev's run; release builds always finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref_name == 'dev' }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write   # to cancel the run when a check fails
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.5'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+
+      - name: Stop the build
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
+
   build:
+    if: github.ref_name != 'dev'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -37,10 +66,13 @@ jobs:
       # downloads them as before.
       ORG_GRADLE_PROJECT_ciNdkVersion: 29.0.14206865
       ORG_GRADLE_PROJECT_ciCmakeVersion: 3.31.5
+    outputs:
+      flavor: ${{ steps.version.outputs.flavor }}
+      asset: ${{ steps.version.outputs.asset }}
+      code: ${{ steps.version.outputs.code }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -92,8 +124,6 @@ jobs:
           } > android/key.properties
 
       - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test
 
       - name: Build
         env:
@@ -108,14 +138,29 @@ jobs:
           name: ${{ steps.version.outputs.flavor }}-${{ steps.version.outputs.code }}
           path: ${{ runner.temp }}/${{ steps.version.outputs.asset }}
 
+  release:
+    needs: [check, build]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags and history for the release notes
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.flavor }}-${{ needs.build.outputs.code }}
+          path: ${{ runner.temp }}
+
       - name: Release
-        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
-          FLAVOR: ${{ steps.version.outputs.flavor }}
-          ASSET: ${{ steps.version.outputs.asset }}
-          TAG: ${{ steps.version.outputs.tag }}
-          CODE: ${{ steps.version.outputs.code }}
+          FLAVOR: ${{ needs.build.outputs.flavor }}
+          ASSET: ${{ needs.build.outputs.asset }}
+          TAG: ${{ needs.build.outputs.tag }}
+          CODE: ${{ needs.build.outputs.code }}
         run: |
           prev="$(git tag --list "v*-$FLAVOR.*" --sort=-creatordate | head -1)"
           if [ -n "$prev" ]; then range="$prev..HEAD"; else range="-n 15 HEAD"; fi
