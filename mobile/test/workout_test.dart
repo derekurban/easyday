@@ -176,6 +176,14 @@ void main() {
     });
   });
 
+  test('the cardio minutes logged are kept', () {
+    final s = fresh();
+    final x = build(s);
+    x.cardioDone = 17;
+    expect(Session.fromJson(x.toJson()).cardioDone, 17);
+    expect(Session.fromJson(build(s).toJson()).cardioDone, isNull);
+  });
+
   group('pause', () {
     test('resuming moves every time on by the pause, so the set, the rest and the workout carry on where they stopped', () {
       final s = fresh();

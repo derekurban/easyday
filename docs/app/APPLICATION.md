@@ -448,8 +448,9 @@ These cannot be changed by any setting.
 - Energy and time change what is in the workout and how much, never the level.
 - A decayed level never falls below where the exercise started.
 - Rest never gates anything, and no clock hurries anyone: the next set starts when the user says so, the
-  warm-up, cardio and stretching show their minutes as a guide and end when the user moves on, and the
-  planned rest starts a set by itself only when the user turns that on.
+  warm-up and stretching show their minutes as a guide and end when the user moves on, and the planned rest
+  starts a set by itself only when the user turns that on. Cardio is the one exception: its time is the work, so
+  a stopwatch counts it up and its minutes are logged when the user moves on.
 - At most one reminder per person-state transition.
 - The app may refuse "more". It never refuses "less".
 

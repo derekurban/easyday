@@ -66,7 +66,8 @@ class _SessionScreenState extends State<SessionScreen> {
     if (!mounted) return;
     final store = context.store;
     final x = store.state.active;
-    if (x == null || x.type != 'lift' || note != null || finishing || x.pausedAt != null) return;
+    if (x == null || note != null || finishing || x.pausedAt != null) return;
+    if (x.type != 'lift') { if (x.kind == 'cardio') setState(() {}); return; } // the cardio stopwatch
     final cur = currentItem(x);
     final now = store.now;
     if (cur != null) {
@@ -98,15 +99,14 @@ class _SessionScreenState extends State<SessionScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        titleSpacing: 20,
+        titleSpacing: 8,
         title: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(paused ? '${mmss(elapsed)} paused' : mmss(elapsed), style: t.titleMedium?.copyWith(color: paused ? du.accentText : du.inkSecondary, fontFeatures: const [FontFeature.tabularFigures()])),
-          const SizedBox(width: 4),
           IconButton(
             tooltip: paused ? 'Resume' : 'Pause',
             onPressed: () => _pause(context, session, !paused),
-            icon: Icon(paused ? LucideIcons.play : LucideIcons.pause, size: 18),
+            icon: Icon(paused ? LucideIcons.play : LucideIcons.pause, size: 18, color: du.inkSecondary),
           ),
+          Text(paused ? '${mmss(elapsed)} paused' : mmss(elapsed), style: t.titleMedium?.copyWith(color: du.inkSecondary, fontFeatures: const [FontFeature.tabularFigures()])),
         ]),
         actions: [
           TextButton.icon(onPressed: () => _stop(context, session), icon: const Icon(LucideIcons.square, size: 14), label: const Text('End')),
@@ -196,7 +196,7 @@ class _SessionScreenState extends State<SessionScreen> {
     final du = context.du;
     final view = stripView(x);
     final cur = items[curIdx];
-    final label = _nowName(x, cur);
+    final label = view.between ? 'Resting' : _nowName(x, cur);
     final upNext = _nextName(x, items, curIdx);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -224,7 +224,7 @@ class _SessionScreenState extends State<SessionScreen> {
                 ),
               ),
             if (view.between)
-              Positioned(left: geo.gapLeft + geo.gapWidth / 2 - 3, top: 3, width: 6, height: 6, child: _RestDot(color: du.accentStrong)),
+              Positioned(left: geo.gapLeft + geo.gapWidth / 2 - 3, top: 3, width: 6, height: 6, child: DecoratedBox(decoration: BoxDecoration(color: du.accentStrong, shape: BoxShape.circle))),
           ]);
         })),
         const SizedBox(height: 8),
@@ -246,15 +246,16 @@ class _SessionScreenState extends State<SessionScreen> {
     return r == null ? _short(x, cur) : _shortName(x.exercises[r.ex].exercise.name);
   }
 
-  /// What comes next on the strip that is not this exercise: the circuit's next exercise, else the next part.
+  /// What comes next: the exercise of the next set (this one again, or the next in a circuit), else the next part.
   String? _nextName(Session x, List<WorkoutItem> items, int curIdx) {
     final cur = items[curIdx];
-    if (cur.kind == ItemKind.circuit) {
+    if (cur.lifting) {
       final order = setOrder(x, cur);
-      final r = liftingSet(x, cur) ?? nextSet(x, cur);
-      final i = r == null ? -1 : order.indexOf(r);
-      for (var k = i + 1; k < order.length; k++) {
-        if (order[k].ex != r!.ex) return _shortName(x.exercises[order[k].ex].exercise.name);
+      final lift = liftingSet(x, cur);
+      final i = lift == null ? -1 : order.indexOf(lift);
+      final n = lift == null ? nextSet(x, cur) : (i + 1 < order.length ? order[i + 1] : null);
+      if (n != null) {
+        return _shortName(x.exercises[n.ex].exercise.name);
       }
     }
     return curIdx + 1 < items.length ? _short(x, items[curIdx + 1]) : null;
@@ -320,101 +321,100 @@ class _SessionScreenState extends State<SessionScreen> {
 
   // ---- what to do now ----
 
-  String _level(SessionExercise e) => e.rungLabel == e.exercise.name ? 'standard' : e.rungLabel;
-
-  String _nextExercise(Session x, SessionExercise e) {
-    final w = e.warmups.isEmpty ? '' : '. Warm up ${e.warmups.map((w) => '${w.reps} × ${fmtLoad(context.store.state, e.exercise, w.kg, equipment: context.store.state.location(x.locationId)?.equipment)}').join(', then ')}';
-    return '${e.exercise.name.toLowerCase()}, ${_level(e)}$w';
-  }
-
-  String _nextItemLine(Session x, List<WorkoutItem> items, WorkoutItem cur) {
-    final i = items.indexWhere((it) => it.key == cur.key);
-    if (i + 1 >= items.length) return 'Finish when you\'ve caught your breath.';
-    final n = items[i + 1];
-    return switch (n.kind) {
-      ItemKind.exercise => 'Next: ${_nextExercise(x, x.exercises[n.exercises.single])}.',
-      ItemKind.circuit => 'Next: the circuit, ${n.exercises.map((k) => x.exercises[k].exercise.name.toLowerCase()).join(', ')}.',
-      ItemKind.cardio => 'Next: cardio, ${n.minutes} minutes.',
-      ItemKind.stretch => 'Next: stretching, ${n.minutes} minutes.',
-      ItemKind.warmup => 'Next: the warm-up.',
-    };
-  }
-
   List<Widget> _liftBody(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur, DateTime now) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    final store = context.store;
-    final lift = liftingSet(x, cur), last = lastLogged(x, cur), next = nextSet(x, cur);
-    final shown = (lift ?? last ?? next)!;
-    final e = x.exercises[shown.ex];
+    final lift = liftingSet(x, cur);
+    if (lift == null) return _restBody(context, x, items, cur);
+    final e = x.exercises[lift.ex];
     final circuit = cur.kind == ItemKind.circuit;
-    // the chips: this exercise's sets, or in a circuit this round across the exercises
-    final round = shown.set;
-    final chips = <({SetLog log, bool now, bool tappable})>[
-      if (!circuit)
-        for (var k = 0; k < e.sets.length; k++) (log: e.sets[k], now: lift != null && lift.ex == shown.ex && lift.set == k, tappable: last != null && last.ex == shown.ex && last.set == k)
-      else
-        for (final i in cur.exercises)
-          if (round < x.exercises[i].sets.length) (log: x.exercises[i].sets[round], now: lift != null && lift.ex == i && lift.set == round, tappable: last != null && last.ex == i && last.set == round),
-    ];
-    final plan = lift == null ? plannedRest(x, cur) : null;
-    final settings = store.state.settings;
-    String restNote() {
-      if (plan != null) {
-        final what = circuit && next!.set > last!.set ? 'round ${next.set + 1}' : 'set ${x.exercises[next!.ex].attempted.length + 1}';
-        return settings.restAuto ? '${what[0].toUpperCase()}${what.substring(1)} starts by itself after the rest.' : 'Take the rest you need before $what.';
-      }
-      if (next != null) return 'Next: ${_nextExercise(x, x.exercises[next.ex])}.';
-      return "That's every set. ${_nextItemLine(x, items, cur)}";
-    }
     // a version of a bodyweight exercise is its name; a loaded one is the exercise and its weight
-    final variant = e.exercise.ladder != null;
-    final title = variant ? e.rungLabel : e.exercise.name;
-    final weight = variant || e.rungLabel == e.exercise.name ? null : e.rungLabel;
+    final title = e.exercise.ladder != null ? e.rungLabel : e.exercise.name;
+    final weight = _weightOf(e);
     final seconds = e.exercise.repLabel == 'seconds';
-    final note = e.atCeiling
-        ? 'Top of the progression: beat ${e.bestTotal} total across ${e.sets.length} sets'
-        : e.nextLevel ? 'A new level: ${e.lo} on every set makes it yours'
-        : e.intent == intentLight ? 'Lighter today, nothing judged' : null;
     return [
       Text(title, style: t.headlineLarge),
-      if (weight != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(weight, style: t.titleLarge?.copyWith(color: du.accentText))),
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       Row(children: [
         Icon(LucideIcons.target, size: 16, color: du.inkSecondary),
         const SizedBox(width: 8),
-        Text('${e.lo} to ${e.hi} ${seconds ? 'seconds' : 'reps'}${e.exercise.perSide ? ' a side' : ''}', style: t.titleMedium),
-      ]),
-      if (note != null) Padding(padding: const EdgeInsets.only(top: 4, left: 24), child: Text(note, style: t.bodySmall?.copyWith(color: du.inkSecondary))),
-      const SizedBox(height: 16),
-      Row(children: [
-        for (var k = 0; k < chips.length; k++)
-          Expanded(child: Padding(
-            padding: EdgeInsets.only(right: k == chips.length - 1 ? 0 : 8),
-            child: GestureDetector(
-              onTap: chips[k].tappable && lift == null ? () => setState(() => editing = true) : null,
-              child: AnimatedContainer(
-                duration: m(context, durBase),
-                curve: easeOut,
-                height: 44, alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: chips[k].log.attempted ? du.accentSubtle : du.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: chips[k].now ? du.accentStrong : (chips[k].log.attempted ? du.accentLine : du.line), width: chips[k].now ? 2 : 0.6),
-                ),
-                child: chips[k].log.attempted
-                    ? Text('${chips[k].log.reps}', style: t.titleLarge?.copyWith(color: du.accentText))
-                    : Text(chips[k].now ? 'now' : '·', style: chips[k].now ? t.labelMedium?.copyWith(color: du.accentText) : t.titleLarge?.copyWith(color: du.inkTertiary)),
-              ),
-            ),
-          )),
+        Expanded(child: Text('${e.lo} to ${e.hi} ${seconds ? 'seconds' : 'reps'}${e.exercise.perSide ? ' a side' : ''}', style: t.titleMedium)),
+        if (weight != null) Text(weight, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
       ]),
       if (circuit) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${cur.exercises.map((i) => x.exercises[i].exercise.name).join(' → ')}, then rest and go again.', style: t.labelSmall)),
       const SizedBox(height: 16),
-      StageArt(stage: lift == null ? Stage.rest : stageOf(e.exercise.type), note: lift == null ? restNote() : null),
+      StageArt(stage: stageOf(e.exercise.type)),
       const SizedBox(height: 24),
       HowToSteps(howAt(e.exercise, e.rung)),
     ];
+  }
+
+  /// A loaded exercise's weight; null for a bodyweight version, whose name says it all.
+  String? _weightOf(SessionExercise e) => e.exercise.ladder != null || e.rungLabel == e.exercise.name ? null : e.rungLabel;
+
+  /// Resting: the title says so, the picture is the breath, and under it the recent performance, a row of small
+  /// tiles, one for each exercise worked so far, the one just rested from first.
+  List<Widget> _restBody(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final now = context.store.now;
+    // every exercise with a set in, the most recent first
+    DateTime lastAt(SessionExercise e) => e.sets.where((s) => s.attempted && s.at != null).fold(DateTime(0), (a, s) => s.at!.isAfter(a) ? s.at! : a);
+    final worked = [for (final e in x.exercises) if (e.attempted.isNotEmpty) e]..sort((a, b) => lastAt(b).compareTo(lastAt(a)));
+    return [
+      Text('Rest', style: t.headlineLarge),
+      const SizedBox(height: 16),
+      const StageArt(stage: Stage.rest),
+      if (worked.isNotEmpty) ...[
+        const SizedBox(height: 24),
+        Row(children: [
+          Icon(LucideIcons.activity, size: 16, color: du.inkSecondary),
+          const SizedBox(width: 8),
+          Text('Recent performance', style: t.labelLarge?.copyWith(color: du.inkSecondary)),
+        ]),
+        const SizedBox(height: 12),
+        SizedBox(height: 138, child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          itemCount: worked.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 10),
+          itemBuilder: (context, i) => _performanceTile(context, worked[i], now, latest: i == 0),
+        )),
+      ],
+    ];
+  }
+
+  /// One exercise's sets so far: its name, the sets done, the reps (or seconds) of each, the weight, and the average
+  /// time a set took. The most recent one is outlined in green.
+  Widget _performanceTile(BuildContext context, SessionExercise e, DateTime now, {bool latest = false}) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final done = e.sets.where((s) => s.attempted).toList();
+    final avg = done.isEmpty ? 0.0 : done.fold(0.0, (a, s) => a + liftSeconds(e, s, now)) / done.length;
+    final seconds = e.exercise.repLabel == 'seconds';
+    Widget line(IconData icon, String text) => Padding(padding: const EdgeInsets.only(top: 4), child: Row(children: [
+          Icon(icon, size: 13, color: du.inkTertiary),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelSmall?.copyWith(letterSpacing: 0, color: du.inkSecondary))),
+        ]));
+    return Container(
+      width: 168,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: du.sunk,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: latest ? du.accentStrong : du.line, width: latest ? 1.5 : 0.6),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(e.exercise.ladder != null ? e.rungLabel : e.exercise.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelLarge),
+      const SizedBox(height: 6),
+      Text([for (final s in done) '${s.reps}'].join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: t.titleLarge?.copyWith(color: du.accentText, fontFeatures: const [FontFeature.tabularFigures()])),
+      const Spacer(),
+      line(LucideIcons.listChecks, '${done.length} of ${e.sets.length} sets${seconds ? ', seconds' : ''}'),
+      line(LucideIcons.dumbbell, _weightOf(e) ?? 'Bodyweight'),
+      line(LucideIcons.timer, 'About ${mmss(avg)} a set'),
+    ]));
   }
 
   List<Widget> _blockBody(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur, DateTime now) {
@@ -434,21 +434,17 @@ class _SessionScreenState extends State<SessionScreen> {
         used += m.seconds;
       }
     }
-    final (stage, note) = switch (cur.kind) {
-      ItemKind.warmup => (Stage.warmup, _nextItemLine(x, items, cur)),
-      ItemKind.cardio => (Stage.cardio, 'A pace you could talk through. ${_nextItemLine(x, items, cur)}'),
-      _ => (Stage.stretching, 'Take your time. Tap Finish when you are done.'),
-    };
+    final stage = switch (cur.kind) { ItemKind.warmup => Stage.warmup, ItemKind.cardio => Stage.cardio, _ => Stage.stretching };
     return [
       Text(_name(x, cur), style: t.headlineLarge),
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       Row(children: [
         Icon(LucideIcons.target, size: 16, color: du.inkSecondary),
         const SizedBox(width: 8),
         Text('About ${cur.minutes} minutes', style: t.titleMedium),
       ]),
       const SizedBox(height: 16),
-      StageArt(stage: stage, note: note),
+      StageArt(stage: stage),
       const SizedBox(height: 24),
       if (moves.isNotEmpty)
         Panel(padding: EdgeInsets.zero, child: Column(children: [
@@ -491,17 +487,40 @@ class _SessionScreenState extends State<SessionScreen> {
     } else if (picking) {
       final r = (liftingSet(x, cur) ?? lastLogged(x, cur))!;
       child = KeyedSubtree(key: ValueKey('reps ${r.ex} ${r.set} $editing'), child: _repsWheel(context, x, cur));
+    } else if (cur.kind == ItemKind.cardio && x.itemStarts[cur.key] != null) {
+      final hold = _hold;
+      _hold = Duration.zero;
+      child = KeyedSubtree(key: ValueKey('watch ${cur.key}'), child: _stopwatch(context,
+        seconds: (x.pausedAt ?? context.store.now).difference(x.itemStarts[cur.key]!).inSeconds,
+        label: _readyLabel(x, items, cur),
+        hold: hold,
+        onDone: (minutes) {
+          context.store.update((_) => x.cardioDone = minutes);
+          _ready(context, x);
+        },
+      ));
     } else {
       final last = cur.lifting ? lastLogged(x, cur) : null;
       final hold = _hold;
       _hold = Duration.zero; // spent on this button; a rebuild of the same one does not wait again
-      child = _HoldButton(
+      final button = _HoldButton(
         key: ValueKey('ready ${cur.key} ${last?.ex} ${last?.set}'),
         label: _readyLabel(x, items, cur),
         caption: _holdCaption,
         hold: m(context, hold),
         onPressed: () => _ready(context, x),
       );
+      child = last == null
+          ? button
+          : Column(key: ValueKey('ready+fix ${cur.key} ${last.ex} ${last.set}'), mainAxisSize: MainAxisSize.min, children: [
+              Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                onPressed: () => setState(() => editing = true),
+                icon: const Icon(LucideIcons.pencil, size: 14),
+                label: const Text('Fix the last set'),
+              )),
+              const SizedBox(height: 2),
+              button,
+            ]);
     }
     return Container(
       padding: EdgeInsets.fromLTRB(16, 10, 16, 14 + MediaQuery.of(context).padding.bottom),
@@ -537,6 +556,28 @@ class _SessionScreenState extends State<SessionScreen> {
       onLog: (v) => _logReps(context, x, v),
       onCancel: lift == null ? () => setState(() => editing = false) : null,
     );
+  }
+
+  /// Cardio's stopwatch: the time so far counting up, the one clock in a workout that is the work itself, and the
+  /// button that ends it, logging the minutes (rounded, at least one). Nothing is judged.
+  Widget _stopwatch(BuildContext context, {required int seconds, required String label, Duration hold = Duration.zero, required ValueChanged<int> onDone}) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final s = max(0, seconds);
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text('Cardio time', style: t.labelMedium, textAlign: TextAlign.center),
+      const SizedBox(height: 4),
+      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Icon(LucideIcons.timer, size: 22, color: du.accentText),
+        const SizedBox(width: 8),
+        Text(mmss(s.toDouble()), style: t.displayLarge?.copyWith(fontSize: 40, color: du.ink, fontFeatures: const [FontFeature.tabularFigures()])),
+      ]),
+      const SizedBox(height: 10),
+      _HoldButton(key: const ValueKey('watch done'), label: label, caption: _holdCaption, hold: m(context, hold), onPressed: () {
+        HapticFeedback.mediumImpact();
+        onDone(max(1, (s / 60).round()));
+      }),
+    ]);
   }
 
   void _logReps(BuildContext context, Session x, int reps) {
@@ -780,7 +821,12 @@ class _SessionScreenState extends State<SessionScreen> {
         Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
-          child: SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(onPressed: () => _finish(context, session, null), icon: const Icon(LucideIcons.check, size: 20), label: const Text('Done'))),
+          child: isCardio
+              ? _stopwatch(context, seconds: session.startedAt == null ? 0 : store.now.difference(session.startedAt!).inSeconds, label: 'Done', onDone: (minutes) {
+                  store.update((_) => session.cardioDone = minutes);
+                  _finish(context, session, null);
+                })
+              : SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(onPressed: () => _finish(context, session, null), icon: const Icon(LucideIcons.check, size: 20), label: const Text('Done'))),
         ),
       ]),
     );
@@ -881,7 +927,7 @@ class _RepWheelState extends State<_RepWheel> {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final v = widget.values[_sel];
-    final word = widget.unit == 'reps' && v == 1 ? 'rep' : widget.unit == 'seconds' && v == 1 ? 'second' : widget.unit;
+    final word = v != 1 ? widget.unit : const {'reps': 'rep', 'seconds': 'second', 'minutes': 'minute'}[widget.unit] ?? widget.unit;
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Text(widget.title, style: t.labelMedium, textAlign: TextAlign.center),
       const SizedBox(height: 8),
@@ -933,34 +979,4 @@ class _RepWheelState extends State<_RepWheel> {
       ]),
     ]);
   }
-}
-
-/// The dot in the gap while resting: it breathes slowly, so it reads as a pause, not a countdown.
-class _RestDot extends StatefulWidget {
-  const _RestDot({required this.color});
-  final Color color;
-  @override
-  State<_RestDot> createState() => _RestDotState();
-}
-
-class _RestDotState extends State<_RestDot> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.maybeDisableAnimationsOf(context) == true) { _c.value = 1; } else if (!_c.isAnimating) { _c.repeat(reverse: true); }
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Pop(child: FadeTransition(
-        opacity: Tween(begin: 0.45, end: 1.0).animate(CurvedAnimation(parent: _c, curve: easeInOut)),
-        child: DecoratedBox(decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle)),
-      ));
 }

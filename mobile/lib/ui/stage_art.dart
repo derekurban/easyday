@@ -23,23 +23,13 @@ Stage stageOf(ExerciseType t) => switch (t) {
     };
 
 const _words = {
-  Stage.strength: ('Strength', 'Slow and controlled, every rep'),
-  Stage.power: ('Power', 'Fast and sharp, then reset'),
-  Stage.stability: ('Stability', 'Hold it steady'),
-  Stage.cardio: ('Cardio', 'A pace you could talk through'),
-  Stage.stretching: ('Stretching', 'Ease into it and breathe'),
-  Stage.warmup: ('Warm-up', 'Get loose, nothing hard yet'),
-  Stage.rest: ('Rest', 'Breathe, and go when you are ready'),
-};
-
-const _icons = {
-  Stage.strength: LucideIcons.dumbbell,
-  Stage.power: LucideIcons.zap,
-  Stage.stability: LucideIcons.scale,
-  Stage.cardio: LucideIcons.heartPulse,
-  Stage.stretching: LucideIcons.stretchHorizontal,
-  Stage.warmup: LucideIcons.flame,
-  Stage.rest: LucideIcons.wind,
+  Stage.strength: ('Strength', 'Slow and controlled'),
+  Stage.power: ('Power', 'Explode, then reset'),
+  Stage.stability: ('Stability', 'Still and steady'),
+  Stage.cardio: ('Cardio', 'A pace you can talk at'),
+  Stage.stretching: ('Stretching', 'Ease in, breathe out'),
+  Stage.warmup: ('Warm-up', 'Loosen up'),
+  Stage.rest: ('Rest', 'Breathe and recover'),
 };
 
 /// Each stage's loop length in milliseconds.
@@ -56,11 +46,10 @@ const _periods = {
 /// The height every drawing has to fit in.
 const stageArtHeight = 116.0;
 
-/// The stage's word, a line on how to do it ([note] replaces the line), and its picture.
+/// The stage's picture, and under it its word on the left and its tagline on the right.
 class StageArt extends StatefulWidget {
-  const StageArt({super.key, required this.stage, this.note});
+  const StageArt({super.key, required this.stage});
   final Stage stage;
-  final String? note;
   @override
   State<StageArt> createState() => _StageArtState();
 }
@@ -107,17 +96,9 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
     final du = context.du;
     final (word, line) = _words[widget.stage]!;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(18)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(_icons[widget.stage], size: 16, color: du.accentText),
-          const SizedBox(width: 8),
-          Text(word, style: t.labelLarge?.copyWith(color: du.accentText)),
-        ]),
-        const SizedBox(height: 2),
-        Text(widget.note ?? line, style: t.bodySmall?.copyWith(color: du.inkSecondary)),
-        const SizedBox(height: 4),
         AnimatedSwitcher(
           duration: m(context, durSlow),
           child: SizedBox(
@@ -128,6 +109,12 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
                 _Ink(du.accentStrong, du.accentLine, du.accentSubtle, du.line, du.inkTertiary, du.ink))),
           ),
         ),
+        const SizedBox(height: 8),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(word, style: t.labelLarge?.copyWith(color: du.inkSecondary)),
+          const SizedBox(width: 16),
+          Expanded(child: Text(line, textAlign: TextAlign.end, style: t.bodySmall?.copyWith(color: du.inkTertiary))),
+        ]),
       ]),
     );
   }

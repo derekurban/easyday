@@ -506,6 +506,7 @@ class Session {
   /// clocks, the rest and the item times all read as if the pause never happened.
   DateTime? pausedAt;
   int pausedSeconds = 0; // all pauses so far: startedAt minus this is when the workout really began
+  int? cardioDone;       // the minutes of cardio the user logged on the wheel, the cardio block or a cardio day
   StopReason? stopReason;
   int? stopAt;           // exercise index where the stop happened
   Feel? feel;
@@ -522,7 +523,7 @@ class Session {
         'energyChosen': energyChosen, 'timeChosen': timeChosen, 'stateAtStart': _e(stateAtStart), 'exercises': exercises.map((e) => e.toJson()).toList(),
         'minutes': minutes, 'routine': routine, 'cardio': cardio, 'effort': effort, 'estMinutes': estMinutes, 'cardioMinutes': cardioMinutes,
         'stretchMinutes': stretchMinutes, 'spareMinutes': spareMinutes, 'relative': relative, 'pushes': pushes,
-        'startedAt': _ms(startedAt), 'endedAt': _ms(endedAt), 'pausedAt': _ms(pausedAt), 'pausedSeconds': pausedSeconds, 'stopReason': stopReason == null ? null : _e(stopReason!), 'stopAt': stopAt,
+        'startedAt': _ms(startedAt), 'endedAt': _ms(endedAt), 'pausedAt': _ms(pausedAt), 'pausedSeconds': pausedSeconds, 'cardioDone': cardioDone, 'stopReason': stopReason == null ? null : _e(stopReason!), 'stopAt': stopAt,
         'feel': feel == null ? null : _e(feel!), 'note': note, 'swappedToMove': swappedToMove, 'circuit': circuit, 'skipped': skipped,
         'calendarEventId': calendarEventId, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
       };
@@ -545,6 +546,7 @@ class Session {
     ..endedAt = _d(j['endedAt'])
     ..pausedAt = _d(j['pausedAt'])
     ..pausedSeconds = j['pausedSeconds'] ?? 0
+    ..cardioDone = j['cardioDone']
     ..stopReason = j['stopReason'] == null ? null : _p(StopReason.values, j['stopReason'], StopReason.time)
     ..stopAt = j['stopAt']
     ..feel = j['feel'] == null ? null : _p(Feel.values, j['feel'], Feel.right)
