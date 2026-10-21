@@ -129,6 +129,29 @@ void main() {
       expect(again.ex['situp']!.rung, back.ex['situp']!.rung, reason: 'the migration runs once');
     });
 
+    test('loads read the way the gear is used: per hand, per side, plates added, assistance, dumbbells for a bar', () {
+      final s = fresh(template: 'gym');
+      final ex = exerciseById;
+      expect(fmtLoad(s, ex['db_curl']!, 8), '8 kg per hand');
+      expect(fmtLoad(s, ex['cable_row_single']!, 20), '20 kg per side');
+      expect(fmtLoad(s, ex['bb_row']!, 40), '40 kg', reason: 'a bar is its total');
+      expect(fmtLoad(s, ex['landmine_press']!, 10), '+10 kg');
+      expect(fmtLoad(s, ex['landmine_press']!, 0), 'empty bar');
+      expect(fmtLoad(s, ex['smith_squat']!, 20), '+20 kg');
+      expect(fmtLoad(s, ex['shrug']!, 40), '40 kg', reason: 'a gym has the bar');
+      expect(fmtLoad(s, ex['shrug']!, 40, equipment: const ['dumbbell']), '20 kg per hand', reason: 'only dumbbells: the dumbbell loads');
+      expect(fmtLoad(s, ex['farmer']!, 16, equipment: const ['trap_bar']), '40 kg', reason: 'only a trap bar: its total');
+      expect(fmtLevelStep(s, ex['lat_raise']!), '1 kg per hand');
+      // the assisted machine: a level up is less help
+      final a = ex['assisted_pullup']!;
+      final st = ensureState(s, a);
+      expect(rungLabel(s, a, st, st.rung, middleReps), '30 kg assistance', reason: 'some experience starts at 30 kg of help');
+      expect(loadFor(s, a, st, st.rung + 2, middleReps), greaterThan(loadFor(s, a, st, st.rung, middleReps)));
+      expect(rungLabel(s, a, st, st.rung + 2, middleReps), isNot('30 kg assistance'));
+      expect(fmtLevelStep(s, a), '5 kg less assistance');
+      expect(fmtLoad(s, a, assistRefKg), 'no assistance');
+    });
+
     test('every muscle group has a loaded option, and all but the forearms a bodyweight option', () {
       for (final g in muscleGroups) {
         final list = browsable.where((e) => primaryGroups(e).contains(g));

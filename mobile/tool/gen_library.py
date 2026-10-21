@@ -70,6 +70,7 @@ def exercise(e):
     a.append(f"rank: {e['rank']}")
     if e.get("startKg"): a += [f"startKg: {dart(e['startKg'])}", f"stepKg: {dart(e['stepKg'])}"]
     if e.get("each"): a.append("each: true")
+    if e.get("assist"): a.append("assist: true")
     if e.get("altLoad"):
         alts = ", ".join(f"{dart(k)}: AltLoad(startKg: {dart(v['startKg'])}, stepKg: {dart(v['stepKg'])}, each: {dart(v['each'])})"
                          for k, v in e["altLoad"].items())

@@ -62,7 +62,7 @@ the same three shades.
 
 ## What it reads
 
-- The sets of each lifting workout, planned or attempted, and whether each exercise was light.
+- The sets of each strength workout, planned or attempted, and whether each exercise was light.
 - The primary and secondary muscles of each exercise.
 - When each workout ended, for the day it counts on.
 

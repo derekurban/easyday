@@ -42,5 +42,5 @@ String? nudgeFor(AppState s, DateTime now) {
 }
 
 String _nudgeText(PersonView p) => p.state == PersonState.atRisk
-    ? 'It has been ${p.daysSince} days. An easy session or a walk counts.'
+    ? 'It has been ${p.daysSince} days. An easy workout or a walk counts.'
     : 'Welcome back. Today defaults to easy; nothing is lost.';

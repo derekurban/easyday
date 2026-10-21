@@ -31,6 +31,10 @@ Every exercise has the same shape:
   what selection picks it for.
 - **A preference.** Liked, fine or not for me, the user's own word; unrated until they say. See
   `SELECTION.md`.
+- **How its weight reads.** Dumbbells and kettlebells per hand ("12 kg per hand"), a one-limb cable load per side,
+  a bar as its total ("40 kg"), a Smith machine or landmine as the plates added ("+20 kg", or "empty bar"), and the
+  assisted pull-up machine as its help ("30 kg assistance", less with every level). An exercise that takes a bar or
+  dumbbells shows dumbbells per hand where the location only has dumbbells.
 - **Reps or seconds.** Most count reps. Holds (plank, wall sit, handstand hold) count seconds and have
   their own ranges.
 
@@ -111,7 +115,7 @@ Selection (`SELECTION.md`) asks the library for strength exercises that work a c
 equipment, and ranks them by readiness (`MUSCLE_MAP.md`), preference and practice; energy turns the dials on each; the
 difficulty and the goal pick the expression and so the reps; the progression decides the level; the timing
 model prices the sets in minutes. The index is for the user's eyes only: it never changes what the builder picks. Nothing here changes a
-level except the progression rules and the user's own edit. Movement sessions (cardio and mobility) have no levels:
+level except the progression rules and the user's own edit. Movement days (cardio and stretching) have no levels:
 they are the library's cardio choices and stretching routines, described in `APPLICATION.md` section 7.
 
 ## What it never does

@@ -233,7 +233,7 @@ class _PlanScreenState extends State<PlanScreen> {
     final v = await showSheet<bool>(context, ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
       SheetHeader(title, subtitle: 'Its share comes from your goal. Today only.', icon: title == 'Cardio' ? LucideIcons.footprints : LucideIcons.stretchHorizontal),
       ListTile(leading: const IconBadge(LucideIcons.check, size: 36), title: const Text('Keep it'), trailing: !skipped ? Icon(LucideIcons.check, color: context.du.accentStrong) : null, onTap: () => Navigator.pop(context, false)),
-      ListTile(leading: const IconBadge(LucideIcons.circleOff, size: 36), title: const Text('Not today'), subtitle: const Text('The minutes go to the lifting instead, or to spare.'), trailing: skipped ? Icon(LucideIcons.check, color: context.du.accentStrong) : null, onTap: () => Navigator.pop(context, true)),
+      ListTile(leading: const IconBadge(LucideIcons.circleOff, size: 36), title: const Text('Not today'), subtitle: const Text('The minutes go to the strength exercises instead, or to spare.'), trailing: skipped ? Icon(LucideIcons.check, color: context.du.accentStrong) : null, onTap: () => Navigator.pop(context, true)),
     ]));
     if (v != null) setState(() => set(v));
   }

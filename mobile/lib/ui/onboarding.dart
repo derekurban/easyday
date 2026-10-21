@@ -43,7 +43,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       (title: 'How it works', blurb: 'Six things, then you never think about programming again.', body: const HowItWorks(compact: true)),
       (title: 'What are you after?', blurb: 'Your goal, in plain words. Fill it from a template if you like, then change anything, now or later.',
           body: GoalEditor(goal: goal, daysPerWeek: days, onChanged: (_) => setState(() {}))),
-      (title: 'How much have you lifted?', blurb: 'Only used to pick a conservative first level on each exercise. It corrects itself in a workout or two.', body: Column(children: [
+      (title: 'How much have you trained?', blurb: 'Only used to pick a conservative first level on each exercise. It corrects itself in a workout or two.', body: Column(children: [
         for (final e in experiences) OptionCard(icon: experienceIcon(e.id), title: e.name, blurb: e.blurb, selected: experience == e.id, onTap: () => setState(() => experience = e.id)),
       ])),
       (title: 'How many days a week, roughly?', blurb: 'Seeds how many sets each muscle group aims for over a week. There are no fixed days: whenever you come back, a workout built from where your body is now is waiting.', body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

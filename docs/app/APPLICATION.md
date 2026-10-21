@@ -16,7 +16,7 @@ If a feature asks the user to think, plan, compare, or configure, it is working 
 
 **Primary user:** a person who wants to exercise more but finds the management of it, choosing what to
 do, when, how much, and how to progress, frustrating enough that they stop. They are not a beginner to
-movement and not an athlete. They may lift, they may walk or run, they want some mobility, and they do
+movement and not an athlete. They may lift, they may walk or run, they want some stretching, and they do
 not want to become an expert in programming. They train at home and at a gym, and sometimes nowhere in
 particular.
 
@@ -61,7 +61,7 @@ Ranked by how directly each one causes quitting.
 - Signals should be implicit where possible. Every explicit input must be one tap and skippable.
 - Nothing is timed for the user. Timing is learned from the user.
 - A miss is expected data, not failure. Levels decay gently and re-climb fast.
-- Cardio and mobility are the floor: deliberately simple, always one tap away.
+- Cardio and stretching are the floor: deliberately simple, always one tap away.
 - Automations change defaults and send at most one nudge. They never act for the user.
 - The settings are few and in plain words. The guardrails are not settings.
 - Progress is shown as consistency and trend. Never streaks.
@@ -70,7 +70,7 @@ Ranked by how directly each one causes quitting.
 
 - **Goal.** What the plan is for: how many exercises and sets a workout holds, the rep band for each
   difficulty, how many sets each muscle group should get over the look-back and which groups get more or
-  less, and how often a movement day replaces a lifting day. Starts from a plain-language template such as
+  less, and how often a movement day replaces a strength workout. Starts from a plain-language template such as
   "get stronger" or "build muscle"; every knob can be changed, and a changed template is a custom goal.
 - **Exercise.** A named movement with specific equipment, tagged with the muscles it works. Barbell bench
   press and dumbbell floor press are two exercises for the chest.
@@ -110,7 +110,7 @@ Ranked by how directly each one causes quitting.
 - **Workout.** One visit. Built when the user shows up, from the muscles most behind among those ready,
   with the exercises the location allows, filled for the chosen energy and time. There is no schedule and no
   fixed list of workouts; every visit is built fresh from history.
-- **Movement workout.** The alternative to a lifting workout: a cardio duration or a short mobility
+- **Movement workout.** The alternative to a strength workout: a cardio duration or a short stretching
   routine. Requires no decisions beyond picking it.
 - **Set outcome.** Hit the top, a rep count below it, or not attempted. See section 8.
 - **Mode.** Straight sets (all sets of one exercise, then the next) or circuit (one set of each exercise per
@@ -213,9 +213,9 @@ repriced in minutes. Every exercise carries a how-to at its level, and the worko
 groups it will work.
 
 **Movement workouts** bypass all of this. Cardio is a single duration with a perceived-effort tap at the
-end. Mobility is one of a few fixed routines, each a list of the library's stretches timed by their seconds. They exist so that "I don't want to lift" still produces a
-workout rather than nothing. They also appear inside lifting workouts as the cardio and stretching
-shares at the end (`WORKOUT.md`). A warm-up block opens a lifting workout: a few minutes of easy moves,
+end. Stretching is one of a few fixed routines, each a list of the library's stretches timed by their seconds. They exist so that "I don't want to lift" still produces a
+workout rather than nothing. They also appear inside strength workouts as the cardio and stretching
+shares at the end (`WORKOUT.md`). A warm-up block opens a strength workout: a few minutes of easy moves,
 none, 3, 5 or 8, inside the minutes, picked on the plan and kept for next time.
 
 ## 8. How the app adjusts
@@ -346,7 +346,7 @@ minutes real, as in section 7, so it follows the user as they get faster or star
 
 Two words, used the same way everywhere. **Lifting** is a set, from I'm ready until the reps are in.
 **Rest** is everything between sets: catching your breath, moving to the next exercise and setting it up.
-During a workout the current exercise shows its lifting and rest so far; afterwards the log shows them for
+During a workout the current exercise shows its set time and rest so far; afterwards the log shows them for
 the workout and for each exercise, in minutes or, by a setting, as a share of the time. Rest never gates
 anything: it counts up, the planned rest (by the exercise's reps, or ninety seconds between rounds of a
 circuit) is only a guide, and the next set starts when the user says so. A setting can make the planned
@@ -420,7 +420,7 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 | Cardio and stretching, share of every workout | 15 % / 10 % | 0 to 50 %, 0 to 30 % |
 | Warm-up block (on the plan, kept for next time) | 5 minutes | none, 3, 5, 8 minutes |
 | When the planned rest runs out | keep resting | keep resting, start the next set |
-| Show lifting and rest as | minutes | minutes, share of time |
+| Show set time and rest as | minutes | minutes, share of time |
 | Workouts at the top before a level steps up | 1 | 1 to 5 |
 | Workouts below the bottom before a level steps down | 2 | 1 to 5 |
 | Weeks before an unused level decays | 3 | 2 to 8, or off |
@@ -518,11 +518,11 @@ level. An energy or time they default to does not count as the user's choice.
   step you are on. No screen assumes the user knows the vocabulary.
 - **During.** The strip of the whole workout, the item under way marked lifting or resting; the current
   exercise, its level and its sets; a guide that says what to do now ("Go give it your best!", or "Rest up
-  and let us know when you're ready" with the planned rest and what comes next); the lifting and rest so
+  and let us know when you're ready" with the planned rest and what comes next); the set time and rest so
   far. At the bottom one thing at a time: the reps while lifting, then I'm ready. A stop button that asks
   one thing: energy, time, pain, or no reason.
 - **After.** The optional feel tap, then one line about what changed, such as "bench steps up next time",
-  the time against the plan, and lifting and rest for the workout and each item.
+  the time against the plan, and set time and rest for the workout and each item.
 - **Exercise card.** Level, average time per set, best total at this level, cost with override, and the
   step guide.
 - **Progress.** Workouts per month over time. Level trend per exercise, grouped by the chosen index. The

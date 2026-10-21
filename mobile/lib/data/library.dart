@@ -107,10 +107,10 @@ List<Band> mixedBands() => [Band(heavyReps, [3]), Band(middleReps, [3, 2]), Band
 final programBands = {'strength': strengthBands, 'build': buildBands, 'endurance': enduranceBands, 'mixed': mixedBands};
 const programLabel = {'strength': 'Strength', 'build': 'Build', 'endurance': 'Endurance', 'mixed': 'Mixed'};
 const programBlurb = {
-  'strength': 'Heavy and few on the hard lifts, middle on medium ones, light and many on easy ones.',
+  'strength': 'Heavy and few on the hard exercises, middle on medium ones, light and many on easy ones.',
   'build': 'Middle reps on hard and medium exercises, light and many on easy ones.',
   'endurance': 'Light and many everywhere.',
-  'mixed': 'Hard lifts alternate heavy and middle by workout: A and C heavy, B and D middle.',
+  'mixed': 'Hard exercises alternate heavy and middle by workout: A and C heavy, B and D middle.',
 };
 const maxBands = 6;
 
@@ -153,14 +153,14 @@ class Goal {
 const goals = {
   'strength': Goal('strength', 'Get stronger', 'Heavier over time. Fewer reps per set.',
       program: 'strength', moveEvery: 4, exercises: Tri(2, 4, 6), sets: Tri(2, 3, 4), pushes: Tri(1, 2, 3),
-      explain: ['Heavy and few: 4 to 7 reps on the big lifts', 'One movement day in four', 'About 45 minutes a workout']),
+      explain: ['Heavy and few: 4 to 7 reps on the hard exercises', 'One movement day in four', 'About 45 minutes a workout']),
   'muscle': Goal('muscle', 'Build muscle', 'Moderate reps, steady volume.',
       program: 'build', moveEvery: 4, exercises: Tri(2, 4, 6), sets: Tri(2, 3, 4), pushes: Tri(1, 2, 3),
       explain: ['Middle reps: 8 to 12', 'One movement day in four', 'About 40 minutes a workout']),
-  'fit': Goal('fit', 'Stay fit and mobile', 'Lifting plus plenty of movement.',
+  'fit': Goal('fit', 'Stay fit and mobile', 'Strength plus plenty of movement.',
       program: 'endurance', moveEvery: 2, exercises: Tri(2, 4, 5), sets: Tri(2, 3, 3), pushes: Tri(1, 1, 2),
       explain: ['Light and many: 13 to 18 reps', 'Every other day is a movement day', 'About 35 minutes a workout']),
-  'feel': Goal('feel', 'Feel better', 'Short sessions, lots of movement. The floor is low.',
+  'feel': Goal('feel', 'Feel better', 'Short workouts, lots of movement. The floor is low.',
       program: 'endurance', moveEvery: 2, exercises: Tri(1, 3, 4), sets: Tri(2, 2, 3), pushes: Tri(0, 1, 2),
       explain: ['Three exercises, light and many', 'Every other day is a movement day', 'About 25 minutes a workout']),
 };
@@ -173,8 +173,8 @@ class Experience {
 }
 
 const experiences = [
-  Experience('new', 'New to this', 'Little or no lifting before.'),
-  Experience('some', 'Some experience', 'Have lifted on and off.'),
+  Experience('new', 'New to this', 'Little or no strength training before.'),
+  Experience('some', 'Some experience', 'Have trained on and off.'),
   Experience('experienced', 'Experienced', 'Years of consistent training.'),
 ];
 
@@ -227,7 +227,8 @@ class Exercise {
   const Exercise({
     required this.id, required this.name, required this.type, required this.format, this.primary = const [], this.secondary = const [],
     this.targets = const [], required this.needs, this.cost = 1, required this.rank, this.how = '',
-    this.startKg, this.stepKg, this.each = false, this.altLoad = const {}, this.ladder, this.range, this.seconds, this.perSide = false,
+    this.startKg, this.stepKg, this.each = false, this.altLoad = const {}, this.assist = false, this.ladder, this.range, this.seconds,
+    this.perSide = false,
   });
   final String id;
   final String name;
@@ -256,6 +257,10 @@ class Exercise {
   final bool each;
   /// The loads with another implement, by equipment id.
   final Map<String, AltLoad> altLoad;
+  /// The assisted machine: the loads are assistance, which falls as the user gets stronger.
+  final bool assist;
+  /// A Smith machine or landmine: the loads are the plates added, and 0 is the empty bar.
+  bool get platesAdded => needs.isNotEmpty && needs.every((o) => o.contains('smith') || o.contains('landmine'));
   /// Bodyweight and band exercises: the variant ladder.
   final Ladder? ladder;
   /// Bodyweight exercises: a sensible floor for the rep range (holds: the seconds) when the goal's range is lower.

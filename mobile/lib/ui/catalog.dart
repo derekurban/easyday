@@ -58,7 +58,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
         rows.add(ListTile(
           leading: IconBadge(exerciseIcon(e), size: 36, accent: st != null),
           title: Text(e.name),
-          subtitle: Text(st == null ? (e.loaded ? 'by weight · not yet practised' : '${e.ladder!.variants.length} levels · not yet practised') : 'level: ${rungLabel(s, e, st, st.rung)}'),
+          subtitle: Text('${e.isStrength || ix == ExerciseIndex.type ? '' : '${typeLabel[e.type]!.toLowerCase()} · '}${st == null ? (e.loaded ? 'by weight · not yet practised' : '${e.ladder!.variants.length} levels · not yet practised') : 'level: ${rungLabel(s, e, st, st.rung)}'}'),
           trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
             DifficultyTag(difficultyInPlay(e, st)),
             if (st != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(mmss(st.secPerSet), style: t.labelSmall)),

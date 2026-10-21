@@ -621,6 +621,8 @@ class AppState {
 /// saved level on the same version by name, in progress and in history; locations get the new gear they already have
 /// (a gym has everything; a barbell comes with plates).
 void _migrateLibrary(AppState s) {
+  // the assisted machine's level was kept as assistance, which ran backwards; it starts again from experience
+  s.ex.remove('assisted_pullup');
   for (final id in rungHistory.keys) {
     final st = s.ex[id];
     if (st != null) {

@@ -148,13 +148,13 @@ Two sliders in Settings → Goal, each a share of every workout's minutes.
 
 | Slider | Default | Range | What it does |
 |---|---|---|---|
-| Cardio | 15 % | 0 to 50 % | reserved at the end of every workout, after the lifting; also takes any slack the lifting leaves |
-| Stretching | 10 % | 0 to 30 % | reserved last, after cardio; one of the fixed mobility routines sized to the minutes |
+| Cardio | 15 % | 0 to 50 % | reserved at the end of every workout, after the strength exercises; also takes any slack they leave |
+| Stretching | 10 % | 0 to 30 % | reserved last, after cardio; one of the fixed stretching routines sized to the minutes |
 
 A 60-minute workout at the defaults is 45 minutes of lifting, 9 of cardio and 6 of stretching. Cardio is a single
 duration with the effort tap at the end, as in a movement workout. Stretching has no tap. At zero a block
 disappears, and with both at zero any slack is rest and the workout says "no rush." Neither gives strain points
-for now. Movement workouts, a whole session of cardio or mobility, stay as they are: the alternative to lifting,
+for now. Movement workouts, a whole workout of cardio or stretching, stay as they are: the alternative to strength,
 one tap away.
 
 ## A time limit, or a number of exercises
@@ -277,7 +277,7 @@ how-to (`EXERCISES.md`). The calendar can lower the two picks on a busy day (`CA
 | Warm-up block | 5 minutes | the plan: none, 3, 5, 8; kept for next time |
 | A time limit, or a number of exercises | the minutes | Today, a switch; kept |
 | When the planned rest runs out | keep resting | Settings → Workout: keep resting, start the next set |
-| Show lifting and rest as | minutes | Settings → Workout: minutes, share of time |
+| Show set time and rest as | minutes | Settings → Workout: minutes, share of time |
 
 ## Open questions
 

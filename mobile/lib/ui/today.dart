@@ -221,7 +221,7 @@ class _TodayScreenState extends State<TodayScreen> {
             const SizedBox(height: 4),
             Row(children: [
               if (!lift) ...[
-                IconButton.outlined(onPressed: () => setState(() { moveKind = null; liftInstead = true; }), icon: const Icon(LucideIcons.dumbbell, size: 20), tooltip: 'Lift instead'),
+                IconButton.outlined(onPressed: () => setState(() { moveKind = null; liftInstead = true; }), icon: const Icon(LucideIcons.dumbbell, size: 20), tooltip: 'Strength workout instead'),
                 const SizedBox(width: 8),
                 IconButton.outlined(onPressed: () => _moveSheet(context, loc), icon: Icon(moveIcon(session.kind), size: 20), tooltip: 'Change movement'),
               ] else ...[
@@ -350,7 +350,7 @@ class _TodayScreenState extends State<TodayScreen> {
         const SizedBox(height: 28),
         OutlinedButton.icon(onPressed: () => store.update((x) => x.plan!.continuedOn = now), icon: const Icon(LucideIcons.skipForward, size: 18), label: const Text('Start another anyway')),
         const SizedBox(height: 8),
-        TextButton.icon(onPressed: () { store.update((x) => x.plan!.continuedOn = now); setState(() => moveKind = 'cardio'); }, icon: const Icon(LucideIcons.footprints, size: 18), label: const Text('Add a walk or mobility')),
+        TextButton.icon(onPressed: () { store.update((x) => x.plan!.continuedOn = now); setState(() => moveKind = 'cardio'); }, icon: const Icon(LucideIcons.footprints, size: 18), label: const Text('Add a walk or a stretch')),
       ]),
     );
   }
@@ -433,10 +433,10 @@ class _TodayScreenState extends State<TodayScreen> {
   Future<void> _moveSheet(BuildContext context, Location? loc) async {
     final options = cardioFor(loc?.equipment ?? const []);
     final r = await showSheet<(String, String?)>(context, ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
-      const SheetHeader('Move instead', subtitle: 'Cardio takes the minutes you set. Mobility takes what it takes.', icon: LucideIcons.footprints),
+      const SheetHeader('Move instead', subtitle: 'Cardio takes the minutes you set. A stretching routine takes what it takes.', icon: LucideIcons.footprints),
       const Padding(padding: EdgeInsets.fromLTRB(20, 0, 20, 0), child: SectionHeader('Cardio')),
       for (final c in options) ListTile(leading: const IconBadge(LucideIcons.footprints, size: 36), title: Text(c.name), onTap: () => Navigator.pop(context, ('cardio', c.id))),
-      const Padding(padding: EdgeInsets.fromLTRB(20, 12, 20, 0), child: SectionHeader('Mobility')),
+      const Padding(padding: EdgeInsets.fromLTRB(20, 12, 20, 0), child: SectionHeader('Stretching')),
       for (final x in routines.values) ListTile(leading: const IconBadge(LucideIcons.stretchHorizontal, size: 36), title: Text(x.name), subtitle: Text('${x.moves.length} moves · about ${(x.seconds / 60).ceil()} min'), onTap: () => Navigator.pop(context, ('mobility', x.id))),
     ]));
     if (r == null) return;
