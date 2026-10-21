@@ -160,8 +160,12 @@ void main() {
 
     test('manual works the forced muscles only, even with minutes to spare', () {
       final s = fresh(template: 'gym');
-      final x = build(s, t0, muscles: const ['chest', 'lats'], manual: true, minutes: 90);
-      expect(placesOf(x).toSet(), {'chest', 'lats'});
+      final x = build(s, t0, muscles: const ['chest', 'calves'], manual: true, minutes: 90);
+      expect(placesOf(x).toSet(), {'chest', 'calves'});
+      // a pullover works the chest and the lats as main muscles, so forcing both takes one exercise
+      final y = build(s, t0, muscles: const ['chest', 'lats'], manual: true, minutes: 90);
+      expect(y.exercises.length, 1);
+      expect(workedInOrder(y.exercises), containsAll(['chest', 'lats']));
     });
 
     test('a shuffle seed draws different ready muscles, the same for the same seed', () {
@@ -176,10 +180,14 @@ void main() {
       final x = build(s, t0, muscles: const ['quads', 'glutes'], manual: true);
       expect(x.exercises.length, 1, reason: 'a squat works both');
       expect(x.exercises.single.exercise.primary, containsAll(['quads', 'glutes']));
+      // the reviewed library tags most rows with the upper back and the lats: one row covers both
+      final r = build(s, t0, muscles: const ['lats', 'upper back'], manual: true);
+      expect(r.exercises.length, 1);
+      expect(r.exercises.single.exercise.primary, containsAll(['lats', 'upper back']));
       // with nothing shared, each muscle takes its own
-      final y = build(s, t0, muscles: const ['lats', 'upper back'], manual: true);
+      final y = build(s, t0, muscles: const ['calves', 'biceps'], manual: true);
       expect(y.exercises.length, 2);
-      expect(workedInOrder(y.exercises), containsAll(['lats', 'upper back']));
+      expect(workedInOrder(y.exercises), containsAll(['calves', 'biceps']));
     });
 
     test('the engine prefers an exercise that covers another waiting muscle over working one twice', () {
@@ -197,7 +205,7 @@ void main() {
 
     test('manual never repeats a muscle to fill the minutes', () {
       final s = fresh(template: 'gym');
-      final x = build(s, t0, muscles: const ['lats', 'upper back'], manual: true, minutes: 90);
+      final x = build(s, t0, muscles: const ['calves', 'biceps'], manual: true, minutes: 90);
       expect(x.exercises.length, 2);
     });
 

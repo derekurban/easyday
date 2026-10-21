@@ -1,0 +1,12 @@
+Use your built-in image generation tool (gpt-image) to edit the image. Do NOT draw with code, SVG, or Python.
+
+Attached image 1 (v3_back_a.png) is the BACK view of the body map in our fitness app; it is approved. Attached image 2 is a close-up of its hands.
+
+The one problem: the hands are backwards. The figure faces away from us with palms turned forward (anatomical position), so from behind we must see the BACKS of the hands: knuckles, the tendons/back of the hand, and fingernail side of the fingers, with the thumbs on the outer side (away from the body) and seen from their back edge. Right now we see the palms (the thumb pad and palm creases), which is impossible from behind.
+
+Make an edited copy that changes ONLY the hands: show the backs of both hands, same size, position, angle away from the body, finger spread and length as now, in the same matte dark charcoal as the rest of the base (no plates on the hands). Everything else must stay identical to image 1: every muscle plate, groove, the forearms, the silhouette, the framing, the grey tones (plates about RGB 175-190, dark base about RGB 40-45), the lighting. Transparent background, square 1:1, 1254 x 1254.
+
+Save two independent attempts as:
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\v4_back_a.png
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\v4_back_b.png
+In your final message, list which generated file became which saved name.

@@ -38,12 +38,13 @@ muscle that is behind never jumps the queue past one that is ready.
   more. Done is the lowest priority, never a cap: a muscle that has had its share still works when nothing
   else is ready and behind.
 
-The muscles are the map's own nineteen (`MUSCLE_MAP.md`), every one but the shins: chest; front, side and
-rear shoulders; biceps, triceps, forearms; abs, obliques; traps, lats, upper back, lower back; glutes, outer
-hips, inner thighs, quads, hamstrings, calves. Selection, the share ledger, emphasis and the muscle picker all
+The muscles are the map's own twenty (`MUSCLE_MAP.md`): chest; front, side and rear shoulders; biceps,
+triceps, forearms; abs, obliques; traps, lats, upper back, lower back; glutes, outer hips, inner thighs, quads,
+hamstrings, calves, shins. Selection, the share ledger, emphasis and the muscle picker all
 run on these, so what the user taps on the body is what the ledgers count. The eleven groups of the muscle
 index (`EXERCISES.md`) are for browsing the library only. Saved emphasis from before, which was per group,
-spreads to each of the group's muscles.
+spreads to each of the group's muscles. The candidates are the library's strength exercises; power,
+stability, cardio and stretching entries are never picked for a muscle.
 
 Small muscles that compound lifts barely reach as a helper (outer hips, side shoulders) start furthest
 behind, so with nothing else to separate them they come up early and often. Emphasis less on them, or a

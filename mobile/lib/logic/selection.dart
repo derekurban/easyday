@@ -25,7 +25,7 @@ const askedMuscleDays = 14;
 /// bench and hinge rather than four small muscles.
 const selectionOrder = [
   'quads', 'upper back', 'chest', 'hamstrings', 'lats', 'front shoulders', 'glutes', 'abs', 'side shoulders', 'triceps',
-  'biceps', 'rear shoulders', 'calves', 'lower back', 'obliques', 'traps', 'forearms', 'outer hips', 'inner thighs',
+  'biceps', 'rear shoulders', 'calves', 'lower back', 'obliques', 'traps', 'forearms', 'outer hips', 'inner thighs', 'shins',
 ];
 
 /// The preference in play: the user's word, else a soft like from a manual pick, else unrated (null).
@@ -102,14 +102,15 @@ int runOf(AppState s, String muscle, String exId) {
   return run;
 }
 
-/// Exercises the builder may choose for a muscle here: that muscle among the primary muscles, doable with the
-/// equipment, not paused for pain, not in [exclude], and with none of [avoid] (today's excluded muscles) among its
-/// primary muscles.
+/// Exercises the builder may choose for a muscle here: strength exercises with that muscle among their primary
+/// muscles, doable with the equipment, not paused for pain, not in [exclude], and with none of [avoid] (today's
+/// excluded muscles) among their primary muscles. Power, stability, cardio and stretching entries are never picked
+/// for a muscle (EXERCISES.md).
 List<Exercise> candidatesFor(AppState s, String muscle, Iterable<String> equipment, Iterable<String> exclude, DateTime now, {Set<String> avoid = const {}}) {
   final ex = exclude.toSet();
   final pausedMuscles = pausedMusclesAt(s, now);
   return exercises.where((e) =>
-      e.primary.contains(muscle) && available(e, equipment) && !ex.contains(e.id) && !e.primary.any(avoid.contains) &&
+      e.isStrength && e.primary.contains(muscle) && available(e, equipment) && !ex.contains(e.id) && !e.primary.any(avoid.contains) &&
       !s.plan!.paused.containsKey(e.id) && !e.primary.any(pausedMuscles.contains)).toList();
 }
 

@@ -53,7 +53,7 @@ Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes
 int sets(Session x) => x.exercises.fold(0, (a, e) => a + e.sets.length);
 
 void practiseAll(AppState s, {double? secPerSet}) {
-  for (final e in exercises) {
+  for (final e in browsable) {
     final st = ensureState(s, e)..appearances = 2;
     if (secPerSet != null) st.secPerSet = secPerSet;
   }
@@ -63,10 +63,10 @@ void main() {
   group('library', () {
     test('every exercise is either loaded or on a ladder, with a cost from 1 to 5 and a unique id', () {
       final ids = <String>{};
-      for (final e in exercises) {
+      for (final e in browsable) {
         expect(ids.add(e.id), isTrue, reason: 'duplicate ${e.id}');
         expect(e.difficulty, inInclusiveRange(1, 5), reason: e.id);
-        expect(e.loaded ? e.startKg != null && e.stepKg != null : e.ladder!.variants.length >= 3, isTrue, reason: e.id);
+        expect(e.loaded ? e.startKg != null && e.stepKg != null : e.ladder!.variants.length >= 2, isTrue, reason: e.id);
         expect(e.primary, isNotEmpty, reason: e.id);
         for (final need in e.needs) { for (final item in need) { expect(equipment.containsKey(item), isTrue, reason: '${e.id} needs $item'); } }
         if (e.ladder != null) {
@@ -75,12 +75,86 @@ void main() {
           for (final g in e.ladder!.loadGear) { expect(equipment.containsKey(g), isTrue, reason: '${e.id} gear $g'); }
         }
       }
-      expect(exercises.length, greaterThanOrEqualTo(120));
+      expect(browsable.length, greaterThanOrEqualTo(120));
+    });
+
+    test('only strength exercises are built into a workout, at every location', () {
+      for (final tpl in templates) {
+        final s = fresh(template: tpl.id);
+        for (final m in [35, 90]) {
+          for (final e in build(s, minutes: m).exercises) { expect(e.exercise.isStrength, isTrue, reason: '${tpl.id}: ${e.exId} is ${e.exercise.type.name}'); }
+        }
+      }
+      expect(exerciseById['kb_swing']!.type, ExerciseType.power);
+      expect(exerciseById['plank']!.type, ExerciseType.stability);
+      expect(exerciseById['pigeon']!.type, ExerciseType.stretching);
+    });
+
+    test('the stretching routines and the cardio choices come from the library', () {
+      for (final r in routines.values) {
+        expect(r.moves.length, r.ids.length, reason: '${r.id}: every move is in the library');
+        expect(r.seconds, greaterThan(0));
+      }
+      expect(routines['upper']!.moves.firstWhere((m) => m.n == 'Thread the needle').seconds, 60, reason: '30 seconds a side');
+      expect(cardio.map((c) => c.id), ['walk', 'run', 'treadmill', 'bike', 'rower', 'elliptical', 'stairs', 'jump_rope', 'any']);
+      expect(cardioFor(const []).map((c) => c.id), ['walk', 'run', 'any']);
+    });
+
+    test('a version 4 save moves to the reviewed library: merged ids, moved versions and new gear', () {
+      final s = fresh(template: 'gym');
+      final old = s.toJson()
+        ..['version'] = 4
+        ..['locations'] = [
+          {'id': 'g', 'name': 'Gym', 'template': 'gym', 'equipment': ['barbell', 'cable']},
+          {'id': 'h', 'name': 'Home', 'template': 'custom', 'equipment': ['barbell', 'dumbbell']},
+        ]
+        ..['ex'] = {
+          'ez_curl': ExerciseState(rung: 4, startRung: 2, baseKg: 30, secPerSet: 60).toJson(),
+          'situp': ExerciseState(rung: 1, startRung: 1, secPerSet: 60).toJson(),     // old: Sit-ups
+          'pushup': ExerciseState(rung: 7, startRung: 3, secPerSet: 60).toJson(),    // old: two loaded rungs above archer
+          'plank': ExerciseState(rung: 4, startRung: 1, secPerSet: 60).toJson(),     // old: RKC plank, now gone
+        };
+      final back = AppState.fromJson(jsonDecode(jsonEncode(old)));
+      expect(back.version, 5);
+      expect(back.ex.containsKey('ez_curl'), isFalse);
+      expect(back.ex['bb_curl']!.rung, 4, reason: 'the EZ bar curl is the barbell curl now');
+      expect(rungLabel(back, exerciseById['situp']!, back.ex['situp']!, back.ex['situp']!.rung), 'Sit-ups');
+      expect(back.ex['situp']!.startRung, 2);
+      expect(back.ex['pushup']!.rung, 8, reason: 'loaded rungs keep their distance from the top version');
+      expect(back.ex['plank']!.rung, 3, reason: 'a dropped version falls to the nearest easier one');
+      expect(back.locations[0].equipment, containsAll(['weight_plate', 'bench_decline', 'preacher_bench', 'sled', 'gym_rings', 'wrist_roller']));
+      expect(back.locations[1].equipment, contains('weight_plate'));
+      expect(back.locations[1].equipment, isNot(contains('sled')));
+      final again = AppState.fromJson(jsonDecode(jsonEncode(back.toJson())));
+      expect(again.ex['situp']!.rung, back.ex['situp']!.rung, reason: 'the migration runs once');
+    });
+
+    test('loads read the way the gear is used: per hand, per side, plates added, assistance, dumbbells for a bar', () {
+      final s = fresh(template: 'gym');
+      final ex = exerciseById;
+      expect(fmtLoad(s, ex['db_curl']!, 8), '8 kg per hand');
+      expect(fmtLoad(s, ex['cable_row_single']!, 20), '20 kg per side');
+      expect(fmtLoad(s, ex['bb_row']!, 40), '40 kg', reason: 'a bar is its total');
+      expect(fmtLoad(s, ex['landmine_press']!, 10), '+10 kg');
+      expect(fmtLoad(s, ex['landmine_press']!, 0), 'empty bar');
+      expect(fmtLoad(s, ex['smith_squat']!, 20), '+20 kg');
+      expect(fmtLoad(s, ex['shrug']!, 40), '40 kg', reason: 'a gym has the bar');
+      expect(fmtLoad(s, ex['shrug']!, 40, equipment: const ['dumbbell']), '20 kg per hand', reason: 'only dumbbells: the dumbbell loads');
+      expect(fmtLoad(s, ex['farmer']!, 16, equipment: const ['trap_bar']), '40 kg', reason: 'only a trap bar: its total');
+      expect(fmtLevelStep(s, ex['lat_raise']!), '1 kg per hand');
+      // the assisted machine: a level up is less help
+      final a = ex['assisted_pullup']!;
+      final st = ensureState(s, a);
+      expect(rungLabel(s, a, st, st.rung, middleReps), '30 kg assistance', reason: 'some experience starts at 30 kg of help');
+      expect(loadFor(s, a, st, st.rung + 2, middleReps), greaterThan(loadFor(s, a, st, st.rung, middleReps)));
+      expect(rungLabel(s, a, st, st.rung + 2, middleReps), isNot('30 kg assistance'));
+      expect(fmtLevelStep(s, a), '5 kg less assistance');
+      expect(fmtLoad(s, a, assistRefKg), 'no assistance');
     });
 
     test('every muscle group has a loaded option, and all but the forearms a bodyweight option', () {
       for (final g in muscleGroups) {
-        final list = exercises.where((e) => primaryGroups(e).contains(g));
+        final list = browsable.where((e) => primaryGroups(e).contains(g));
         if (g != 'Forearms') expect(list.any((e) => !e.loaded), isTrue, reason: g);
         expect(list.any((e) => e.loaded), isTrue, reason: g);
       }
@@ -130,7 +204,7 @@ void main() {
 
     test('easy: light exercises sit one level down and are neutral; the two working ones are judged like any other', () {
       final s = fresh();
-      final before = {for (final e in exercises) e.id: ensureState(s, e).rung};
+      final before = {for (final e in browsable) e.id: ensureState(s, e).rung};
       final a = run(s, t0, energy: Energy.easy);
       final light = a.exercises.where((e) => e.intent == intentLight).toList();
       final working = a.exercises.where((e) => e.intent == intentWorking).toList();
@@ -140,7 +214,7 @@ void main() {
         expect(s.ex[e.exId]!.rung, before[e.exId]);
         expect(s.ex[e.exId]!.topRun, 0);
         expect(s.ex[e.exId]!.appearances, 1);
-        // light: same level; loaded exercises lift a share of the usual weight, bodyweight ones go one version down
+        // light: same level; loaded browsable lift a share of the usual weight, bodyweight ones go one version down
         if (e.exercise.loaded) {
           expect(e.rung, before[e.exId]);
           expect(e.loadKg, lessThan(e.usualLoadKg!));
@@ -194,25 +268,25 @@ void main() {
       final s = fresh(template: 'none');
       final ex = exerciseById['pushup']!;
       final st = ensureState(s, ex);
-      st.rung = 5; // archer, the top variant without gear
+      st.rung = 6; // one-arm, the top variant without gear
       st.appearances = 1;
       expect(atCeiling(ex, st, const []), isTrue);
       expect(ceilingFor(ex, ['vest']), isNull);
       final a = run(s, t0, repsBy: {'pushup': 12});
       final p = a.exercises.firstWhere((e) => e.exId == 'pushup');
       expect(p.atCeiling, isTrue);
-      expect(st.rung, 5);
+      expect(st.rung, 6);
       expect(st.bestTotal, 12 * p.sets.length);
       final b = run(s, t0.add(const Duration(days: 2)), repsBy: {'pushup': 12}, muscles: chest);
       final p2 = b.exercises.firstWhere((e) => e.exId == 'pushup');
       expect(p2.target, greaterThan(12));
-      expect(rungLabel(s, ex, st, 6), 'Archer push-ups +2.5 kg');
+      expect(rungLabel(s, ex, st, 7), 'One-arm push-ups +2.5 kg');
     });
 
     test('three ceiling bests in a row lower the cost in play by one', () {
       final s = fresh(template: 'none');
       final ex = exerciseById['pushup']!;
-      final st = ensureState(s, ex)..rung = 5..appearances = 1;
+      final st = ensureState(s, ex)..rung = 6..appearances = 1;
       var reps = 10;
       for (var i = 0; i < 3; i++) {
         run(s, t0.add(Duration(days: 2 * i)), repsBy: {'pushup': reps}, muscles: chest);
@@ -333,7 +407,7 @@ void main() {
       // a hard day grows even when the minutes alone would not
       final hard = build(s, minutes: 60, energy: Energy.hard);
       expect(hard.exercises.length + hard.exercises.fold(0, (a, e) => a + e.sets.length), greaterThan(usual.exercises.length + usual.exercises.fold(0, (a, e) => a + e.sets.length)));
-      // a tight day drops exercises to the fewest before it touches sets, then sets to the fewest
+      // a tight day drops browsable to the fewest before it touches sets, then sets to the fewest
       s.goal!.sets = const Tri(1, 3, 4);
       final tight = build(s, minutes: 20);
       expect(tight.exercises.length, greaterThanOrEqualTo(2));
@@ -350,7 +424,7 @@ void main() {
       final sess = build(s, energy: Energy.easy, minutes: 60);
       final working = sess.exercises.where((e) => e.intent == intentWorking && !e.slot.endsWith('x')).toList();
       expect(working.length, min(2, sess.exercises.where((e) => e.difficulty <= 2 && !e.slot.endsWith('x')).length));
-      expect(working.every((e) => e.difficulty <= 2), isTrue, reason: 'hard exercises stay light on an easy day');
+      expect(working.every((e) => e.difficulty <= 2), isTrue, reason: 'hard browsable stay light on an easy day');
       expect(sess.exercises.any((e) => e.intent == intentExtra), isFalse);
       for (final e in sess.exercises.where((e) => e.intent == intentLight)) {
         expect(e.sets.length, s.goal!.workingSets, reason: 'easy keeps full sets and holds fewer exercises');
@@ -414,7 +488,7 @@ void main() {
       final rest = build(s, minutes: 90);
       expect(rest.stretchMinutes, 0);
       expect(rest.cardioMinutes, 0);
-      expect(rest.exercises.every((e) => !e.slot.endsWith('x')), isTrue, reason: 'no added exercises when spare minutes are rest');
+      expect(rest.exercises.every((e) => !e.slot.endsWith('x')), isTrue, reason: 'no added browsable when spare minutes are rest');
       expect(rest.spareMinutes, greaterThan(0));
     });
 
@@ -500,7 +574,7 @@ void main() {
     test('a slower lifter gets fewer sets in the same minutes', () {
       final s = fresh(template: 'gym');
       final a = build(s, minutes: 45);
-      for (final e in exercises) { ensureState(s, e).secPerSet = 300; }
+      for (final e in browsable) { ensureState(s, e).secPerSet = 300; }
       final b = build(s, minutes: 45);
       expect(sets(b), lessThan(sets(a)));
     });

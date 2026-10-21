@@ -157,12 +157,12 @@ class _GoalEditorState extends State<GoalEditor> {
       Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ValueSlider(label: 'Cardio', value: g.cardioPct, min: 0, max: 50, step: 5, icon: LucideIcons.footprints, display: (v) => v == 0 ? 'none' : '$v % of every workout', onChanged: (v) => _set((x) => x.cardioPct = v)),
         ValueSlider(label: 'Stretching', value: g.stretchPct, min: 0, max: 30, step: 5, icon: LucideIcons.stretchHorizontal, display: (v) => v == 0 ? 'none' : '$v % of every workout', onChanged: (v) => _set((x) => x.stretchPct = v)),
-        Text('Reserved at the end of every workout, stretching last. Cardio also takes any minutes the lifting leaves.', style: t.bodySmall),
+        Text('Reserved at the end of every workout, stretching last. Cardio also takes any minutes the strength exercises leave.', style: t.bodySmall),
         const SizedBox(height: 10),
         ChoiceRow<int>(
-          label: 'A cardio or mobility day after every',
+          label: 'A cardio or stretching day after every',
           value: g.moveEvery, options: const {0: 'never', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'},
-          hint: 'lifting days', onChanged: (v) => _set((x) => x.moveEvery = v),
+          hint: 'strength workouts', onChanged: (v) => _set((x) => x.moveEvery = v),
         ),
       ])),
       const SizedBox(height: 16),

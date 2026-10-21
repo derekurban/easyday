@@ -65,7 +65,7 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
     _learnSpare(s, session, lines);
     _learnAsked(s, session, now, lines);
   } else {
-    lines.add(session.kind == 'cardio' ? 'Movement counts. The next workout is ready tomorrow.' : 'Mobility done. The next workout is ready tomorrow.');
+    lines.add(session.kind == 'cardio' ? 'Cardio counts. The next workout is ready tomorrow.' : 'Stretching done. The next workout is ready tomorrow.');
   }
 
   _learnDefaults(s, session, now, lines);

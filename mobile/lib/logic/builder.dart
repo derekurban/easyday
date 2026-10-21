@@ -502,10 +502,10 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     final routineId = o.routine ?? 'reset';
     final r = routines[routineId]!;
     return Session(
-      id: id, type: 'move', kind: kind, name: kind == 'cardio' ? 'Move day' : r.name, locationId: loc?.id,
+      id: id, type: 'move', kind: kind, name: kind == 'cardio' ? 'Cardio day' : r.name, locationId: loc?.id,
       energy: o.energy, timeMinutes: minutes, energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state,
       minutes: kind == 'cardio' ? minutes : null, routine: kind == 'mobility' ? routineId : null, cardio: kind == 'cardio' ? (o.cardio ?? 'any') : null,
-      estMinutes: kind == 'cardio' ? minutes : (r.moves.length * r.seconds / 60).ceil(),
+      estMinutes: kind == 'cardio' ? minutes : (r.seconds / 60).ceil(),
     )..swappedToMove = due == null;
   }
 
@@ -653,7 +653,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     final usual = ex.loaded ? loadFor(s, ex, st, st.rung, range) : null;
     var load = ex.loaded ? loadFor(s, ex, st, rung, range) : null;
     if (light && ex.loaded) load = max(stepKg(s, ex), roundStep(usual! * easyShare, stepKg(s, ex)));
-    final label = ex.loaded ? fmtKg(s, load!, each: ex.each) : rungLabel(s, ex, st, rung, range);
+    final label = ex.loaded ? fmtLoad(s, ex, load!, equipment: equipment) : rungLabel(s, ex, st, rung, range, equipment);
     // today's work against the usual: sets against the working sets, times the weight share (or one version down), times the reserve
     var relative = sl.sets / g.sets.ideal;
     if (light) relative *= (ex.loaded ? easyShare : 0.85) * 0.9;

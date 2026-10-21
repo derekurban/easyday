@@ -41,7 +41,7 @@ class ExerciseCardScreen extends StatelessWidget {
         Row(children: [
           IconBadge(exerciseIcon(ex), accent: true),
           const SizedBox(width: 10),
-          Expanded(child: Text('Works ${works.join(', ').toLowerCase()}${ix == ExerciseIndex.muscle ? '' : ' · ${indexLabel[ix]!.toLowerCase()}: ${indexGroup(ex, ix).toLowerCase()}'}', style: t.bodySmall)),
+          Expanded(child: Text('${ex.isStrength || ix == ExerciseIndex.type ? '' : '${typeLabel[ex.type]} · '}Works ${works.join(', ').toLowerCase()}${ix == ExerciseIndex.muscle ? '' : ' · ${indexLabel[ix]!.toLowerCase()}: ${indexGroup(ex, ix).toLowerCase()}'}', style: t.bodySmall)),
         ]),
         if (!here) Padding(padding: const EdgeInsets.only(top: 8), child: Row(children: [
           Icon(LucideIcons.circleOff, size: 14, color: du.accentText), const SizedBox(width: 6),
@@ -50,7 +50,7 @@ class ExerciseCardScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Panel(child: Column(children: [
           Row(children: [
-            Expanded(child: StatTile(label: 'Level', value: rungLabel(s, ex, st, st.rung), hint: ex.loaded ? 'for ${range.lo} to ${range.hi} · max about ${fmtKg(s, maxFor(s, ex, st, st.rung))}' : null, icon: LucideIcons.circleDot)),
+            Expanded(child: StatTile(label: 'Level', value: rungLabel(s, ex, st, st.rung), hint: ex.loaded ? 'for ${range.lo} to ${range.hi}${ex.assist ? '' : ' · max about ${fmtLoad(s, ex, maxFor(s, ex, st, st.rung))}'}' : null, icon: LucideIcons.circleDot)),
             Expanded(child: StatTile(label: 'Per set', value: mmss(st.secPerSet), hint: st.appearances == 0 ? 'estimate until you log it' : 'learned from your taps', icon: LucideIcons.timer)),
           ]),
           const SizedBox(height: 14),
@@ -72,7 +72,7 @@ class ExerciseCardScreen extends StatelessWidget {
         Padding(padding: const EdgeInsets.only(top: 8), child: Text(
           ex.ladder != null && ceilingFor(ex, equipmentHere) != null
               ? 'No loading gear here, so ${ex.ladder!.variants.last.name.toLowerCase()} is the top. There, the target becomes beating your best total. Tap a level to make it yours.'
-              : ex.loaded ? 'Each level is about ${fmtKg(s, stepKg(s, ex))} more at these reps. Heavier and fewer or lighter and more is the same level; the weight follows the reps. Tap a level to make it yours.' : 'Tap a level to make it yours.',
+              : ex.loaded ? 'Each level is about ${ex.assist ? fmtLevelStep(s, ex) : '${fmtLevelStep(s, ex)} more'} at these reps. Heavier and fewer or lighter and more is the same level; the weight follows the reps. Tap a level to make it yours.' : 'Tap a level to make it yours.',
           style: t.bodySmall,
         )),
         const SizedBox(height: 20),

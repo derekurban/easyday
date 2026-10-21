@@ -1,0 +1,24 @@
+Use your built-in image generation tool (gpt-image) to create the images. Do NOT draw with code, SVG, or Python.
+
+Attached image 1 (ref_current_back.png) is the back view of the muscle-map figure in our fitness app. Attached image 2 is the same figure with the plates coloured by the muscle name the app assigns (red = "traps", blue = "upper back", green = "lats", orange = "lower back", purple = "rear shoulders", pink = "side shoulders", olive = "triceps", brown = "glutes", yellow = "outer hips", cyan = "obliques").
+
+The problem: the back segmentation is anatomically inaccurate for a training app.
+- The trapezius is ONE plate from the skull down to the mid-back. So "traps" (shrugs) and the mid-back (rows) can't be lit separately.
+- The only "upper back" plates are small infraspinatus/teres pads on the shoulder blades, so a row lights the rotator cuff, not the area between the shoulder blades.
+- Teres major is merged with the lats or missing, and the spinal erectors only show as a small diamond at the low back.
+
+Generate a NEW back-view image with the SAME style and likeness: the same male figure, pose (arms slightly out, palms forward), camera (straight-on orthographic-looking back view, full body, centred, same framing and proportions), the same matte 3D render look, a dark charcoal body (head, hands, feet, joints and grooves), and smooth light-grey raised muscle "plates" separated by deep dark grooves. No colour, no text, no labels, no arrows, no tint. Plain pure white background. Square image.
+
+Change ONLY the back/shoulder segmentation, so that each plate is one functional muscle region:
+1. Upper trapezius: its own plate on each side, from the base of the skull along the neck to the top of the shoulder (acromion), ending at about the level of the spine of the shoulder blade. A clear groove separates it from the plate below.
+2. Middle + lower trapezius: a separate plate on each side, covering the area BETWEEN the shoulder blades (over where the rhomboids sit) and tapering down along the spine to a point at about the bottom of the rib cage (T12). It sits clearly between the shoulder blades, medial to them.
+3. Infraspinatus + teres minor: one plate on each shoulder blade, below the spine of the scapula.
+4. Teres major: a distinct small plate on each side at the lower outer corner of the shoulder blade, running toward the armpit, separate from the lats.
+5. Latissimus dorsi: a broad plate on each side from the armpit sweeping down and inward to the low back, as now.
+6. Erector spinae: two long vertical columns, one each side of the spine, clearly visible from the lower back up to where the lower trapezius covers them, instead of the small diamond. Keep the spine itself a dark central groove.
+7. Keep the deltoids (rear and side heads), triceps, forearms, external obliques at the flank, glutes, gluteus medius, hamstrings and calves the same as the reference.
+
+Save the results as:
+- C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\back_v2_a.png
+- C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\back_v2_b.png
+(two independent attempts at the same brief). In your final message, list the generated image files and which saved name each became.

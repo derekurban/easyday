@@ -41,8 +41,8 @@ double stepKg(AppState s, Exercise ex) {
   return step;
 }
 
-String fmtKg(AppState s, double kg, {bool each = false}) {
-  final suffix = each ? ' each' : '';
+/// A weight in the user's unit, with an optional suffix (' per hand').
+String fmtKg(AppState s, double kg, {String suffix = ''}) {
   if (s.units == 'lb') {
     final lb = (kg * lbPerKg / 2.5).round() * 2.5;
     return '${lb % 1 == 0 ? lb.toInt() : lb.toStringAsFixed(1)} lb$suffix';
@@ -50,10 +50,69 @@ String fmtKg(AppState s, double kg, {bool each = false}) {
   return '${kg % 1 == 0 ? kg.toInt() : kg.toStringAsFixed(1)} kg$suffix';
 }
 
-/// Load in kilograms for a loaded exercise at a rung, for a rep band (today's by default). Never below one step.
+/// Load in kilograms for a loaded exercise at a rung, for a rep band (today's by default). Never below one step, except
+/// on a Smith machine or landmine, where 0 is the empty bar. For the assisted machine this is what the user lifts
+/// ([assistRefKg] less the assistance); [fmtLoad] shows it as assistance.
 double loadFor(AppState s, Exercise ex, ExerciseState st, int rung, [RepRange? range]) {
   final step = stepKg(s, ex);
-  return max(step, roundStep(maxFor(s, ex, st, rung) * pctFor(range ?? todayRange(s, ex)), step));
+  return max(ex.platesAdded ? 0 : step, roundStep(maxFor(s, ex, st, rung) * pctFor(range ?? todayRange(s, ex)), step));
+}
+
+/// The assisted machine's loads are assistance, which falls as the user gets stronger. The app works with what the user
+/// lifts instead, a reference body weight less the assistance, so a level up is more work like everywhere else.
+const assistRefKg = 80.0;
+
+/// A loaded exercise's starting load for an experience, as the app works with it: assistance turned into what is lifted.
+double startLoad(Exercise ex, int exp) => ex.assist ? assistRefKg - ex.startKg![exp] : ex.startKg![exp];
+
+Iterable<String> _here(AppState s) => s.location(s.lastLocationId)?.equipment ?? const <String>[];
+
+/// The equipment option an exercise is done with here: the first one fully available, else its first.
+List<String> usedOption(Exercise ex, Iterable<String> equipment) {
+  final have = equipment.toSet();
+  return ex.needs.firstWhere((o) => o.every(have.contains), orElse: () => ex.needs.first);
+}
+
+/// The other implement's loads when that is all the location offers for the exercise: dumbbells for a bar exercise,
+/// a trap bar for the farmer's carry (EXERCISE_DATA.md, "How loads are written"). Null when the main one is here.
+({String gear, AltLoad load})? altHere(Exercise ex, Iterable<String> equipment) {
+  if (ex.altLoad.isEmpty) return null;
+  final have = equipment.toSet();
+  final ok = ex.needs.where((o) => o.every(have.contains)).toList();
+  if (ok.isEmpty) return null;
+  for (final a in ex.altLoad.entries) {
+    if (ok.every((o) => o.contains(a.key))) return (gear: a.key, load: a.value);
+  }
+  return null;
+}
+
+String _perWhat(List<String> option) => option.contains('dumbbell') || option.contains('kettlebell') ? ' per hand' : ' per side';
+
+/// A loaded exercise's weight as the user reads it, at a location (the last one by default): dumbbells and
+/// kettlebells per hand, a one-limb load per side, a bar as its total, a Smith machine or landmine as the plates added
+/// ('empty bar' at 0), the assisted machine as its assistance, and a bar exercise done with dumbbells in dumbbells.
+String fmtLoad(AppState s, Exercise ex, double kg, {Iterable<String>? equipment}) {
+  final eq = equipment ?? _here(s);
+  if (ex.assist) {
+    final help = assistRefKg - kg;
+    return help <= 0 ? 'no assistance' : '${fmtKg(s, help)} assistance';
+  }
+  final alt = altHere(ex, eq);
+  if (alt != null) {
+    final shown = max(alt.load.stepKg, roundStep(kg * alt.load.startKg[1] / ex.startKg![1], alt.load.stepKg));
+    return fmtKg(s, shown, suffix: alt.load.each ? ' per hand' : '');
+  }
+  if (ex.platesAdded) return kg <= 0 ? 'empty bar' : '+${fmtKg(s, kg)}';
+  return fmtKg(s, kg, suffix: ex.each ? _perWhat(usedOption(ex, eq)) : '');
+}
+
+/// What one level adds, as the user reads it: "2.5 kg", "1 kg per hand", "5 kg less assistance".
+String fmtLevelStep(AppState s, Exercise ex, {Iterable<String>? equipment}) {
+  final eq = equipment ?? _here(s);
+  if (ex.assist) return '${fmtKg(s, stepKg(s, ex))} less assistance';
+  final alt = altHere(ex, eq);
+  if (alt != null) return fmtKg(s, alt.load.stepKg, suffix: alt.load.each ? ' per hand' : '');
+  return fmtKg(s, stepKg(s, ex), suffix: ex.each && !ex.platesAdded ? _perWhat(usedOption(ex, eq)) : '');
 }
 
 /// Lowest rung a loaded exercise can hold: the lightest band is still one plate step.
@@ -83,9 +142,9 @@ bool atCeiling(Exercise ex, ExerciseState st, Iterable<String> equipment) {
   return c != null && st.rung >= c;
 }
 
-String rungLabel(AppState s, Exercise ex, ExerciseState st, int rung, [RepRange? range]) {
+String rungLabel(AppState s, Exercise ex, ExerciseState st, int rung, [RepRange? range, Iterable<String>? equipment]) {
   final l = ex.ladder;
-  if (l == null) return fmtKg(s, loadFor(s, ex, st, rung, range), each: ex.each);
+  if (l == null) return fmtLoad(s, ex, loadFor(s, ex, st, rung, range), equipment: equipment);
   if (rung < l.variants.length) return l.variants[max(0, rung)].name;
   final extra = (rung - l.variants.length + 1) * (s.units == 'lb' ? 5 / lbPerKg : l.loadStep);
   return '${l.variants.last.name} +${fmtKg(s, extra)}';
@@ -122,18 +181,18 @@ ExerciseState ensureState(AppState s, Exercise ex) {
   late final ExerciseState st;
   if (ex.loaded) {
     // the library's starting weights are middle-band working weights; the level is the max behind them
-    var base = ex.startKg![exp] / pctFor(middleReps);
+    var base = startLoad(ex, exp) / pctFor(middleReps);
     ExerciseState? knownSt;
     Exercise? known;
     final group = ex.primary.isEmpty ? null : muscleGroup(ex.primary.first);
     for (final other in exercises) {
-      if (other.id == ex.id || !other.loaded || other.primary.isEmpty || muscleGroup(other.primary.first) != group) continue;
+      if (other.id == ex.id || !other.loaded || !other.isStrength || other.primary.isEmpty || muscleGroup(other.primary.first) != group) continue;
       final o = s.ex[other.id];
       if (o == null || o.appearances == 0) continue;
       if (knownSt == null || o.appearances > knownSt.appearances) { knownSt = o; known = other; }
     }
     if (known != null) {
-      final ratio = (maxFor(s, known, knownSt!, knownSt.rung) / (known.startKg![exp] / pctFor(middleReps))).clamp(0.5, 2.0);
+      final ratio = (maxFor(s, known, knownSt!, knownSt.rung) / (startLoad(known, exp) / pctFor(middleReps))).clamp(0.5, 2.0);
       base = base * ratio;
     }
     st = ExerciseState(rung: 0, startRung: 0, baseKg: roundStep(base, stepKg(s, ex)), secPerSet: seed);
