@@ -17,6 +17,10 @@
    "needs": [
     [
      "barbell",
+     "bench_flat_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_flat"
     ]
@@ -28,7 +32,7 @@
     40.0
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Lie on the bench, feet flat, bar over your chest. Lower it to your mid-chest with elbows about 45 degrees from your body, then press it back up.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Lie on the bench, feet flat, bar over your chest. Lower it to your mid-chest with elbows about 45 degrees from your body, then press it back up.",
    "rank": 1
   },
   {
@@ -341,6 +345,10 @@
    "needs": [
     [
      "barbell",
+     "bench_incline_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_incline"
     ]
@@ -352,7 +360,7 @@
     40.0
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Bench at a low incline, bar over your upper chest. Lower it to just below the collarbones, then press back up.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Bench at a low incline, bar over your upper chest. Lower it to just below the collarbones, then press back up.",
    "rank": 14
   },
   {
@@ -682,6 +690,10 @@
    "needs": [
     [
      "barbell",
+     "bench_decline_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_decline"
     ]
@@ -693,7 +705,7 @@
     35
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Secure your legs on a decline bench and hold the bar above your lower chest. Lower it under control with your forearms upright, then press back up while keeping your shoulders on the bench.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Secure your legs on a decline bench and hold the bar above your lower chest. Lower it under control with your forearms upright, then press back up while keeping your shoulders on the bench.",
    "rank": 100
   },
   {
@@ -2420,6 +2432,10 @@
    "needs": [
     [
      "barbell",
+     "bench_flat_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_flat"
     ]
@@ -2431,7 +2447,7 @@
     40.0
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Hands just inside shoulder width. Lower the bar to your lower chest with elbows tucked, then press up.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Hands just inside shoulder width. Lower the bar to your lower chest with elbows tucked, then press up.",
    "rank": 15
   },
   {

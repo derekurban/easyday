@@ -578,7 +578,7 @@ class Person {
 }
 
 class AppState {
-  int version = 5;
+  int version = 6;
   Profile? profile;
   GoalConfig? goal;
   List<Location> locations = [];
@@ -612,7 +612,7 @@ class AppState {
       ..settings = Settings.fromJson(j['settings'] ?? {})
       ..plan = j['plan'] == null ? null : Plan.fromJson(j['plan'])
       ..ex = (j['ex'] as Map? ?? {}).map((k, v) => MapEntry(k as String, ExerciseState.fromJson(v)))
-      ..version = 5
+      ..version = 6
       ..person = Person.fromJson(j['person'] ?? {})
       ..sessions = ((j['sessions'] ?? []) as List).map((x) => Session.fromJson(x)).toList()
       ..active = j['active'] == null ? null : Session.fromJson(j['active'])
@@ -632,6 +632,7 @@ class AppState {
     s.ex.removeWhere((k, _) => !exerciseById.containsKey(k));
     if ((j['version'] ?? 1) < 4) _migrateMaxes(s, j);
     if ((j['version'] ?? 1) < 5) _migrateLibrary(s);
+    if ((j['version'] ?? 1) < 6) _migrateBenchRacks(s);
     return s;
   }
 
@@ -668,6 +669,15 @@ void _migrateLibrary(AppState s) {
     } else if (l.equipment.contains('barbell') && !l.equipment.contains('weight_plate')) {
       l.equipment.add('weight_plate');
     }
+  }
+}
+
+/// Version 6 added benches with the rack built in, a second way to do the barbell bench presses. A gym has them.
+void _migrateBenchRacks(AppState s) {
+  const added = ['bench_flat_rack', 'bench_incline_rack', 'bench_decline_rack'];
+  for (final l in s.locations) {
+    if (l.template != 'gym') continue;
+    for (final g in added) { if (!l.equipment.contains(g)) l.equipment.add(g); }
   }
 }
 

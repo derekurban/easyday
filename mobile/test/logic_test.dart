@@ -115,7 +115,7 @@ void main() {
           'plank': ExerciseState(rung: 4, startRung: 1, secPerSet: 60).toJson(),     // old: RKC plank, now gone
         };
       final back = AppState.fromJson(jsonDecode(jsonEncode(old)));
-      expect(back.version, 5);
+      expect(back.version, 6);
       expect(back.ex.containsKey('ez_curl'), isFalse);
       expect(back.ex['bb_curl']!.rung, 4, reason: 'the EZ bar curl is the barbell curl now');
       expect(rungLabel(back, exerciseById['situp']!, back.ex['situp']!, back.ex['situp']!.rung), 'Sit-ups');
@@ -125,8 +125,22 @@ void main() {
       expect(back.locations[0].equipment, containsAll(['weight_plate', 'bench_decline', 'preacher_bench', 'sled', 'gym_rings', 'wrist_roller']));
       expect(back.locations[1].equipment, contains('weight_plate'));
       expect(back.locations[1].equipment, isNot(contains('sled')));
+      expect(back.locations[0].equipment, containsAll(['bench_flat_rack', 'bench_incline_rack', 'bench_decline_rack']));
+      expect(back.locations[1].equipment, isNot(contains('bench_flat_rack')));
       final again = AppState.fromJson(jsonDecode(jsonEncode(back.toJson())));
       expect(again.ex['situp']!.rung, back.ex['situp']!.rung, reason: 'the migration runs once');
+    });
+
+    test('a barbell bench press needs a rack: one built into the bench, or a squat rack with a loose bench', () {
+      final bench = exerciseById['bb_bench']!, incline = exerciseById['incline_bb']!;
+      expect(available(bench, ['barbell', 'bench_flat']), isFalse, reason: 'no way to rack the bar');
+      expect(available(bench, ['barbell', 'bench_flat_rack']), isTrue);
+      expect(available(bench, ['barbell', 'squat_rack', 'bench_flat']), isTrue);
+      expect(available(incline, ['barbell', 'bench_flat_rack', 'bench_incline']), isFalse, reason: 'the rack is on the flat bench');
+      expect(available(incline, ['barbell', 'bench_incline_rack']), isTrue);
+      for (final id in ['bb_bench', 'close_grip_bench', 'incline_bb', 'decline_bb_bench']) {
+        expect(available(exerciseById[id]!, allEquipment), isTrue);
+      }
     });
 
     test('loads read the way the gear is used: per hand, per side, plates added, assistance, dumbbells for a bar', () {
