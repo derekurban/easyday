@@ -363,7 +363,15 @@ class _SessionScreenState extends State<SessionScreen> {
       ItemKind.stretch => _lowerDay(x) ? routines['hips']! : routines['upper']!,
       _ => null,
     };
-    final moves = routine == null ? const <Move>[] : routine.moves.take(max(1, (cur.minutes * 60 / routine.seconds).ceil())).toList();
+    final moves = <Move>[];
+    if (routine != null) {
+      var used = 0;
+      for (final m in routine.moves) {
+        if (moves.isNotEmpty && used >= cur.minutes * 60) break;
+        moves.add(m);
+        used += m.seconds;
+      }
+    }
     final (title, sub) = switch (cur.kind) {
       ItemKind.warmup => ("Warm up, then let us know when you're ready", _nextItemLine(x, items, cur)),
       ItemKind.cardio => ('Keep it easy', 'A pace you could talk through. ${_nextItemLine(x, items, cur)}'),

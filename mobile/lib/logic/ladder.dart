@@ -127,7 +127,7 @@ ExerciseState ensureState(AppState s, Exercise ex) {
     Exercise? known;
     final group = ex.primary.isEmpty ? null : muscleGroup(ex.primary.first);
     for (final other in exercises) {
-      if (other.id == ex.id || !other.loaded || other.primary.isEmpty || muscleGroup(other.primary.first) != group) continue;
+      if (other.id == ex.id || !other.loaded || !other.isStrength || other.primary.isEmpty || muscleGroup(other.primary.first) != group) continue;
       final o = s.ex[other.id];
       if (o == null || o.appearances == 0) continue;
       if (knownSt == null || o.appearances > knownSt.appearances) { knownSt = o; known = other; }

@@ -213,7 +213,7 @@ repriced in minutes. Every exercise carries a how-to at its level, and the worko
 groups it will work.
 
 **Movement workouts** bypass all of this. Cardio is a single duration with a perceived-effort tap at the
-end. Mobility is one of a few fixed routines. They exist so that "I don't want to lift" still produces a
+end. Mobility is one of a few fixed routines, each a list of the library's stretches timed by their seconds. They exist so that "I don't want to lift" still produces a
 workout rather than nothing. They also appear inside lifting workouts as the cardio and stretching
 shares at the end (`WORKOUT.md`). A warm-up block opens a lifting workout: a few minutes of easy moves,
 none, 3, 5 or 8, inside the minutes, picked on the plan and kept for next time.

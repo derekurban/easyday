@@ -8,9 +8,9 @@ The logic in `lib/logic/` is the spec in `../docs/app/APPLICATION.md` (sections 
 
 | Path | What |
 |---|---|
-| `lib/data/library.dart` | Exercise library: 137 built-in exercises (loaded ones standalone, bodyweight ones as progressions of levels), equipment, location and goal templates, routines |
-| `lib/data/index.dart` | Indexes: the five ways the library can be grouped for browsing (muscle group, body region, equipment, progression type, difficulty), and the twenty muscle names folding onto eleven groups |
-| `lib/data/howto.dart` | How-to text per level for every bodyweight progression |
+| `lib/data/library.dart` | The exercise model (type, format, muscles, loads, progression of levels), equipment, location and goal templates, the stretching routines and cardio choices |
+| `lib/data/exercises.g.dart` | The 324 library entries, generated from `../data/library.json` by `tool/gen_library.py`: never edit it, change the dataset and regenerate (`../docs/app/EXERCISE_DATA.md`) |
+| `lib/data/index.dart` | Indexes: the five ways the library can be grouped for browsing (muscle group, body region, equipment, progression type, difficulty, type), and the twenty muscle names folding onto eleven groups |
 | `lib/integrations.dart` | Notifications (daily reminder), calendar (busy minutes today), location (nearest saved place) |
 | `lib/data/model.dart` | Persisted state with hand-written JSON |
 | `lib/data/store.dart` | One JSON blob in shared preferences, plus the shiftable clock |
@@ -20,7 +20,7 @@ The logic in `lib/logic/` is the spec in `../docs/app/APPLICATION.md` (sections 
 | `lib/logic/after.dart` | After a workout: each exercise judged against its working level (neutral / hit / step up now / hold / miss), timing model, the feel tap moving spare minutes, defaults, the one line |
 | `lib/logic/person.dart` | Person state and nudges |
 | `lib/ui/` | Screens: onboarding, today (with the done-for-today state), session (straight sets or circuit), exercise card, catalog (grouped by the chosen index), progress, settings. `theme.dart` carries the design-system tokens, `widgets.dart` the shared controls, `motion.dart` the motion tokens |
-| `tool/` | The dev loop, `icons.py`, `publish.sh` (below) |
+| `tool/` | The dev loop, `icons.py`, `publish.sh` (below), `gen_library.py` (the exercise library from `../data/library.json`) |
 
 ## Dev loop
 
@@ -118,8 +118,7 @@ renamed, relabelled or made a dropdown in a form. See `../docs/app/FEEDBACK.md`.
 ## Words
 
 The spec and the UI say **progression** and **level**; the code still says ladder and rung in a few places (`ladder.dart`,
-`rung` fields). The UI says **workout**; the code says `Session`. The library still carries a movement-pattern tag per
-exercise (squat, hinge, push, pull, ...); nothing reads it. There is no rotation: every workout is built from the
+`rung` fields). The UI says **workout**; the code says `Session`. There is no rotation: every workout is built from the
 muscles when the user shows up (`docs/app/SELECTION.md`).
 
 ## Not in this build yet

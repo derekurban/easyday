@@ -377,7 +377,7 @@ class _TodayScreenState extends State<TodayScreen> {
     }
     final r = routines[session.routine]!;
     return Column(children: [
-      for (final mv in r.moves) ListTile(dense: true, leading: Icon(LucideIcons.stretchHorizontal, size: 18, color: context.du.inkTertiary), title: Text(mv.n), subtitle: Text('${r.seconds} seconds')),
+      for (final mv in r.moves) ListTile(dense: true, leading: Icon(LucideIcons.stretchHorizontal, size: 18, color: context.du.inkTertiary), title: Text(mv.n), subtitle: Text('${mv.seconds} seconds')),
     ]);
   }
 
@@ -437,7 +437,7 @@ class _TodayScreenState extends State<TodayScreen> {
       const Padding(padding: EdgeInsets.fromLTRB(20, 0, 20, 0), child: SectionHeader('Cardio')),
       for (final c in options) ListTile(leading: const IconBadge(LucideIcons.footprints, size: 36), title: Text(c.name), onTap: () => Navigator.pop(context, ('cardio', c.id))),
       const Padding(padding: EdgeInsets.fromLTRB(20, 12, 20, 0), child: SectionHeader('Mobility')),
-      for (final x in routines.values) ListTile(leading: const IconBadge(LucideIcons.stretchHorizontal, size: 36), title: Text(x.name), subtitle: Text('${x.moves.length} moves · about ${(x.moves.length * x.seconds / 60).ceil()} min'), onTap: () => Navigator.pop(context, ('mobility', x.id))),
+      for (final x in routines.values) ListTile(leading: const IconBadge(LucideIcons.stretchHorizontal, size: 36), title: Text(x.name), subtitle: Text('${x.moves.length} moves · about ${(x.seconds / 60).ceil()} min'), onTap: () => Navigator.pop(context, ('mobility', x.id))),
     ]));
     if (r == null) return;
     setState(() {

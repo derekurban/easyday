@@ -1,7 +1,7 @@
 // Indexes: ways of grouping the library for browsing. The user picks one; it never changes what gets built.
 import 'library.dart';
 
-enum ExerciseIndex { muscle, region, equipment, progression, difficulty }
+enum ExerciseIndex { muscle, region, equipment, progression, difficulty, type }
 
 const indexLabel = {
   ExerciseIndex.muscle: 'Muscle group',
@@ -9,6 +9,7 @@ const indexLabel = {
   ExerciseIndex.equipment: 'Equipment',
   ExerciseIndex.progression: 'Progression type',
   ExerciseIndex.difficulty: 'Difficulty',
+  ExerciseIndex.type: 'Type',
 };
 
 const indexBlurb = {
@@ -17,18 +18,18 @@ const indexBlurb = {
   ExerciseIndex.equipment: 'Barbell, dumbbell, machine, bodyweight… what each one needs.',
   ExerciseIndex.progression: 'By weight or by version.',
   ExerciseIndex.difficulty: 'Easy, medium, hard: how much one hard set takes out of you.',
+  ExerciseIndex.type: 'Strength, power, stability: what each one is for.',
 };
 
 /// The muscles by the names people use for them: what exercises are tagged with, what the body map highlights and
-/// names on a tap (each plate's `name` in assets/muscle/flat.json), what the workout's "works" line says. Shins are on
-/// the map but no exercise works them.
+/// names on a tap (each plate's `name` in assets/muscle/flat.json), what the workout's "works" line says.
 const muscleNames = [
   'chest', 'front shoulders', 'side shoulders', 'rear shoulders', 'biceps', 'triceps', 'forearms', 'abs', 'obliques',
   'traps', 'lats', 'upper back', 'lower back', 'glutes', 'outer hips', 'inner thighs', 'quads', 'hamstrings', 'calves', 'shins',
 ];
 
-/// The muscles exercises work, whose work is tracked over time: all but the shins.
-final trackedMuscles = [for (final m in muscleNames) if (m != 'shins') m];
+/// The muscles exercises work, whose work is tracked over time: all of them (the tibialis raise works the shins).
+const trackedMuscles = muscleNames;
 
 /// A muscle name as a title: "Front shoulders".
 String muscleTitle(String muscle) => muscle.isEmpty ? muscle : muscle[0].toUpperCase() + muscle.substring(1);
@@ -40,10 +41,10 @@ const _muscleFold = {
   'chest': 'Chest', 'front shoulders': 'Shoulders', 'side shoulders': 'Shoulders', 'rear shoulders': 'Shoulders',
   'biceps': 'Biceps', 'triceps': 'Triceps', 'forearms': 'Forearms', 'abs': 'Core', 'obliques': 'Core',
   'traps': 'Back', 'lats': 'Back', 'upper back': 'Back', 'lower back': 'Core', 'glutes': 'Glutes', 'outer hips': 'Glutes',
-  'inner thighs': 'Quads', 'quads': 'Quads', 'hamstrings': 'Hamstrings', 'calves': 'Calves',
+  'inner thighs': 'Quads', 'quads': 'Quads', 'hamstrings': 'Hamstrings', 'calves': 'Calves', 'shins': 'Calves',
 };
 
-/// The group a muscle folds onto, or 'Other' (the shins).
+/// The group a muscle folds onto, or 'Other' for a name that is not a muscle.
 String muscleGroup(String muscle) => _muscleFold[muscle] ?? 'Other';
 
 const _regionOf = {
@@ -55,7 +56,7 @@ const _equipmentOrder = ['Barbell', 'Dumbbell', 'Kettlebell', 'Cable', 'Machine'
 const _barbellLike = {'barbell', 'ez_bar', 'trap_bar', 'landmine', 'smith'};
 const _cableLike = {'cable', 'lat_pulldown', 'row_machine'};
 const _machineLike = {
-  'chest_press_machine', 'shoulder_press_machine', 'leg_press', 'hack_squat', 'leg_extension', 'leg_curl', 'assisted_machine',
+  'sled', 'chest_press_machine', 'shoulder_press_machine', 'leg_press', 'hack_squat', 'leg_extension', 'leg_curl', 'assisted_machine',
   'back_extension', 'calf_machine', 'pec_deck', 'abduction_machine', 'ghd',
 };
 
@@ -66,6 +67,7 @@ List<String> indexOrder(ExerciseIndex ix) => switch (ix) {
       ExerciseIndex.equipment => _equipmentOrder,
       ExerciseIndex.progression => const ['By weight', 'By version'],
       ExerciseIndex.difficulty => const ['Easy', 'Medium', 'Hard'],
+      ExerciseIndex.type => [for (final t in ExerciseType.values) typeLabel[t]!],
     };
 
 /// The group an exercise sits under for an index. One group per exercise, so nothing appears twice.
@@ -75,6 +77,7 @@ String indexGroup(Exercise e, ExerciseIndex ix) => switch (ix) {
       ExerciseIndex.equipment => _equipmentGroup(e),
       ExerciseIndex.progression => e.loaded ? 'By weight' : 'By version',
       ExerciseIndex.difficulty => const ['Easy', 'Medium', 'Hard'][e.difficulty - 1],
+      ExerciseIndex.type => typeLabel[e.type]!,
     };
 
 String _equipmentGroup(Exercise e) {

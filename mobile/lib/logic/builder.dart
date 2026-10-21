@@ -359,7 +359,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
       id: id, type: 'move', kind: kind, name: kind == 'cardio' ? 'Move day' : r.name, locationId: loc?.id,
       energy: o.energy, timeMinutes: minutes, energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state,
       minutes: kind == 'cardio' ? minutes : null, routine: kind == 'mobility' ? routineId : null, cardio: kind == 'cardio' ? (o.cardio ?? 'any') : null,
-      estMinutes: kind == 'cardio' ? minutes : (r.moves.length * r.seconds / 60).ceil(),
+      estMinutes: kind == 'cardio' ? minutes : (r.seconds / 60).ceil(),
     )..swappedToMove = due == null;
   }
 

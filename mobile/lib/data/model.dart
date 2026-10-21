@@ -420,7 +420,7 @@ class SessionExercise {
         'why': why, 'fresh': fresh, 'asked': asked,
       };
   static SessionExercise fromJson(Map<String, dynamic> j) => SessionExercise(
-        slot: j['slot'], exId: j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
+        slot: j['slot'], exId: exerciseRenames[j['exId']] ?? j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
         why: j['why'] ?? '', fresh: j['fresh'] ?? false, asked: j['asked'] ?? false,
         rung: j['rung'], rungLabel: j['rungLabel'], target: j['target'],
         lo: j['lo'], hi: j['hi'], atCeiling: j['atCeiling'] ?? false, bestTotal: j['bestTotal'] ?? 0,
@@ -552,7 +552,7 @@ class Person {
 }
 
 class AppState {
-  int version = 4;
+  int version = 5;
   Profile? profile;
   GoalConfig? goal;
   List<Location> locations = [];
@@ -586,7 +586,7 @@ class AppState {
       ..settings = Settings.fromJson(j['settings'] ?? {})
       ..plan = j['plan'] == null ? null : Plan.fromJson(j['plan'])
       ..ex = (j['ex'] as Map? ?? {}).map((k, v) => MapEntry(k as String, ExerciseState.fromJson(v)))
-      ..version = 4
+      ..version = 5
       ..person = Person.fromJson(j['person'] ?? {})
       ..sessions = ((j['sessions'] ?? []) as List).map((x) => Session.fromJson(x)).toList()
       ..active = j['active'] == null ? null : Session.fromJson(j['active'])
@@ -598,8 +598,14 @@ class AppState {
     if (s.goal == null && j['profile']?['goal'] != null) s.goal = GoalConfig.fromTemplate(goals[j['profile']['goal']] ?? goals.values.first);
     // older builds named workouts "Day A"
     for (final x in s.sessions) { if (x.name.startsWith('Day ')) x.name = 'Workout ${x.name.substring(4)}'; }
+    // merged exercises: progress follows the id that replaced them
+    for (final r in exerciseRenames.entries) {
+      final st = s.ex.remove(r.key);
+      if (st != null) s.ex.putIfAbsent(r.value, () => st);
+    }
     s.ex.removeWhere((k, _) => !exerciseById.containsKey(k));
     if ((j['version'] ?? 1) < 4) _migrateMaxes(s, j);
+    if ((j['version'] ?? 1) < 5) _migrateLibrary(s);
     return s;
   }
 
@@ -609,6 +615,32 @@ class AppState {
   }
 
   Session? get lastSession => sessions.isEmpty ? null : sessions.last;
+}
+
+/// Version 5 brought the reviewed exercise library (docs/app/EXERCISE_DATA.md). Ladders whose versions moved keep each
+/// saved level on the same version by name, in progress and in history; locations get the new gear they already have
+/// (a gym has everything; a barbell comes with plates).
+void _migrateLibrary(AppState s) {
+  for (final id in rungHistory.keys) {
+    final st = s.ex[id];
+    if (st != null) {
+      st.rung = remapRung(id, st.rung);
+      st.startRung = remapRung(id, st.startRung);
+    }
+  }
+  for (final x in [...s.sessions, if (s.active != null) s.active!]) {
+    for (final e in x.exercises) {
+      if (rungHistory.containsKey(e.exId)) e.rung = remapRung(e.exId, e.rung);
+    }
+  }
+  const added = ['weight_plate', 'bench_decline', 'preacher_bench', 'sled', 'gym_rings', 'wrist_roller'];
+  for (final l in s.locations) {
+    if (l.template == 'gym') {
+      for (final g in added) { if (!l.equipment.contains(g)) l.equipment.add(g); }
+    } else if (l.equipment.contains('barbell') && !l.equipment.contains('weight_plate')) {
+      l.equipment.add('weight_plate');
+    }
+  }
 }
 
 /// Before version 4 a loaded exercise's base was its working weight; now it is an estimated max. Lift it by the share the

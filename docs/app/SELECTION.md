@@ -40,7 +40,8 @@ muscle that is behind never jumps the queue past one that is ready.
   else is ready and behind.
 
 The groups are the eleven of the muscle index (`EXERCISES.md`): chest, back, shoulders, biceps, triceps,
-forearms, core, glutes, quads, hamstrings, calves.
+forearms, core, glutes, quads, hamstrings, calves. The candidates are the library's strength exercises; power,
+stability, cardio and stretching entries are never picked for a muscle.
 
 ## Which muscles
 

@@ -9,6 +9,9 @@ pre-made indexes.
 Every exercise has the same shape:
 
 - **A name.** "Push-ups", "Barbell back squat", "Towel row".
+- **A type.** What it is: **strength** (builds muscle), **power** (explosive work), **stability** (control and
+  light holds), **cardio** (kept going for time) or **stretching** (range of motion). Only strength exercises are
+  picked for a workout's muscles; the types and their tests are in `EXERCISE_DATA.md`.
 - **How it gets harder.** One of two ways.
   - *By weight.* The level is an estimated max; each level is one step stronger. The weight on the bar
     follows the reps the goal likes: heavier and fewer, or lighter and more, are the same level. Barbells,
@@ -33,12 +36,20 @@ Every exercise has the same shape:
 
 ## The library
 
-A built-in set of 137 exercises covering every muscle group at every common equipment level: barbell, dumbbell,
-kettlebell, cable, machine, band, suspension, and nothing at all. Loaded movements are standalone
-exercises; bodyweight movements are versions on one progression, so chin-ups and pull-ups are two
-exercises while knee push-ups and push-ups are two levels of one. The library is data, not a rule: a
-version can move to its own exercise, or an exercise fold into a progression, when real use says so. Users
-cannot add exercises yet; that is deliberate scope, not a gap.
+A built-in set of 324 entries, reviewed in October 2026 (`docs/exercise-review/`): 224 strength exercises, 14 power,
+22 stability, 16 cardio and 48 stretches. The strength exercises cover every muscle at the common equipment levels
+(barbell, dumbbell, kettlebell, cable, machine, band, suspension, and nothing at all), though not every muscle at
+every location: an exercise is filed by what it is, never to fill a gap, and the builder skips a muscle nothing here
+trains. Loaded movements are standalone exercises; bodyweight movements are versions on one progression, so chin-ups
+and pull-ups are two exercises while knee push-ups and push-ups are two levels of one.
+
+Strength, power and stability exercises have levels and a card, and the catalog lists all three. Only strength is
+built into workouts today; power and stability wait for the warm-up. The stretches make up the stretching routines
+and the steady cardio entries are the cardio choices of a movement day.
+
+The library is data, `data/library.json`, generated into the app by `mobile/tool/gen_library.py`; what every field
+means and when it is right is `EXERCISE_DATA.md`. A version can move to its own exercise, or an exercise fold into a
+progression, when real use says so. Users cannot add exercises yet; that is deliberate scope, not a gap.
 
 ## Indexes
 
@@ -52,13 +63,14 @@ all group by it. The exercise itself never changes; only the headings do. Pre-ma
 | **Equipment** | barbell, dumbbell, kettlebell, cable, machine, band, suspension, bodyweight | what can be done here |
 | **Progression type** | by weight, by version | seeing which exercises have written levels |
 | **Difficulty** | easy, medium, hard | what a hard day will push, what an easy day keeps at full |
+| **Type** | strength, power, stability | what each one is for |
 
 Muscle group is the index people expect, so it is the default. Exercises are tagged with twenty muscles by
 their everyday names (chest; front, side and rear shoulders; biceps; triceps; forearms; abs; obliques; traps;
 lats; upper back; lower back; glutes; outer hips; inner thighs; quads; hamstrings; calves; shins), the same
 names the body map shows, and the eleven groups fold them: **shoulders** is all three heads; **back** is
 lats, upper back and traps; **core** is abs, obliques and lower back; **glutes** includes the outer hips;
-**quads** includes the inner thighs. An exercise sits under its first primary muscle, so nothing appears
+**quads** includes the inner thighs; **calves** includes the shins. An exercise sits under its first primary muscle, so nothing appears
 twice; the card and the search also know every group it works.
 
 A user-made index, picking any grouping of their own, is possible later: an index is a name plus a function
@@ -89,18 +101,18 @@ from exercise to group, and the data for all five above already exists on every 
 - **The exercise card:** level, seconds per set, best total, workouts done; the how-to at the current level;
   the progression as a track with every level, tap to make one yours; muscles worked; cost with its
   override; the preference word.
-- **The catalog:** every exercise grouped by the chosen index, with its level and cost, searchable, filtered
+- **The catalog:** every exercise with levels (strength, power, stability) grouped by the chosen index, with its level and cost, searchable, filtered
   by what is available here, practised, bodyweight or weights. The index picker sits at the top.
 - **Progress:** the level trend per exercise over the last thirty days, grouped the same way.
 
 ## How it fits the rest
 
-Selection (`SELECTION.md`) asks the library for exercises that work a chosen muscle and fit the location's
+Selection (`SELECTION.md`) asks the library for strength exercises that work a chosen muscle and fit the location's
 equipment, and ranks them by readiness (`MUSCLE_MAP.md`), preference and practice; energy turns the dials on each; the
 difficulty and the goal pick the expression and so the reps; the progression decides the level; the timing
 model prices the sets in minutes. The index is for the user's eyes only: it never changes what the builder picks. Nothing here changes a
-level except the progression rules and the user's own edit. Movement sessions (cardio and mobility) are not
-exercises in this sense: they have no levels and are described in `APPLICATION.md` section 7.
+level except the progression rules and the user's own edit. Movement sessions (cardio and mobility) have no levels:
+they are the library's cardio choices and stretching routines, described in `APPLICATION.md` section 7.
 
 ## What it never does
 

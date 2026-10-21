@@ -102,13 +102,14 @@ int runOf(AppState s, String group, String exId) {
   return run;
 }
 
-/// Exercises the builder may choose for a muscle group here: that group among the primary muscles, doable with the
-/// equipment, not paused for pain, not in [exclude].
+/// Exercises the builder may choose for a muscle group here: strength exercises with that group among their primary
+/// muscles, doable with the equipment, not paused for pain, not in [exclude]. Power, stability, cardio and stretching
+/// entries are never picked for a muscle (EXERCISES.md).
 List<Exercise> candidatesFor(AppState s, String group, Iterable<String> equipment, Iterable<String> exclude, DateTime now) {
   final ex = exclude.toSet();
   final pausedMuscles = pausedMusclesAt(s, now);
   return exercises.where((e) =>
-      primaryGroups(e).contains(group) && available(e, equipment) && !ex.contains(e.id) &&
+      e.isStrength && primaryGroups(e).contains(group) && available(e, equipment) && !ex.contains(e.id) &&
       !s.plan!.paused.containsKey(e.id) && !e.primary.any(pausedMuscles.contains)).toList();
 }
 
