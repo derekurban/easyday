@@ -6,6 +6,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/index.dart';
@@ -86,7 +87,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// Today's muscle plan: the user's, else the defaults from the strain of the moment.
-  MusclePlan _musclePlan(AppState s, DateTime now) => musclePlan ?? MusclePlan(states: defaultMuscleStates(MuscleMap(s).currentStrainPoints(now)), order: trackedMuscles);
+  MusclePlan _musclePlan(AppState s, DateTime now) => musclePlan ?? MusclePlan(states: defaultMuscleStates(MuscleMap(s).currentStrainPoints(now), s.goal), order: trackedMuscles);
 
   /// Everything the builder needs, from today's answers, the muscle plan and the plan's edits. [asBuilt] leaves the
   /// edits out: the workout as the builder first made it.
@@ -103,7 +104,7 @@ class _TodayScreenState extends State<TodayScreen> {
       energy: energy ?? defaults.energy, minutes: minutes ?? defaults.minutes, locationId: loc?.id, moveKind: moveKind, routine: routine, cardio: cardioId,
       energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, circuit: s.settings.circuit,
       exerciseCount: limit ? null : p.manual ? manualCount : n, warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch,
-      muscles: p.forced, excluded: p.excluded, shuffle: p.shuffle, manual: p.manual, liftInstead: liftInstead,
+      muscles: p.forced, excluded: p.excluded, muscleSeed: p.muscleDraw, exerciseSeed: p.exerciseDraw, manual: p.manual, liftInstead: liftInstead, requirements: p.requirements,
       picks: asBuilt ? const {} : picks, rungOverrides: asBuilt ? const {} : rungOverrides, order: asBuilt ? const [] : order, leftOut: asBuilt ? const {} : leftOut,
     );
   }
@@ -192,6 +193,8 @@ class _TodayScreenState extends State<TodayScreen> {
                 if (lift) ...[
                   _musclesPanel(context, s, now, session, plan),
                   const SizedBox(height: 12),
+                  if (session.uncovered.isNotEmpty)
+                    Padding(padding: const EdgeInsets.only(bottom: 10), child: _hint(context, LucideIcons.circleAlert, 'Not covered today: ${listWords(session.uncovered)}. Try more time, another exercise or different equipment.')),
                   if (session.exercises.isEmpty)
                     Panel(padding: EdgeInsets.zero, child: ListTile(
                       leading: const IconBadge(LucideIcons.circleOff, size: 36),
@@ -204,8 +207,9 @@ class _TodayScreenState extends State<TodayScreen> {
                       trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
                       onTap: () => _pickMuscles(context),
                     ))
-                  else
+                  else ...[
                     _plan(context, s, session, est),
+                  ],
                 ],
                 if (!lift) Panel(padding: EdgeInsets.zero, child: _moveBody(context, session)),
               ]),
@@ -270,8 +274,8 @@ class _TodayScreenState extends State<TodayScreen> {
                 IconButton.outlined(onPressed: () => _pickMuscles(context), icon: const Icon(LucideIcons.personStanding, size: 20), tooltip: 'Muscles'),
                 const SizedBox(width: 8),
                 IconButton.outlined(
-                  onPressed: session.exercises.isEmpty ? null : () => setState(() { picks = shufflePicks(s, session, loc?.equipment ?? const [], Random(), now, avoid: plan.excluded); rungOverrides = {}; order = []; leftOut = {}; }),
-                  icon: const Icon(LucideIcons.shuffle, size: 20), tooltip: 'Reshuffle the exercises',
+                  onPressed: session.exercises.isEmpty ? null : () => _shuffleSheet(context, plan),
+                  icon: const Icon(LucideIcons.shuffle, size: 20), tooltip: 'Shuffle',
                 ),
               ],
               const SizedBox(width: 8),
@@ -315,7 +319,7 @@ class _TodayScreenState extends State<TodayScreen> {
         MuscleFigure(highlight: const {}, tint: tint, height: 92, interactive: false),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(plan.manual ? 'MUSCLES · MANUAL' : 'MUSCLES · SHUFFLE', style: t.labelSmall),
+          Text(plan.manual ? 'MUSCLES · MANUAL' : plan.drawn ? 'MUSCLES · DRAWN' : 'MUSCLES', style: t.labelSmall),
           const SizedBox(height: 3),
           Text(working.isEmpty ? 'Nothing to work.' : 'Working ${lower(working)}.', style: t.bodyMedium),
           if (forced.isNotEmpty) Text('Forced: ${lower(forced)}.', style: t.bodySmall?.copyWith(color: du.accentText)),
@@ -335,11 +339,49 @@ class _TodayScreenState extends State<TodayScreen> {
       builder: (_) => MusclePickerScreen(
         plan: _musclePlan(store.state, store.now),
         preview: (p) => buildSession(store.state, _options(store.state, store.now, plan: p), store.now),
+        drawMuscles: (p) => nextMuscleSeed(store.state, _options(store.state, store.now, plan: p), store.now),
       ),
     ));
     if (r == null || !mounted) return;
-    // the muscles changed, so the slots did: the plan's edits start over
-    setState(() { musclePlan = r; picks = {}; rungOverrides = {}; order = []; leftOut = {}; });
+    setState(() { musclePlan = r; });
+  }
+
+  /// Shuffle (SELECTION.md): the exercises (the same muscles, the cover drawn again), the muscles (a different
+  /// combination of what is due), Back to the draw before, or Reset to the plan's own pick.
+  Future<void> _shuffleSheet(BuildContext context, MusclePlan plan) async {
+    final store = context.store;
+    final s = store.state;
+    final now = store.now;
+    final choice = await showSheet<String>(context, ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
+      const SheetHeader('Shuffle', subtitle: 'A draw stays until you start or draw again. Forced muscles and your swaps hold.', icon: LucideIcons.shuffle),
+      if (plan.lastDraw != null && (!plan.manual || plan.lastDraw == 'exercises'))
+        ListTile(leading: const IconBadge(LucideIcons.repeat, size: 36), title: const Text('Draw again'), subtitle: Text('Shuffle ${plan.lastDraw} again.'), onTap: () => Navigator.pop(context, plan.lastDraw)),
+      ListTile(leading: const IconBadge(LucideIcons.dices, size: 36), title: const Text('Shuffle exercises'), subtitle: const Text('The same muscles, other exercises that cover them.'), onTap: () => Navigator.pop(context, 'exercises')),
+      ListTile(
+        leading: const IconBadge(LucideIcons.personStanding, size: 36), title: const Text('Shuffle muscles'), enabled: !plan.manual,
+        subtitle: Text(plan.manual ? 'Not in manual: only the forced muscles are worked.' : 'A different combination of the muscles that are due.'),
+        onTap: () => Navigator.pop(context, 'muscles'),
+      ),
+      if (plan.canGoBack) ListTile(leading: const IconBadge(LucideIcons.undo2, size: 36), title: const Text('Back'), subtitle: const Text('The draw before this one.'), onTap: () => Navigator.pop(context, 'back')),
+      if (plan.drawn) ListTile(leading: const IconBadge(LucideIcons.rotateCcw, size: 36), title: const Text('Reset'), subtitle: const Text("The plan's own pick."), onTap: () => Navigator.pop(context, 'reset')),
+    ]));
+    if (choice == null || !mounted) return;
+    final p = plan.copy();
+    switch (choice) {
+      case 'exercises':
+        final opts = _options(s, now, plan: p);
+        final keep = buildSession(s, opts, now).requirements;
+        p.draw(exercises: nextExerciseSeed(s, opts, now), keep: keep);
+      case 'muscles': p.draw(muscles: nextMuscleSeed(s, _options(s, now, plan: p), now));
+      case 'back': p.back();
+      case 'reset': p.resetDraws();
+    }
+    HapticFeedback.selectionClick();
+    final unchanged = p.muscleSeed == plan.muscleSeed && p.exerciseSeed == plan.exerciseSeed;
+    setState(() { musclePlan = p; });
+    if (unchanged && (choice == 'muscles' || choice == 'exercises')) {
+      ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('No different draw fits these choices. Try swapping an exercise.')));
+    }
   }
 
   // ---------- the plan
@@ -440,6 +482,7 @@ class _TodayScreenState extends State<TodayScreen> {
   Widget _exerciseRow(BuildContext context, Session session, int i) {
     final e = session.exercises[i];
     final t = Theme.of(context).textTheme;
+    final du = context.du;
     final note = rungNote(e.exercise, e.rung);
     final unit = e.exercise.repLabel == 'seconds' ? ' s' : '';
     final rung = e.rungLabel == e.exercise.name ? 'standard' : e.rungLabel;
@@ -453,8 +496,12 @@ class _TodayScreenState extends State<TodayScreen> {
         if (tag != null) _tag(context, tag, accent: e.nextLevel),
         if (word != null) _tag(context, word, accent: word == 'new' || word == 'forced'),
       ]),
-      subtitle: Text('${muscleTitle(listWords(e.exercise.primary))} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}${note != null ? '\n$note' : ''}'),
-      isThreeLine: note != null,
+      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('${muscleTitle(listWords(e.exercise.primary))} · $rung · ${e.sets.length} × ${e.atCeiling ? 'beat ${e.bestTotal} total' : '${e.lo} to ${e.hi}$unit'}'),
+        if (note != null) Text(note),
+        Text(muscleTitle(e.why), style: t.labelSmall?.copyWith(color: du.inkTertiary, letterSpacing: 0)),
+      ]),
+      isThreeLine: true,
       trailing: Text('${max(1, (plannedSeconds(e) / 60).round())} min', style: t.bodySmall),
     );
   }
@@ -514,38 +561,43 @@ class _TodayScreenState extends State<TodayScreen> {
     final ex = e.exercise;
     final st = ensureState(s, ex);
     final equipmentHere = s.location(session.locationId)?.equipment ?? const <String>[];
-    final all = alternatives(s, session, i, equipmentHere, store.now, avoid: _musclePlan(s, store.now).excluded);
-    final alts = all.where((a) => preferenceOf(s.ex[a.id], store.now) != prefNo).toList();
-    final notForYou = all.where((a) => preferenceOf(s.ex[a.id], store.now) == prefNo).toList();
+    final all = alternativesFor(s, session, i, equipmentHere, store.now, avoid: _musclePlan(s, store.now).excluded);
+    final alts = all.where((a) => preferenceOf(s.ex[a.exercise.id], store.now) != prefNo).toList();
+    final notForYou = all.where((a) => preferenceOf(s.ex[a.exercise.id], store.now) == prefNo).toList();
     final ceiling = ceilingFor(ex, equipmentHere);
     var rung = e.rung;
     var showNotForYou = false;
+    void choose(Exercise a) {
+      store.update((x) { final target = ensureState(x, a); if (target.preference == null) target.likedUntil = store.now.add(const Duration(days: softLikeDays)); });
+      setState(() {
+        musclePlan = _musclePlan(s, store.now)..requirements = [...session.requirements];
+        picks[e.slot] = a.id;
+        rungOverrides.remove(e.slot);
+      });
+      Navigator.pop(context);
+    }
     await showSheet<void>(context, StatefulBuilder(builder: (context, setSheet) {
       final t = Theme.of(context).textTheme;
       final du = context.du;
       final floor = ex.loaded ? floorRung(s, ex, st) : 0;
-      Widget alt(Exercise a) {
+      Widget alt(Alternative x) {
+        final a = x.exercise;
         final ast = s.ex[a.id];
-        final word = preferenceOf(ast, store.now);
         return ListTile(
           leading: IconBadge(exerciseIcon(a), size: 36),
           title: Text(a.name),
-          subtitle: Text('${ast != null ? rungLabel(s, a, ast, ast.rung) : 'not yet practised'} · ${difficultyLabel[difficultyInPlay(a, ast)]}${word != null ? ' · ${preferenceLabel[word]!.toLowerCase()}' : ''}'),
+          subtitle: Text('${ast != null ? rungLabel(s, a, ast, ast.rung) : 'not yet practised'} · ${difficultyLabel[difficultyInPlay(a, ast)]}${x.reason.isNotEmpty ? ' · ${x.reason}' : ''}'),
           trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-          onTap: () {
-            // a manual pick of an unrated exercise counts as liked for a while; a rated one keeps its word
-            store.update((x) { final target = ensureState(x, a); if (target.preference == null) target.likedUntil = store.now.add(const Duration(days: softLikeDays)); });
-            setState(() {
-              picks[e.slot] = a.id;
-              rungOverrides.remove(e.slot);
-            });
-            Navigator.pop(context);
-          },
+          onTap: () => choose(a),
         );
       }
       return ListView(shrinkWrap: true, padding: const EdgeInsets.fromLTRB(0, 0, 0, 20), children: [
         SheetHeader(ex.name, subtitle: '${muscleTitle(listWords(ex.primary))} · ${difficultyLabel[e.difficulty]} · ${e.lo} to ${e.hi} ${ex.repLabel} · ${mmss(st.secPerSet)} per set', icon: exerciseIcon(ex)),
-        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 10), child: Text('Chosen because: ${e.why}.', style: t.bodySmall)),
+        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 10), child: Text('Why: ${muscleTitle(e.why)}.', style: t.bodySmall)),
+        if (alts.isNotEmpty) Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: OutlinedButton.icon(
+          onPressed: () => choose(alts.first.exercise), icon: const Icon(LucideIcons.replace, size: 18),
+          label: Text('Try ${alts.first.exercise.name}', overflow: TextOverflow.ellipsis),
+        )),
         if (st.swappedOut >= swapsBeforeAsking)
           Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 12), child: Panel(sunk: true, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('You keep swapping this one out. Still like it?', style: t.bodyMedium),
@@ -595,7 +647,7 @@ class _TodayScreenState extends State<TodayScreen> {
               Expanded(child: OutlinedButton.icon(onPressed: rung == st.rung ? null : () { store.update((x) => setRung(x, ex, rung)); setState(() => rungOverrides.remove(e.slot)); Navigator.pop(context); }, icon: const Icon(LucideIcons.save, size: 18), label: const Text('Save as my level'))),
             ]),
             const SizedBox(height: 20),
-            if (alts.isNotEmpty || notForYou.isNotEmpty) SectionHeader('Swap for', icon: LucideIcons.replace, trailing: alts.isEmpty ? null : Text('ready first, then liked', style: t.labelSmall)),
+            if (alts.isNotEmpty || notForYou.isNotEmpty) SectionHeader('Swap for', icon: LucideIcons.replace, trailing: alts.isEmpty ? null : Text('recommended order', style: t.labelSmall)),
           ]),
         ),
         for (final a in alts) alt(a),

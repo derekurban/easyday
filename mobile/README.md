@@ -15,8 +15,10 @@ The logic in `lib/logic/` is the spec in `../docs/app/APPLICATION.md` (sections 
 | `lib/data/model.dart` | Persisted state with hand-written JSON |
 | `lib/data/store.dart` | One JSON blob in shared preferences, plus the shiftable clock |
 | `lib/logic/ladder.dart` | Levels: what one means per exercise, ceilings, labels, cost in play, timing seeds (the code still says rung/ladder; the UI says level/progression) |
-| `lib/logic/selection.dart` | Selection: the share ledger (sets per muscle group over the look-back against a target scaled by emphasis), the user's word per exercise (liked / fine / not for me), the turn for something new, swaps in a row, the why-line (docs/app/SELECTION.md) |
-| `lib/logic/builder.dart` | Builds a workout: picks the muscles (ready, then furthest behind) and an exercise for each, then the same exercises at every energy; intents (light / working / extra) set the expression, sets and reserve; the minutes are filled, spare minutes go where the goal says, cardio and stretching close it (docs/app/WORKOUT.md) |
+| `lib/logic/selection.dart` | Active/passive/ignored tags, direct and helper recency clocks, frequency, exercise preferences and explanations (docs/app/SELECTION.md) |
+| `lib/logic/builder.dart` | Builds muscle requirements, covers them with exercises, and fits the time/energy budget. Separate muscle and exercise seeds; ordered swap alternatives; uncovered requirements are reported (docs/app/WORKOUT.md) |
+| `lib/logic/forecast.dart` | Runs the next twelve workouts on a copy of the state for the live muscle rhythm forecast; includes location, time settings, recovery and incidental help |
+| `lib/logic/muscle_plan.dart` | Today's forced/available/excluded states, seeds, retained requirements and Back/Reset history |
 | `lib/logic/after.dart` | After a workout: each exercise judged against its working level (neutral / hit / step up now / hold / miss), timing model, the feel tap moving spare minutes, defaults, the one line |
 | `lib/logic/person.dart` | Person state and nudges |
 | `lib/ui/` | Screens: onboarding, today (with the done-for-today state), session (straight sets or circuit), exercise card, catalog (grouped by the chosen index), progress, settings. `theme.dart` carries the design-system tokens, `widgets.dart` the shared controls, `motion.dart` the motion tokens |

@@ -23,8 +23,8 @@ AppState fresh({String template = 'home_full'}) {
   return s;
 }
 
-Session build(AppState s, DateTime at, {List<String> muscles = const [], Set<String> excluded = const {}, int minutes = 45, bool manual = false, int? shuffle}) =>
-    buildSession(s, BuildOptions(energy: Energy.normal, minutes: minutes, muscles: muscles, excluded: excluded, manual: manual, shuffle: shuffle, liftInstead: true), at);
+Session build(AppState s, DateTime at, {List<String> muscles = const [], Set<String> excluded = const {}, int minutes = 45, bool manual = false, int? muscleSeed}) =>
+    buildSession(s, BuildOptions(energy: Energy.normal, minutes: minutes, muscles: muscles, excluded: excluded, manual: manual, muscleSeed: muscleSeed, liftInstead: true), at);
 
 /// Run a workout at the top of every range, so the muscles it works carry strain afterwards.
 Session run(AppState s, DateTime at, {List<String> muscles = const []}) {
@@ -95,11 +95,11 @@ void main() {
       plan.set(['calves'], MuscleState.excluded);
       expect(plan.forced, ['chest', 'lats']);
       expect(plan.excluded, {'calves'});
-      expect(plan.shuffle, isNull);
-      plan.seed = 3;
-      expect(plan.shuffle, 3);
+      expect(plan.muscleDraw, isNull);
+      plan.muscleSeed = 3;
+      expect(plan.muscleDraw, 3);
       plan.manual = true;
-      expect(plan.shuffle, isNull);
+      expect(plan.muscleDraw, isNull);
       expect(plan.excluded, {'calves'}, reason: 'manual leaves the rest out by blocking places, not by excluding them');
     });
 
@@ -170,8 +170,8 @@ void main() {
 
     test('a shuffle seed draws different ready muscles, the same for the same seed', () {
       final s = fresh();
-      expect(placesOf(build(s, t0, minutes: 60, shuffle: 1)), placesOf(build(s, t0, minutes: 60, shuffle: 1)));
-      final draws = {for (var i = 1; i <= 8; i++) placesOf(build(s, t0, minutes: 60, shuffle: i)).join()};
+      expect(placesOf(build(s, t0, minutes: 60, muscleSeed: 1)), placesOf(build(s, t0, minutes: 60, muscleSeed: 1)));
+      final draws = {for (var i = 1; i <= 8; i++) placesOf(build(s, t0, minutes: 60, muscleSeed: i)).join()};
       expect(draws.length, greaterThan(1));
     });
 

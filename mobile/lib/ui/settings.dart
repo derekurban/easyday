@@ -71,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             IconButton.outlined(onPressed: () => _editGoal(context), icon: const Icon(LucideIcons.pencil, size: 18), tooltip: 'Change the goal'),
           ]),
           const Divider(height: 24),
-          ChoiceRow<int>(label: 'Days a week', value: s.profile!.daysPerWeek, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, hint: 'Seeds the sets each muscle group aims for over ${g.lookBackDays} days: ${g.targetSets(s.profile!.daysPerWeek)} now${g.setsTarget == null ? '' : ', set by hand in the goal'}.', onChanged: (v) => store.update((x) => x.profile!.daysPerWeek = v)),
+          ChoiceRow<int>(label: 'Days a week', value: s.profile!.daysPerWeek, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, hint: 'There are no fixed days. This only sets the pace the forecast in your goal assumes.', onChanged: (v) => store.update((x) => x.profile!.daysPerWeek = v)),
           const SizedBox(height: 14),
           Text('Units', style: t.labelMedium),
           const SizedBox(height: 6),

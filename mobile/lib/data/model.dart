@@ -95,9 +95,10 @@ const exploreLabel = {Explore.rarely: 'Rarely', Explore.sometimes: 'Sometimes', 
 const exploreRun = {Explore.rarely: 8, Explore.sometimes: 4, Explore.often: 2};
 /// Emphasis per muscle group: less, usual, more, as a share of the sets target.
 const emphasisLabel = {-1: 'Less', 0: 'Usual', 1: 'More'};
-const emphasisShare = {-1: 0.5, 0: 1.0, 1: 1.5};
-const lookBackMin = 3, lookBackMax = 14, lookBackDefault = 7;
-const setsTargetMin = 2, setsTargetMax = 30;
+/// How often an active muscle's turn comes round, against its plain turn: less is half as often, more twice.
+const oftenLabel = {-1: 'Less', 0: 'Usual', 1: 'More'};
+const oftenFactor = {-1: 0.5, 0: 1.0, 1: 2.0};
+
 
 /// The sets target per muscle group seeded from days per week: 6 for two days, 8 for three, 10 for four or more.
 int seedSetsTarget(int daysPerWeek) => daysPerWeek <= 2 ? 6 : daysPerWeek == 3 ? 8 : 10;
@@ -132,8 +133,8 @@ class GoalConfig {
   GoalConfig({
     required this.template, required this.name, required List<Band> bands, required this.exercises, required this.sets, required this.pushes,
     required this.moveEvery, this.spare = Spare.exercises, this.cardioPct = defaultCardioPct, this.stretchPct = defaultStretchPct,
-    this.lookBackDays = lookBackDefault, this.setsTarget, Map<String, int>? emphasis, this.explore = Explore.rarely,
-  }) : bands = [for (final b in bands) b.copy()], emphasis = {...?emphasis};
+    Map<String, int>? often, Map<String, MuscleTag>? tags, this.explore = Explore.rarely,
+  }) : bands = [for (final b in bands) b.copy()], often = {...?often}, tags = {...?tags};
   String template;       // the template it was last filled from, for the icon
   String name;
   List<Band> bands;      // rep bands, each tagged with the difficulties it applies to; several per difficulty cycle by workout
@@ -144,26 +145,30 @@ class GoalConfig {
   Spare spare;           // what spare minutes are for
   int cardioPct;         // share of every workout's minutes for cardio at the end
   int stretchPct;        // share for stretching, last
-  int lookBackDays;      // the days a muscle group's share looks back over (3 to 14)
-  int? setsTarget;       // sets per muscle group over the look-back; null is seeded from days per week
-  Map<String, int> emphasis;  // muscle group -> -1 less, 1 more; absent is usual
+  Map<String, int> often;         // muscle -> -1 less, 1 more often; absent is usual
+  Map<String, MuscleTag> tags;    // muscle -> its tag where it differs from the template's default
   Explore explore;       // how often an unrated exercise takes a turn
 
   /// The working set count: the usual.
   int get workingSets => sets.ideal;
 
-  /// The sets target per muscle group over the look-back, the setting or the seed from days per week.
-  int targetSets(int daysPerWeek) => setsTarget ?? seedSetsTarget(daysPerWeek);
+  /// How often a muscle's turn comes round: -1 less, 0 usual, 1 more.
+  int oftenOf(String muscle) => often[muscle] ?? 0;
 
-  /// A group's emphasis: -1 less, 0 usual, 1 more.
-  int emphasisOf(String muscle) => emphasis[muscle] ?? 0;
-
-  /// A group's target: the sets target scaled by its emphasis, half, one or one and a half.
-  double targetFor(String muscle, int daysPerWeek) => targetSets(daysPerWeek) * emphasisShare[emphasisOf(muscle)]!;
-
-  void setEmphasis(String muscle, int v) {
-    if (v == 0) { emphasis.remove(muscle); } else { emphasis[muscle] = v.clamp(-1, 1); }
+  void setOften(String muscle, int v) {
+    if (v == 0) { often.remove(muscle); } else { often[muscle] = v.clamp(-1, 1); }
   }
+
+  /// A muscle's tag: the user's, else the template's default (the shins ignored everywhere).
+  MuscleTag tagOf(String muscle) => tags[muscle] ?? defaultTag(template, muscle);
+
+  void setTag(String muscle, MuscleTag tag) {
+    if (tag == defaultTag(template, muscle)) { tags.remove(muscle); } else { tags[muscle] = tag; }
+  }
+
+  /// The muscles that get exercises of their own, in the map's order.
+  List<String> get activeMuscles => [for (final m in trackedMuscles) if (tagOf(m) == MuscleTag.active) m];
+  List<String> get passiveMuscles => [for (final m in trackedMuscles) if (tagOf(m) == MuscleTag.passive) m];
 
   /// The bands for a difficulty, in list order.
   List<RepRange> rowFor(int difficulty) => [for (final b in bands) if (b.difficulties.contains(difficulty)) b.range];
@@ -206,9 +211,8 @@ class GoalConfig {
     spare = Spare.exercises;
     cardioPct = defaultCardioPct;
     stretchPct = defaultStretchPct;
-    lookBackDays = lookBackDefault;
-    setsTarget = null;
-    emphasis = {};
+    often = {};
+    tags = {};
     explore = Explore.rarely;
   }
 
@@ -216,7 +220,7 @@ class GoalConfig {
         'template': template, 'name': name, 'bands': [for (final b in bands) {'r': _rr(b.range), 'd': b.difficulties.toList()..sort()}],
         'exercises': _tri(exercises), 'sets': _tri(sets), 'pushes': _tri(pushes), 'moveEvery': moveEvery,
         'spare': _e(spare), 'cardioPct': cardioPct, 'stretchPct': stretchPct,
-        'lookBackDays': lookBackDays, 'setsTarget': setsTarget, 'emphasis': emphasis, 'explore': _e(explore),
+        'often': often, 'tags': tags.map((k, v) => MapEntry(k, _e(v))), 'explore': _e(explore),
       };
   static GoalConfig fromJson(Map<String, dynamic> j) {
     final tpl = goals[j['template']];
@@ -244,9 +248,12 @@ class GoalConfig {
       pushes: j['pushes'] != null ? _ptri(j['pushes']).clampTo(pushesMin, pushesMax) : oldExtras != null ? (oldExtras == 0 ? const Tri(2, 5, 10) : Tri(max(0, oldExtras - 1), oldExtras, oldExtras + 1)).clampTo(pushesMin, pushesMax) : t.pushes,
       moveEvery: j['moveEvery'] ?? t.moveEvery, spare: _p(Spare.values, j['spare'], Spare.exercises),
       cardioPct: j['cardioPct'] ?? defaultCardioPct, stretchPct: j['stretchPct'] ?? defaultStretchPct,
-      lookBackDays: ((j['lookBackDays'] ?? lookBackDefault) as int).clamp(lookBackMin, lookBackMax),
-      setsTarget: j['setsTarget'] == null ? null : (j['setsTarget'] as int).clamp(setsTargetMin, setsTargetMax),
-      emphasis: _emphasisFrom(j['emphasis'] as Map? ?? {}),
+      // emphasis was the old name for how often, and per group before selection ran on muscles
+      often: _oftenFrom((j['often'] ?? j['emphasis']) as Map? ?? {}),
+      tags: {
+        for (final e in (j['tags'] as Map? ?? {}).entries)
+          if (trackedMuscles.contains(e.key)) e.key as String: _p(MuscleTag.values, e.value, MuscleTag.active),
+      },
       explore: _p(Explore.values, j['explore'], Explore.rarely),
     );
   }
@@ -439,9 +446,9 @@ String _groupOf(String exId) {
   return ex == null || ex.primary.isEmpty ? 'other' : ex.primary.first;
 }
 
-/// Emphasis as saved: per muscle, or per group before selection ran on muscles, when a group's word spreads to each
+/// How often as saved: per muscle, or per group before selection ran on muscles, when a group's word spreads to each
 /// of its muscles. A muscle's own word wins over its group's.
-Map<String, int> _emphasisFrom(Map j) {
+Map<String, int> _oftenFrom(Map j) {
   final out = <String, int>{};
   for (final e in j.entries) {
     final v = (e.value as int).clamp(-1, 1);
@@ -498,6 +505,8 @@ class Session {
   String note = '';      // the one line to the human
   bool swappedToMove = false;
   int? calendarEventId;  // the event auto-track wrote, so the calendar read can tell it from busy time
+  List<String> uncovered = [];  // forced muscles no exercise could cover today, or a swap uncovered; never saved
+  List<String> requirements = []; // preview requirements, retained across exercise draws and swaps; never saved
 
   int? get elapsedMinutes => startedAt == null || endedAt == null ? null : endedAt!.difference(startedAt!).inMinutes;
 

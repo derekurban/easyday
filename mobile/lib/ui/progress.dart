@@ -10,12 +10,12 @@ import '../logic/after.dart';
 import '../logic/levels.dart';
 import '../logic/muscle_map.dart';
 import '../logic/person.dart';
-import '../logic/selection.dart';
 import 'app.dart';
 import 'muscle_figure.dart';
 import 'catalog.dart';
 import 'exercise_card.dart';
 import 'motion.dart';
+import 'muscle_tags.dart';
 import 'strain_timeline.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -41,9 +41,7 @@ class ProgressScreen extends StatelessWidget {
     final last = muscleMap.lastWorked();
     const days = 14;
     final strip = muscleMap.strainPointsTimeline(now.subtract(const Duration(days: days - 1)), now);
-    final share = shareOver(s, now);
     final g = s.goal!;
-    String n(double x) => x == x.roundToDouble() ? '${x.round()}' : x.toStringAsFixed(1);
     return Scaffold(
       appBar: AppBar(title: const Text('Progress')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
@@ -106,29 +104,11 @@ class ProgressScreen extends StatelessWidget {
           ])),
         ])),
         const SizedBox(height: 20),
-        SectionHeader('Sets per muscle, last ${g.lookBackDays} days', icon: LucideIcons.layers),
-        Panel(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 6), child: Text(
-            'Against ${g.targetSets(s.profile?.daysPerWeek ?? 3)} sets a muscle, half with less emphasis and one and a half with more. Behind is under half; done is the target. The workout goes to the muscles that are ready and furthest behind. Tap the word to change the emphasis.',
-            style: t.bodySmall)),
-          for (final grp in trackedMuscles)
-            Padding(padding: const EdgeInsets.fromLTRB(16, 5, 16, 5), child: Row(children: [
-              SizedBox(width: 112, child: Text(muscleTitle(grp), style: t.bodyMedium, overflow: TextOverflow.ellipsis)),
-              Expanded(child: Meter(share.target(grp) <= 0 ? 1 : (share.of(grp) / share.target(grp)).clamp(0.0, 1.0), height: 8)),
-              const SizedBox(width: 10),
-              SizedBox(width: 60, child: Text('${n(share.of(grp))} of ${n(share.target(grp))}', style: t.labelSmall, textAlign: TextAlign.right)),
-              const SizedBox(width: 6),
-              Pressable(
-                onTap: () => store.update((x) => x.goal!.setEmphasis(grp, (x.goal!.emphasisOf(grp) + 2) % 3 - 1)),
-                borderRadius: 999,
-                child: Container(
-                  width: 52, padding: const EdgeInsets.symmetric(vertical: 3),
-                  decoration: BoxDecoration(color: g.emphasisOf(grp) == 0 ? du.sunk : du.accentSubtle, borderRadius: BorderRadius.circular(999), border: Border.all(color: g.emphasisOf(grp) == 0 ? du.line : du.accentLine, width: 0.6)),
-                  child: Text(emphasisLabel[g.emphasisOf(grp)]!.toLowerCase(), style: t.labelSmall?.copyWith(color: g.emphasisOf(grp) == 0 ? du.inkSecondary : du.accentText, letterSpacing: 0), textAlign: TextAlign.center),
-                ),
-              ),
-            ])),
-          const SizedBox(height: 8),
+        const SectionHeader('Rhythm', icon: LucideIcons.layers),
+        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Whose turn it is: active muscles come round in turn, most overdue first, and the forecast says about how often. Tap a muscle to change its tag or how often.', style: t.bodySmall),
+          const SizedBox(height: 6),
+          MuscleTags(goal: g, onChanged: () => store.update((_) {}), figure: false),
         ])),
         const SizedBox(height: 20),
         SectionHeader('Levels, last 30 days', icon: LucideIcons.trendingUp, trailing: trendGroups.isEmpty ? null : const IndexButton()),

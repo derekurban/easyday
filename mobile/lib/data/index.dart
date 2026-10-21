@@ -31,6 +31,17 @@ const muscleNames = [
 /// The muscles exercises work, whose work is tracked over time: all of them (the tibialis raise works the shins).
 const trackedMuscles = muscleNames;
 
+/// The user's word on a muscle (SELECTION.md): active gets exercises of its own and is measured by direct work;
+/// passive gets none, steers exercise choice, and is measured by any work; ignored is not considered.
+enum MuscleTag { active, passive, ignored }
+
+const muscleTagLabel = {MuscleTag.active: 'Active', MuscleTag.passive: 'Passive', MuscleTag.ignored: 'Ignored'};
+const muscleTagBlurb = {
+  MuscleTag.active: 'Gets exercises of its own, in turn. Only a set where it is a main muscle counts.',
+  MuscleTag.passive: 'No exercise of its own. Helper work counts, and it steers which exercise is chosen.',
+  MuscleTag.ignored: 'Not considered. It may still help in an exercise; nobody counts.',
+};
+
 /// A muscle name as a title: "Front shoulders".
 String muscleTitle(String muscle) => muscle.isEmpty ? muscle : muscle[0].toUpperCase() + muscle.substring(1);
 
@@ -116,4 +127,12 @@ List<MapEntry<String, List<Exercise>>> groupBy(Iterable<Exercise> list, Exercise
   int rank(String g) { final i = order.indexOf(g); return i < 0 ? order.length : i; }
   final keys = map.keys.toList()..sort((a, b) { final c = rank(a).compareTo(rank(b)); return c != 0 ? c : a.compareTo(b); });
   return [for (final k in keys) MapEntry(k, map[k]!..sort(sort ?? (a, b) => a.name.compareTo(b.name)))];
+}
+
+/// A muscle's tag by template (SELECTION.md): the template's active set, the shins ignored, the rest passive. A custom
+/// goal, or one from before tags, takes the build muscle template's.
+MuscleTag defaultTag(String template, String muscle) {
+  if (muscle == 'shins') return MuscleTag.ignored;
+  final g = goals[template] ?? goals['muscle']!;
+  return g.active.contains(muscle) ? MuscleTag.active : MuscleTag.passive;
 }

@@ -137,8 +137,9 @@ class Tri {
 }
 
 class Goal {
-  const Goal(this.id, this.name, this.blurb, {required this.program, required this.moveEvery, required this.exercises, required this.sets, required this.pushes, required this.explain});
+  const Goal(this.id, this.name, this.blurb, {required this.program, required this.moveEvery, required this.exercises, required this.sets, required this.pushes, required this.explain, required this.active});
   final String id;
+  final Set<String> active;  // the muscles the template marks active; the rest are passive, the shins ignored
   final String name;
   final String blurb;
   final String program;      // the rep program it fills the bands from
@@ -153,17 +154,25 @@ class Goal {
 const goals = {
   'strength': Goal('strength', 'Get stronger', 'Heavier over time. Fewer reps per set.',
       program: 'strength', moveEvery: 4, exercises: Tri(2, 4, 6), sets: Tri(2, 3, 4), pushes: Tri(1, 2, 3),
-      explain: ['Heavy and few: 4 to 7 reps on the hard exercises', 'One movement day in four', 'About 45 minutes a workout']),
+      explain: ['Heavy and few: 4 to 7 reps on the hard exercises', 'One movement day in four', 'About 45 minutes a workout'],
+      active: bigMovers),
   'muscle': Goal('muscle', 'Build muscle', 'Moderate reps, steady volume.',
       program: 'build', moveEvery: 4, exercises: Tri(2, 4, 6), sets: Tri(2, 3, 4), pushes: Tri(1, 2, 3),
-      explain: ['Middle reps: 8 to 12', 'One movement day in four', 'About 40 minutes a workout']),
+      explain: ['Middle reps: 8 to 12', 'One movement day in four', 'About 40 minutes a workout'],
+      active: {...bigMovers, 'side shoulders', 'rear shoulders', 'biceps', 'triceps', 'calves'}),
   'fit': Goal('fit', 'Stay fit and mobile', 'Strength plus plenty of movement.',
       program: 'endurance', moveEvery: 2, exercises: Tri(2, 4, 5), sets: Tri(2, 3, 3), pushes: Tri(1, 1, 2),
-      explain: ['Light and many: 13 to 18 reps', 'Every other day is a movement day', 'About 35 minutes a workout']),
+      explain: ['Light and many: 13 to 18 reps', 'Every other day is a movement day', 'About 35 minutes a workout'],
+      active: {...bigMovers, 'calves'}),
   'feel': Goal('feel', 'Feel better', 'Short workouts, lots of movement. The floor is low.',
       program: 'endurance', moveEvery: 2, exercises: Tri(1, 3, 4), sets: Tri(2, 2, 3), pushes: Tri(0, 1, 2),
-      explain: ['Three exercises, light and many', 'Every other day is a movement day', 'About 25 minutes a workout']),
+      explain: ['Three exercises, light and many', 'Every other day is a movement day', 'About 25 minutes a workout'],
+      active: bigMovers),
 };
+
+/// The muscles every template marks active: the big movers.
+const bigMovers = {'quads', 'hamstrings', 'glutes', 'chest', 'lats', 'upper back', 'front shoulders', 'abs'};
+
 
 class Experience {
   const Experience(this.id, this.name, this.blurb);

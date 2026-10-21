@@ -171,7 +171,7 @@ spare minutes then, and an easy day keeps the count it was given. The switch is 
    share left out on the plan for today is not taken). Loaded hard exercises also carry their own warm-up
    sets. With the time limit off the window is open and the count decides.
 2. **Pick the muscles, then an exercise for each,** as `SELECTION.md` says: ready muscles furthest behind
-   their share, emphasis first, and for each the exercise the location allows that is ready, preferred and
+   whose turn it is, most overdue first, and for each the exercise the location allows that is ready, preferred and
    practised. Energy plays no part.
 3. **Assign intents** by the recipe. Each gets its expression, its sets and its target.
 4. **Fit the minutes at normal.** The ideal sets everywhere. Over: exercises go down to the fewest, light
@@ -185,7 +185,7 @@ spare minutes then, and an easy day keeps the count it was given. The switch is 
    list. Easy never grows past the ideal.
 6. **Cardio and stretching close it.** Stretching takes its share last; cardio takes its share before
    that, plus any slack the lifting left when spare minutes are not rest.
-7. **Order** emphasised muscles first, then hardest first, while the user is fresh; at the same difficulty,
+7. **Order** muscles marked more often first, then hardest first, while the user is fresh; at the same difficulty,
    extra and working before light. Strength lands on what goes first, so what the user cares about leads.
 
 On the plan the user can reshuffle, swap any exercise for another for the same muscle available here,

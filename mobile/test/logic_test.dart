@@ -29,13 +29,13 @@ AppState fresh({String goal = 'muscle', String experience = 'some', String templ
 const quads = ['quads'];
 const chest = ['chest'];
 
-Session build(AppState s, {Energy energy = Energy.normal, int minutes = 35, DateTime? at, List<String> muscles = const []}) =>
-    buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, liftInstead: true), at ?? t0);
+Session build(AppState s, {Energy energy = Energy.normal, int minutes = 35, DateTime? at, List<String> muscles = const [], Map<String, String> picks = const {}}) =>
+    buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, picks: picks, liftInstead: true), at ?? t0);
 
 /// Run a lifting session with the same reps in every set of every exercise (or per exercise by id).
 Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes = 35, int? reps, Map<String, int> repsBy = const {},
-    bool hitTop = true, Finish? finish, int gapSeconds = 120, Map<String, int> rungOverrides = const {}, List<String> muscles = const []}) {
-  final session = buildSession(s, BuildOptions(energy: energy, minutes: minutes, rungOverrides: rungOverrides, muscles: muscles, liftInstead: true), at);
+    bool hitTop = true, Finish? finish, int gapSeconds = 120, Map<String, int> rungOverrides = const {}, List<String> muscles = const [], Map<String, String> picks = const {}}) {
+  final session = buildSession(s, BuildOptions(energy: energy, minutes: minutes, rungOverrides: rungOverrides, muscles: muscles, picks: picks, liftInstead: true), at);
   startSession(s, session, at);
   var clock = at;
   for (var i = 0; i < session.exercises.length; i++) {
@@ -176,10 +176,10 @@ void main() {
       final s = fresh()..settings.stepUp = 3;
       run(s, t0);
       final before = s.ex['bb_squat']!.rung;
-      run(s, t0.add(const Duration(days: 2)), repsBy: {'bb_squat': 12}, muscles: quads);
+      run(s, t0.add(const Duration(days: 2)), repsBy: {'bb_squat': 12}, muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(s.ex['bb_squat']!.rung, before);
       expect(s.ex['bb_squat']!.topRun, 2);
-      run(s, t0.add(const Duration(days: 4)), repsBy: {'bb_squat': 12}, muscles: quads);
+      run(s, t0.add(const Duration(days: 4)), repsBy: {'bb_squat': 12}, muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(s.ex['bb_squat']!.rung, before + 1);
     });
 
@@ -189,7 +189,7 @@ void main() {
       final squat = s.ex['bb_squat']!;
       final r0 = squat.rung;
       expect(squat.shortRun, 1);
-      run(s, t0.add(const Duration(days: 2)), reps: 5, muscles: quads);
+      run(s, t0.add(const Duration(days: 2)), reps: 5, muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(s.ex['bb_squat']!.rung, r0 - 1);
     });
 
@@ -522,7 +522,7 @@ void main() {
           if (a.difficulty == b.difficulty) expect(tier(b.intent), greaterThanOrEqualTo(tier(a.intent)), reason: energy.name);
         }
       }
-      s.goal!.setEmphasis('calves', 1);
+      s.goal!.setOften('calves', 1);
       final sess = build(s, minutes: 60, muscles: const ['calves']);
       expect(sess.exercises.first.muscle, 'calves', reason: 'the muscle the user wants more of leads, whatever its difficulty');
     });
@@ -595,10 +595,10 @@ void main() {
       expect(st.rung, 0);
       expect(st.decayedBy, 3);
       s.settings.stepUp = 3;
-      final back = run(s, t0.add(const Duration(days: 91)), muscles: quads);
+      final back = run(s, t0.add(const Duration(days: 91)), muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(back.exercises.firstWhere((e) => e.exId == 'bb_squat').lightened, isTrue, reason: 'first workout back: cost-5 lifts one level down, neutral');
       expect(st.rung, 0);
-      run(s, t0.add(const Duration(days: 94)), muscles: quads);   // once the quads are strain-free again
+      run(s, t0.add(const Duration(days: 94)), muscles: quads, picks: const {'quads1': 'bb_squat'});   // once the quads are strain-free again
       expect(st.rung, 1, reason: 'the first clean workout at the working level steps straight back up');
       expect(st.costUp, 0);
     });
@@ -618,7 +618,7 @@ void main() {
       expect(personState(s, later).state, PersonState.away);
       expect(defaultsFor(s, later).energy, Energy.easy);
       s.ex['bb_squat']!.rung = 3;
-      final sess = build(s, at: later, muscles: quads);
+      final sess = build(s, at: later, muscles: quads, picks: const {'quads1': 'bb_squat'});
       final squat = sess.exercises.firstWhere((e) => e.exId == 'bb_squat');
       expect(squat.lightened, isTrue);
       expect(squat.rung, 2);
@@ -638,18 +638,18 @@ void main() {
     test('pain pauses the exercise and its muscles, and brings it back one rung down', () {
       final s = fresh(template: 'gym');
       run(s, t0);
-      final b = build(s, at: t0.add(const Duration(days: 2)), muscles: quads);
+      final b = build(s, at: t0.add(const Duration(days: 2)), muscles: quads, picks: const {'quads1': 'bb_squat'});
       startSession(s, b, t0.add(const Duration(days: 2)));
       logSet(b, 0, 12, t0.add(const Duration(days: 2, minutes: 2)));
       final sq = b.exercises.indexWhere((e) => e.exId == 'bb_squat');
       expect(sq, greaterThanOrEqualTo(0));
       finishSession(s, b, Finish(stopReason: StopReason.pain, stopAt: sq), t0.add(const Duration(days: 2, minutes: 10)));
       expect(s.plan!.paused.containsKey('bb_squat'), isTrue);
-      final c = build(s, at: t0.add(const Duration(days: 4)), muscles: quads);
+      final c = build(s, at: t0.add(const Duration(days: 4)), muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(c.exercises.any((e) => e.exId == 'bb_squat'), isFalse);
       expect(c.exercises.any((e) => e.exercise.primary.contains('quads')), isFalse, reason: 'the muscles rest too');
       final rungBefore = s.ex['bb_squat']!.rung;
-      final d = build(s, at: t0.add(const Duration(days: 10)), muscles: quads);
+      final d = build(s, at: t0.add(const Duration(days: 10)), muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(d.exercises.any((e) => e.exId == 'bb_squat'), isTrue);
       expect(s.ex['bb_squat']!.rung, max(floorRung(s, exerciseById['bb_squat']!, s.ex['bb_squat']!), rungBefore - 1));
     });
@@ -688,8 +688,13 @@ void main() {
       final sess = build(s);
       final alts = alternatives(s, sess, 0, s.locations.first.equipment, t0);
       expect(alts.every((e) => e.primary.contains(sess.exercises[0].muscle)), isTrue);
-      final picks = shufflePicks(s, sess, s.locations.first.equipment, Random(1), t0);
-      for (final e in sess.exercises) { expect(exerciseById[picks[e.slot]]!.primary, contains(e.muscle)); }
+      // an exercise shuffle is the cover drawn again: the forced muscles stay covered, and something changes
+      final o = BuildOptions(energy: Energy.normal, minutes: 45, muscles: const ['quads', 'glutes'], liftInstead: true);
+      final before = buildSession(s, o, t0);
+      final seed = nextExerciseSeed(s, o, t0);
+      final drawn = buildSession(s, o.copyWith(exerciseSeed: seed), t0);
+      expect({for (final e in drawn.exercises) ...e.exercise.primary}, containsAll(['quads', 'glutes']));
+      expect({for (final e in drawn.exercises) e.exId}, isNot(equals({for (final e in before.exercises) e.exId})));
     });
 
     test('pounds change the step and the label but not the stored kilograms', () {

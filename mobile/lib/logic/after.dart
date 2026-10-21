@@ -2,6 +2,7 @@
 // level, the timing model, the budgets and defaults for next time, then one line to the human. Section 8 of APPLICATION.md.
 import 'dart:math';
 
+import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import 'builder.dart' show changeSeconds, warmupSetsSeconds;
@@ -85,7 +86,9 @@ void _learnAsked(AppState s, Session session, DateTime now, List<String> lines) 
   p.asked.removeWhere((a) => daysBetween(a.at, now) > askedMuscleDays * 2);
   for (final m in moreSuggestions(s, now)) {
     p.moreSuggested.add(m);
-    lines.add('You keep asking for $m. Set it to more in Settings → Goal if you like.');
+    lines.add(s.goal!.tagOf(m) == MuscleTag.active
+        ? 'You keep forcing $m. Set it to more often in Settings → Goal if you like.'
+        : 'You keep forcing $m. Mark it active in Settings → Goal if you like.');
   }
 }
 

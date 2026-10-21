@@ -71,7 +71,7 @@ the same three shades.
 Which muscles are ready, and nothing else. Selection (`SELECTION.md`) asks two things of it:
 
 - **Is a muscle ready.** A muscle is ready when it is strain-free. A muscle carrying strain waits, however far
-  behind its share it is. Only the user's own pick of a muscle overrides this, and the plan says so.
+  overdue its turn is. Only the user's own pick of a muscle overrides this, and the plan says so.
 - **How strained a candidate's muscles are with today's plan so far.** Once an exercise is on the plan, its
   strain points from workout are added before the next is chosen, so the next exercise goes to a fresh muscle
   rather than one the plan has already worked. Among ready candidates the lowest shade comes first.

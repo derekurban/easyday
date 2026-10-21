@@ -108,17 +108,26 @@ int _difficulty(AppState s, Exercise e) => difficultyInPlay(e, s.ex[e.id]);
 /// Everything selection reads while a list is being built: the current strain points and today's plan so far, the share
 /// ledger, the user's words, and the equipment here.
 class _Selection {
-  _Selection(this.s, this.now, this.current, this.share, this.equipment, {this.seed, this.avoid = const {}}) : withPlan = current;
+  _Selection(this.s, this.now, this.current, this.rhythm, this.equipment, {this.muscleSeed, this.exerciseSeed, this.avoid = const {}, Iterable<String>? forced})
+      : withPlan = current,
+        actives = [for (final m in trackedMuscles) if (s.goal!.tagOf(m) == MuscleTag.active || (forced?.contains(m) ?? false)) m],
+        passives = [for (final m in trackedMuscles) if (s.goal!.tagOf(m) == MuscleTag.passive) m];
   final AppState s;
-  /// When set (Draw again), muscles are drawn at random among the ready ones instead of by share, and exercises at
-  /// random instead of by practised and library rank. Each draw is fixed by the seed and the name, so the engine's
-  /// repeated passes see the same order.
-  final int? seed;
+  /// Draw again's seeds (SELECTION.md, "Shuffling"): with [muscleSeed] the ready muscles are drawn weighted by overdue
+  /// instead of taken in turn; with [exerciseSeed] a draw replaces practised and library rank. Each draw is fixed by
+  /// the seed and the name, so the engine's repeated passes see the same order.
+  final int? muscleSeed;
+  final int? exerciseSeed;
   /// Today's excluded muscles: no candidate may have one among its primary muscles.
   final Set<String> avoid;
+  /// The muscles that get places: the active ones, and any forced today. The passive ones steer exercise choice.
+  final List<String> actives;
+  final List<String> passives;
+  /// How many places the workout has, for the size of the muscle draw's pool.
+  int places = 4;
   final DateTime now;
   final StrainPoints current;
-  final Share share;
+  final Rhythm rhythm;
   final Iterable<String> equipment;
   StrainPoints withPlan;
   /// The muscle an unrated exercise may take a turn for today, if any.
@@ -132,31 +141,27 @@ class _Selection {
 
   String? pref(Exercise e) => preferenceOf(s.ex[e.id], now);
 
-  /// A draw from 0 to 1 fixed by the seed and [key].
-  double draw(String key) {
-    var h = (seed ?? 0) * 7919 + 17;
+  /// A draw from 0 to 1 fixed by [seed] and [key].
+  double draw(String key, int seed) {
+    var h = seed * 7919 + 17;
     for (final c in key.codeUnits) { h = (h * 31 + c) & 0x3fffffff; }
     return Random(h).nextDouble();
   }
 
+  /// The passive muscles [e] works or helps, the most overdue first; what the exercise "helps".
+  List<String> helpsOf(Exercise e) {
+    final out = [for (final m in [...e.primary, ...e.secondary]) if (passives.contains(m) && !avoid.contains(m)) m]
+      ..sort((a, b) => rhythm.helpedSinceOf(b).compareTo(rhythm.helpedSinceOf(a)));
+    return out.take(2).toList();
+  }
+
+  /// How overdue the most overdue passive muscle [e] helps is.
+  int helpScore(Exercise e) => helpsOf(e).fold(0, (a, m) => max(a, rhythm.helpedSinceOf(m)));
+
   /// Ready first, then the lowest shade, then liked, fine and unrated, not for me (an unrated one above fine when it is
   /// this muscle's turn for something new), then practised, then library rank.
   int compare(Exercise a, Exercise b, {String? muscle}) {
-    final ra = ready(a), rb = ready(b);
-    if (ra != rb) return ra ? -1 : 1;
-    final c = shade(a).compareTo(shade(b));
-    if (c != 0) return c;
-    final p = _prefRank(a, muscle).compareTo(_prefRank(b, muscle));
-    if (p != 0) return p;
-    final pa = _practised(s, a), pb = _practised(s, b);
-    if (pa != pb) return pa ? -1 : 1;
-    return a.rank.compareTo(b.rank);
-  }
-
-  double _prefRank(Exercise e, String? muscle) {
-    final p = pref(e);
-    if (p == null && muscle != null && muscle == exploreMuscle) return 0.5;
-    return preferenceRank(p).toDouble();
+    return compareCover(a, b, muscle ?? '', const {}, const {});
   }
 
   /// Today's plan so far: the current strain points plus the strain points from workout of [plan].
@@ -180,11 +185,40 @@ class _Selection {
     return cands.first;
   }
 
-  /// The best exercise for [muscle] while a list of muscles is being covered (the engine): ready first; not for me only
-  /// when nothing else will do; then the one working the most muscles still [waiting] as main muscles; then the one
-  /// working the fewest already [covered], so no muscle is worked twice when it can be helped; then [compare]'s order,
-  /// with Draw again's seed in place of practised and library rank. A [forced] muscle that only has candidates working
-  /// an excluded muscle too takes one of those rather than nothing.
+  /// The order of exercises for a place (SELECTION.md, "Which exercise"): ready, then the lowest shade; not for me last;
+  /// the most requirements still [waiting] covered, then the fewest already [covered] worked again; liked before fine
+  /// and unrated (an unrated one above fine on its turn for something new); the most overdue passive muscle helped;
+  /// then a draw with the exercise seed, else practised here, then library rank.
+  int compareCover(Exercise a, Exercise b, String muscle, Set<String> waiting, Set<String> covered) {
+    final ra = ready(a), rb = ready(b);
+    if (ra != rb) return ra ? -1 : 1;
+    final c = shade(a).compareTo(shade(b));
+    if (c != 0) return c;
+    final na = pref(a) == prefNo, nb = pref(b) == prefNo;
+    if (na != nb) return na ? 1 : -1;
+    int gain(Exercise e) => e.primary.where((m) => m != muscle && waiting.contains(m)).length;
+    int overlap(Exercise e) => e.primary.where(covered.contains).length;
+    final gn = gain(b).compareTo(gain(a));
+    if (gn != 0) return gn;
+    final ov = overlap(a).compareTo(overlap(b));
+    if (ov != 0) return ov;
+    final p = preferenceRank(pref(a)).compareTo(preferenceRank(pref(b)));
+    if (p != 0) return p;
+    final h = helpScore(b).compareTo(helpScore(a));
+    if (h != 0) return h;
+    if (muscle == exploreMuscle) {
+      final freshA = pref(a) == null, freshB = pref(b) == null;
+      if (freshA != freshB) return freshA ? -1 : 1;
+    }
+    if (exerciseSeed != null) return draw(a.id, exerciseSeed!).compareTo(draw(b.id, exerciseSeed!));
+    final pa = _practised(s, a), pb = _practised(s, b);
+    if (pa != pb) return pa ? -1 : 1;
+    return a.rank.compareTo(b.rank);
+  }
+
+  /// The best exercise for [muscle] while a list of muscles is being covered (the engine): the user's pick for the
+  /// place, else the first by [compareCover]. A [forced] muscle that only has candidates working an excluded muscle
+  /// too takes one of those rather than nothing.
   Exercise? coverPick(String muscle, Set<String> waiting, Set<String> covered, Iterable<String> used, String? userPick, {bool forced = false}) {
     var cands = candidatesFor(s, muscle, equipment, used, now, avoid: avoid);
     if (cands.isEmpty && forced) cands = candidatesFor(s, muscle, equipment, used, now);
@@ -193,55 +227,50 @@ class _Selection {
       final p = cands.where((e) => e.id == userPick).firstOrNull;
       if (p != null) return p;
     }
-    int gain(Exercise e) => e.primary.where(waiting.contains).length;
-    int overlap(Exercise e) => e.primary.where(covered.contains).length;
-    cands.sort((a, b) {
-      final ra = ready(a), rb = ready(b);
-      if (ra != rb) return ra ? -1 : 1;
-      final na = pref(a) == prefNo, nb = pref(b) == prefNo;
-      if (na != nb) return na ? 1 : -1;
-      final gn = gain(b).compareTo(gain(a));
-      if (gn != 0) return gn;
-      final ov = overlap(a).compareTo(overlap(b));
-      if (ov != 0) return ov;
-      final c = shade(a).compareTo(shade(b));
-      if (c != 0) return c;
-      final p = _prefRank(a, muscle).compareTo(_prefRank(b, muscle));
-      if (p != 0) return p;
-      if (seed != null) return draw(a.id).compareTo(draw(b.id));
-      final pa = _practised(s, a), pb = _practised(s, b);
-      if (pa != pb) return pa ? -1 : 1;
-      return a.rank.compareTo(b.rank);
-    });
+    cands.sort((a, b) => compareCover(a, b, muscle, waiting, covered));
     return cands.first;
   }
 
-  /// Muscles in the order selection takes them: those with a ready candidate first, then the lowest band, more emphasis,
-  /// the furthest behind, the longest waiting, the index order. [candidates] gives the best exercise per muscle.
+  /// What an exercise brings to a place, for the swap sheet: what else it covers, the word, what it helps, new to you.
+  String reasonFor(Exercise e, String muscle, Set<String> waiting, Set<String> covered) {
+    final parts = <String>[];
+    final covers = e.primary.where((m) => m != muscle && waiting.contains(m)).toList();
+    if (covers.isNotEmpty) parts.add('also covers ${listWords(covers)}');
+    final again = e.primary.where((m) => m != muscle && covered.contains(m)).toList();
+    if (again.isNotEmpty) parts.add('works ${listWords(again)} again');
+    final w = pref(e);
+    if (w == prefLiked) parts.add('liked');
+    if (w == prefNo) parts.add('not for me');
+    final helps = helpsOf(e);
+    if (helps.isNotEmpty) parts.add('helps ${listWords(helps)}');
+    if (!_practised(s, e) && w == null) parts.add('new to you');
+    if (!ready(e)) parts.add('carrying strain');
+    return parts.join(' · ');
+  }
+
+  /// Muscles in the order selection takes them (SELECTION.md, "Whose turn it is"): those with a ready candidate first,
+  /// then the most overdue, then more often, then the selection order. With the muscle seed, the ready ones in the
+  /// pool (two workouts' worth) are drawn weighted toward the more overdue, and the rest follow in turn order.
   List<String> rankMuscles(Iterable<String> muscles, Map<String, Exercise> candidates) {
-    final g = s.goal!;
     final list = muscles.where(candidates.containsKey).toList();
-    if (seed != null) {
-      list.sort((a, b) {
-        final ra = ready(candidates[a]!), rb = ready(candidates[b]!);
-        if (ra != rb) return ra ? -1 : 1;
-        return draw(a).compareTo(draw(b));
-      });
-      return list;
-    }
-    int key(String mus) => (ready(candidates[mus]!) ? 0 : 1) * 100 + share.band(mus) * 10 + (1 - g.emphasisOf(mus));
     list.sort((a, b) {
-      final k = key(a).compareTo(key(b));
-      if (k != 0) return k;
-      final d = share.deficit(b).compareTo(share.deficit(a));
-      if (d != 0) return d;
-      final la = share.lastWorked[a], lb = share.lastWorked[b];
-      if (la == null && lb != null) return -1;
-      if (lb == null && la != null) return 1;
-      if (la != null && lb != null && la != lb) return la.compareTo(lb);
+      final ra = ready(candidates[a]!), rb = ready(candidates[b]!);
+      if (ra != rb) return ra ? -1 : 1;
+      final oa = rhythm.overdue(a), ob = rhythm.overdue(b);
+      if ((oa - ob).abs() > 1e-9) return ob.compareTo(oa);
+      final fa = rhythm.factor[a] ?? 1, fb = rhythm.factor[b] ?? 1;
+      if (fa != fb) return fb.compareTo(fa);
       return selectionOrder.indexOf(a).compareTo(selectionOrder.indexOf(b));
     });
-    return list;
+    final seed = muscleSeed;
+    if (seed == null) return list;
+    final readyOnes = list.where((m) => ready(candidates[m]!) && rhythm.due(m)).toList();
+    final pool = readyOnes.take(2 * places).toList();
+    final rest = list.where((m) => !pool.contains(m)).toList();
+    // weighted sampling without replacement: an exponential key per muscle, the heavier the overdue the sooner
+    double key(String m) => -log(1 - draw(m, seed) * 0.999999) / (rhythm.overdue(m) + 1);
+    pool.sort((a, b) => key(a).compareTo(key(b)));
+    return [...pool, ...rest];
   }
 }
 
@@ -256,6 +285,8 @@ class _Slot {
   bool asked = false;   // the user asked for this muscle by hand
   bool forced = false;  // asked for while still carrying strain
   bool explored = false; // an unrated exercise took its turn here
+  List<String> covers = const [];  // other requirements this pick covered
+  List<String> helps = const [];   // passive muscles this pick helps
 }
 
 double _seconds(AppState s, _Slot sl) {
@@ -342,15 +373,14 @@ void _grow(AppState s, List<_Slot> slots, double window, int limit, int sets, Li
 List<({String muscle, Exercise exercise})> _rankedMuscles(AppState s, List<_Slot> slots, List<String> used, Set<String> blocked, _Selection sel) {
   final taken = _covered(slots);
   final best = <String, Exercise>{};
-  for (final mus in trackedMuscles) {
+  for (final mus in sel.actives) {
     if (blocked.contains(mus)) continue;
     final e = sel.bestFor(mus, used, null);
     if (e != null) best[mus] = e;
   }
   if (best.isEmpty) return const [];
   final untaken = best.keys.where((g) => !taken.contains(g));
-  final behindReady = untaken.any((g) => sel.ready(best[g]!) && sel.share.band(g) == 0);
-  final pool = behindReady ? untaken : best.keys;
+  final pool = untaken.any((g) => sel.ready(best[g]!)) ? untaken : best.keys;
   return [for (final g in sel.rankMuscles(pool, best)) (muscle: g, exercise: best[g]!)];
 }
 
@@ -363,6 +393,16 @@ Set<String> _covered(Iterable<_Slot> slots) => {for (final x in slots) ...x.pick
 List<_Slot> _cover(List<String> req, Set<String> forced, _Selection sel, Map<String, String> picks) {
   final slots = <_Slot>[];
   final covered = <String>{};
+  // A hand-picked exercise owns its place even if another exercise could cover its muscle.
+  for (final entry in picks.entries) {
+    final m = entry.key.replaceFirst(RegExp(r'[0-9x]+$'), '');
+    if (!req.contains(m)) continue;
+    sel.planSlots(slots);
+    final pick = sel.bestFor(m, slots.map((x) => x.pick!.id), entry.value, forced: forced.contains(m));
+    if (pick == null || pick.id != entry.value) continue;
+    slots.add(_Slot(entry.key, m, slots.length)..pick = pick..asked = forced.contains(m)..helps = sel.helpsOf(pick));
+    covered.addAll(pick.primary);
+  }
   for (final m in req) {
     if (covered.contains(m)) continue;
     sel.planSlots(slots);
@@ -371,7 +411,10 @@ List<_Slot> _cover(List<String> req, Set<String> forced, _Selection sel, Map<Str
     final f = forced.contains(m);
     final pick = sel.coverPick(m, waiting, covered, [for (final x in slots) x.pick!.id], picks[key], forced: f);
     if (pick == null) continue;
-    slots.add(_Slot(key, m, slots.length)..pick = pick..asked = f..forced = f && !sel.ready(pick));
+    slots.add(_Slot(key, m, slots.length)
+      ..pick = pick..asked = f..forced = f && !sel.ready(pick)
+      ..covers = [for (final c in pick.primary) if (c != m && waiting.contains(c)) c]
+      ..helps = sel.helpsOf(pick));
     covered.addAll(pick.primary);
   }
   return slots;
@@ -384,14 +427,16 @@ List<_Slot> _cover(List<String> req, Set<String> forced, _Selection sel, Map<Str
 /// one exercise that works both. A muscle the list already works as a main muscle joins at no cost. Places still
 /// free once nothing more fits go to a second exercise for the muscles, in the same order. Manual stops at the forced
 /// muscles.
-({List<String> req, List<_Slot> slots}) _engine(List<String> forcedList, Set<String> blocked, int limit, bool manual, _Selection sel, Map<String, String> picks) {
+({List<String> req, List<_Slot> slots}) _engine(List<String> forcedList, Set<String> blocked, int limit, bool manual, _Selection sel, Map<String, String> picks, {List<String>? requirements}) {
   final forced = forcedList.toSet();
-  final req = [...forcedList];
+  final req = <String>{...forcedList, ...?requirements,
+    for (final key in picks.keys) key.replaceFirst(RegExp(r'[0-9x]+$'), ''),
+  }.where((m) => trackedMuscles.contains(m) && (!blocked.contains(m) || forced.contains(m))).toList();
   var slots = _cover(req, forced, sel, picks);
-  if (manual) return (req: req, slots: slots);
+  if (manual || requirements != null) return (req: req, slots: slots);
   void freeRiders() {
     final covered = _covered(slots);
-    for (final m in trackedMuscles) {
+    for (final m in sel.actives) {
       if (covered.contains(m) && !req.contains(m) && !blocked.contains(m)) req.add(m);
     }
   }
@@ -402,7 +447,7 @@ List<_Slot> _cover(List<String> req, Set<String> forced, _Selection sel, Map<Str
     sel.planSlots(slots);
     final used = [for (final x in slots) x.pick!.id];
     final best = <String, Exercise>{};
-    for (final m in trackedMuscles) {
+    for (final m in sel.actives) {
       if (req.contains(m) || blocked.contains(m) || tried.contains(m)) continue;
       final e = sel.bestFor(m, used, null);
       if (e != null) best[m] = e;
@@ -459,8 +504,16 @@ class BuildOptions {
     required this.energy, required this.minutes, this.locationId, this.picks = const {}, this.rungOverrides = const {},
     this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.circuit = false,
     this.exerciseCount, this.warmupMinutes = 0, this.skipCardio = false, this.skipStretch = false, this.order = const [],
-    this.muscles = const [], this.excluded = const {}, this.leftOut = const {}, this.liftInstead = false, this.shuffle, this.manual = false,
+    this.muscles = const [], this.excluded = const {}, this.leftOut = const {}, this.liftInstead = false, this.muscleSeed, this.exerciseSeed, this.manual = false, this.requirements,
   });
+
+  BuildOptions copyWith({int? muscleSeed, int? exerciseSeed, bool clearSeeds = false, bool baseline = false}) => BuildOptions(
+        energy: energy, minutes: minutes, locationId: locationId, picks: baseline ? const {} : picks, rungOverrides: rungOverrides, moveKind: moveKind, routine: routine,
+        cardio: cardio, energyChosen: energyChosen, timeChosen: timeChosen, circuit: circuit, exerciseCount: exerciseCount, warmupMinutes: warmupMinutes,
+        skipCardio: skipCardio, skipStretch: skipStretch, order: order, muscles: muscles, excluded: excluded, leftOut: leftOut, liftInstead: liftInstead,
+        muscleSeed: clearSeeds ? null : muscleSeed ?? this.muscleSeed, exerciseSeed: clearSeeds || baseline ? null : exerciseSeed ?? this.exerciseSeed, manual: manual,
+        requirements: baseline || muscleSeed != null ? null : requirements,
+      );
   final Energy energy;
   final int minutes;
   /// No time limit: this many exercises at the ideal sets, and the minutes are whatever they take.
@@ -474,8 +527,10 @@ class BuildOptions {
   final Map<String, int> rungOverrides;     // slot -> rung for today
   final List<String> muscles;               // muscles forced today (the muscle plan), strained or not, in the user's order
   final Set<String> excluded;               // muscles excluded today: never a place, and no exercise works one as a main muscle
-  final int? shuffle;                       // a seed: the places after the forced muscles go to ready muscles at random, not by share
+  final int? muscleSeed;                    // Draw again, muscles: the ready muscles drawn weighted by overdue instead of in turn
+  final int? exerciseSeed;                  // Draw again, exercises: a draw in place of practised and library rank
   final bool manual;                        // only the forced muscles: nothing else takes a place, not even spare minutes
+  final List<String>? requirements;         // frozen when swapping or shuffling exercises; muscle shuffles clear it
   final Set<String> leftOut;                // slots the user left out today: the count drops by one
   final bool liftInstead;                   // lift today even though a movement day is due
   final String? moveKind;                   // swap to a movement session: cardio | mobility
@@ -521,8 +576,12 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   //    muscles first, strained or not; then the ready muscles furthest behind their share, emphasis first, as many as
   //    the ideal number of exercises (or the count) can cover. A place the user left out today takes its muscle off the
   //    list and the count down by one. The last place may go to something new.
-  final sel = _Selection(s, now, MuscleMap(s).currentStrainPoints(now), shareOver(s, now), equipment, seed: o.shuffle, avoid: o.excluded);
+  final requirements = o.requirements ?? (o.exerciseSeed != null || o.picks.isNotEmpty
+      ? buildSession(s, o.copyWith(baseline: true), now).requirements : null);
+  final sel = _Selection(s, now, MuscleMap(s).currentStrainPoints(now), rhythmOver(s, now), equipment,
+      muscleSeed: o.muscleSeed, exerciseSeed: o.exerciseSeed, avoid: o.excluded, forced: o.muscles);
   final ideal = count ?? g.exercises.ideal;
+  sel.places = ideal;
   final blocked = <String>{...o.excluded, if (o.manual) ...trackedMuscles.where((m) => !o.muscles.contains(m))};
   final forcedAll = [for (final m in o.muscles) if (trackedMuscles.contains(m)) m];
   final outMuscles = <String>{};
@@ -532,14 +591,15 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     final forcedNow = [for (final m in forcedAll) if (!outMuscles.contains(m)) m];
     final forcedCover = _cover(forcedNow, forcedNow.toSet(), sel, o.picks).length;
     final limit = max(0, max(ideal, min(forcedCover, g.exercises.max)) - outCount);
-    built = _engine(forcedNow, blocked, limit, o.manual, sel, o.picks);
+    built = _engine(forcedNow, blocked, limit, o.manual, sel, o.picks, requirements: requirements);
     final out = [for (final x in built.slots) if (o.leftOut.contains(x.slot)) x];
     if (out.isEmpty) break;
     for (final x in out) { blocked.add(x.muscle); outMuscles.add(x.muscle); }
     outCount += out.length;
   }
   final slots = [for (final x in built.slots) if (!o.leftOut.contains(x.slot)) x];
-  final forcedSet = forcedAll.toSet();
+  final requiredSet = built.req.toSet();
+  if (requirements != null) blocked.addAll(trackedMuscles.where((m) => !requiredSet.contains(m)));
   // the last place: when the practised pick for its muscle has had its run, an unrated one takes a turn, so long as it
   // still works every forced muscle the practised one did
   final explore = o.energy != Energy.hard;
@@ -548,7 +608,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     if (!last.asked && !o.picks.containsKey(last.slot) && _practised(s, last.pick!) && runOf(s, last.muscle, last.pick!.id) >= exploreRun[g.explore]!) {
       sel.planSlots(slots.where((x) => x != last));
       sel.exploreMuscle = last.muscle;
-      final keep = last.pick!.primary.where(forcedSet.contains).toSet();
+      final keep = last.pick!.primary.where(requiredSet.contains).toSet();
       final cands = candidatesFor(s, last.muscle, equipment, [for (final x in slots) x.pick!.id], now, avoid: o.excluded)
           .where((e) => keep.every(e.primary.contains)).toList()
         ..sort((a, b) => sel.compare(a, b, muscle: last.muscle));
@@ -614,7 +674,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
   // 6. order: emphasised muscles first, where strength lands; then hardest first while the user is fresh; at the same
   //    difficulty, extra and working before light
   slots.sort((a, b) {
-    final e = g.emphasisOf(b.muscle).compareTo(g.emphasisOf(a.muscle));
+    final e = g.oftenOf(b.muscle).compareTo(g.oftenOf(a.muscle));
     if (e != 0) return e;
     final c = _difficulty(s, b.pick!).compareTo(_difficulty(s, a.pick!));
     if (c != 0) return c;
@@ -660,8 +720,8 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     if (nextLevel) relative *= 1.1;
     final fresh = sl.explored;
     final why = whyLine(
-      ready: ex.primary.every(current.strainFree), band: sel.share.band(sl.muscle), emphasis: g.emphasisOf(sl.muscle),
-      preference: preferenceOf(st, now), fresh: fresh, asked: sl.asked,
+      asked: sl.asked, ready: ex.primary.every(current.strainFree), due: sel.rhythm.dueText(sl.muscle), covers: sl.covers,
+      preference: preferenceOf(st, now), helps: sl.helps, fresh: fresh, drawn: o.exerciseSeed != null || o.muscleSeed != null,
     );
     out.add(SessionExercise(
       slot: sl.slot, exId: ex.id, muscle: sl.muscle, intent: sl.intent, workingSets: min(sl.sets, g.sets.ideal), rung: rung, rungLabel: label,
@@ -671,6 +731,15 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     )..relative = relative..nextLevel = nextLevel..usualLoadKg = usual);
   }
   final weight = out.fold(0, (a, e) => a + e.difficulty);
+  // Compute this after fitting time and energy: a truncated plan must not silently lose a requirement.
+  final coveredNow = {for (final e in out) ...e.exercise.primary};
+  // Ordinary automatic choices become requirements only once they fit. Explicit requirements from a
+  // force, swap or draw remain promises even if the time budget cannot hold them.
+  final promised = requirements != null ? requiredSet : <String>{
+    ...forcedAll,
+    for (final m in coveredNow) if (sel.actives.contains(m) && !blocked.contains(m)) m,
+  };
+  final uncovered = [for (final m in promised) if (!outMuscles.contains(m) && !coveredNow.contains(m)) m];
   final relative = (weight == 0 ? 1.0 : out.fold(0.0, (a, e) => a + e.relative * e.difficulty) / weight) * (listedAtNormal == 0 ? 1 : out.length / listedAtNormal);
   // the user's own order, when they moved exercises on the plan
   if (o.order.isNotEmpty) {
@@ -684,7 +753,8 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state, exercises: out,
     estMinutes: (usedSeconds / 60).round() + (out.isEmpty ? 0 : cardioMin + stretchMin + warmup), cardioMinutes: out.isEmpty ? 0 : cardioMin,
     stretchMinutes: out.isEmpty ? 0 : stretchMin, spareMinutes: spareMin, circuit: o.circuit, warmupMinutes: out.isEmpty ? 0 : warmup,
-  )..relative = relative..pushes = out.where((e) => e.nextLevel).length;
+  )..relative = relative..pushes = out.where((e) => e.nextLevel).length..uncovered = uncovered
+   ..requirements = [for (final m in promised) if (!outMuscles.contains(m)) m];
 }
 
 /// A workout's name: every muscle it works as a main muscle, in order, as a day: "Chest day", "Lats and biceps day",
@@ -706,38 +776,66 @@ double plannedSeconds(SessionExercise e) => e.secPerSet * e.sets.length + change
 /// Words for a relative load: how today compares with the usual working level.
 String relativeLabel(double r) => r < 0.95 ? 'lighter' : r > 1.05 ? 'more' : 'usual';
 
-/// Alternatives for one slot: the same muscle, available here, not already in the session; in selection's order against
-/// the rest of the workout. Not for me ones come last; the sheet lists them under their own heading.
-List<Exercise> alternatives(AppState s, Session session, int idx, Iterable<String> equipment, DateTime now, {Set<String> avoid = const {}}) {
-  final e = session.exercises[idx];
-  final sel = _selectionBeside(s, session, idx, equipment, now);
-  return candidatesFor(s, e.muscle, equipment, session.exercises.map((x) => x.exId), now, avoid: avoid)..sort((a, b) => sel.compare(a, b));
+/// An alternative for a place, with what it brings.
+class Alternative {
+  const Alternative(this.exercise, this.reason);
+  final Exercise exercise;
+  final String reason;
 }
 
-/// Selection for one slot of a built workout: the current strain points, plus every other exercise's.
+/// Alternatives for one place: the same muscle, available here, not already in the workout; in the cover's order
+/// against the rest of the workout, each with its reason. The muscles only this place's exercise covers are what an
+/// alternative is asked to keep covering. Not for me ones come last; the sheet lists them under their own heading.
+List<Alternative> alternativesFor(AppState s, Session session, int idx, Iterable<String> equipment, DateTime now, {Set<String> avoid = const {}}) {
+  final e = session.exercises[idx];
+  final sel = _selectionBeside(s, session, idx, equipment, now);
+  final covered = {for (var i = 0; i < session.exercises.length; i++) if (i != idx) ...session.exercises[i].exercise.primary};
+  final waiting = {for (final m in e.exercise.primary) if (!covered.contains(m)) m};
+  final cands = candidatesFor(s, e.muscle, equipment, session.exercises.map((x) => x.exId), now, avoid: avoid)
+    ..sort((a, b) => sel.compareCover(a, b, e.muscle, waiting, covered));
+  return [for (final a in cands) Alternative(a, sel.reasonFor(a, e.muscle, waiting, covered))];
+}
+
+List<Exercise> alternatives(AppState s, Session session, int idx, Iterable<String> equipment, DateTime now, {Set<String> avoid = const {}}) =>
+    [for (final a in alternativesFor(s, session, idx, equipment, now, avoid: avoid)) a.exercise];
+
+/// Selection for one place of a built workout: the current strain points, plus every other exercise's.
 _Selection _selectionBeside(AppState s, Session session, int idx, Iterable<String> equipment, DateTime now) =>
-    _Selection(s, now, MuscleMap(s).currentStrainPoints(now), shareOver(s, now), equipment)
+    _Selection(s, now, MuscleMap(s).currentStrainPoints(now), rhythmOver(s, now), equipment)
       ..plan([
         for (var i = 0; i < session.exercises.length; i++)
           if (i != idx) (exercise: session.exercises[i].exercise, sets: session.exercises[i].sets.length, light: session.exercises[i].intent == intentLight),
       ]);
 
-/// Random fresh picks for every slot, from the top few alternatives by selection's order, never a not-for-me one.
-Map<String, String> shufflePicks(AppState s, Session session, Iterable<String> equipment, Random rng, DateTime now, {Set<String> avoid = const {}}) {
-  final picks = <String, String>{};
-  final used = <String>[];
-  for (var i = 0; i < session.exercises.length; i++) {
-    final e = session.exercises[i];
-    final sel = _selectionBeside(s, session, i, equipment, now);
-    final alts = candidatesFor(s, e.muscle, equipment, [...used, e.exId], now, avoid: avoid)..sort((a, b) => sel.compare(a, b));
-    final ranked = (alts.isEmpty ? candidatesFor(s, e.muscle, equipment, used, now, avoid: avoid) : alts).where((x) => sel.pref(x) != prefNo).toList();
-    final ready = ranked.where(sel.ready).toList();
-    final pool = (ready.isEmpty ? ranked : ready).take(4).toList();
-    final pick = pool.isEmpty ? e.exercise : pool[rng.nextInt(pool.length)];
-    picks[e.slot] = pick.id;
-    used.add(pick.id);
+/// The next exercise seed that changes the workout: the cover run again with a draw in place of practised and library
+/// rank, so coverage holds (SELECTION.md, "Shuffling"). Seeds that give the same exercises are skipped, a dozen at most.
+int nextExerciseSeed(AppState s, BuildOptions o, DateTime now) {
+  Set<String> ids(Session x) => {for (final e in x.exercises) e.exId};
+  final before = buildSession(s, o, now);
+  final current = ids(before);
+  final keep = before.requirements.where((m) => !before.uncovered.contains(m)).toSet();
+  var seed = o.exerciseSeed ?? 0;
+  for (var i = 0; i < 12; i++) {
+    seed++;
+    final drawn = buildSession(s, o.copyWith(exerciseSeed: seed), now);
+    final next = ids(drawn);
+    final covered = workedInOrder(drawn.exercises).toSet();
+    if (keep.every(covered.contains) && (next.length != current.length || !next.every(current.contains))) return seed;
   }
-  return picks;
+  return o.exerciseSeed ?? 0;
+}
+
+/// The next muscle seed that changes the muscles worked, a dozen tries at most.
+int nextMuscleSeed(AppState s, BuildOptions o, DateTime now) {
+  Set<String> worked(Session x) => {for (final e in x.exercises) ...e.exercise.primary};
+  final current = worked(buildSession(s, o, now));
+  var seed = o.muscleSeed ?? 0;
+  for (var i = 0; i < 12; i++) {
+    seed++;
+    final next = worked(buildSession(s, o.copyWith(muscleSeed: seed), now));
+    if (next.length != current.length || !next.every(current.contains)) return seed;
+  }
+  return o.muscleSeed ?? 0;
 }
 
 /// Estimated minutes for a session as planned: the warm-up, the lifting, then the cardio and stretching blocks.

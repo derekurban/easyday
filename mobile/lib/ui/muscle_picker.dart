@@ -68,10 +68,12 @@ String muscleStrainText(StrainPoints current, MuscleMap map, String muscle, Date
 Set<String> workedMuscles(Session session) => {for (final e in session.exercises) ...e.exercise.primary};
 
 class MusclePickerScreen extends StatefulWidget {
-  const MusclePickerScreen({super.key, required this.plan, required this.preview});
+  const MusclePickerScreen({super.key, required this.plan, required this.preview, required this.drawMuscles});
   final MusclePlan plan;
   /// The workout the plan would build, for the figure's chosen muscles and the line above Done.
   final Session Function(MusclePlan plan) preview;
+  /// The next muscle seed that changes the muscles worked (Draw again).
+  final int Function(MusclePlan plan) drawMuscles;
   @override
   State<MusclePickerScreen> createState() => _MusclePickerScreenState();
 }
@@ -106,8 +108,8 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     final session = widget.preview(plan);
     final chosen = workedMuscles(session);
     final forced = plan.forced;
-    final defaults = defaultMuscleStates(current);
-    final changed = trackedMuscles.any((m) => plan.states[m] != defaults[m]) || plan.manual || plan.seed > 0;
+    final defaults = defaultMuscleStates(current, s.goal);
+    final changed = trackedMuscles.any((m) => plan.states[m] != defaults[m]) || plan.manual || plan.drawn;
     // the state the selection shares, when it shares one
     final shared = selected.isEmpty ? null : selected.map((g) => plan.states[g]).toSet().singleOrNull;
     return Scaffold(
@@ -123,16 +125,16 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
         Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 0), child: Row(children: [
           Expanded(child: Segmented<bool>(
             value: plan.manual, options: const {false: 'Shuffle', true: 'Manual'}, icons: const {false: LucideIcons.shuffle, true: LucideIcons.pin},
-            onChanged: (v) => setState(() => plan.manual = v),
+            onChanged: (v) => setState(() { plan.manual = v; plan.resetDraws(); }),
           )),
           const SizedBox(width: 8),
           IconButton.outlined(
-            onPressed: plan.manual ? null : () { HapticFeedback.selectionClick(); setState(() => plan.seed++); },
+            onPressed: plan.manual ? null : () { HapticFeedback.selectionClick(); setState(() => plan.draw(muscles: widget.drawMuscles(plan))); },
             icon: const Icon(LucideIcons.dices, size: 20), tooltip: 'Draw again',
           ),
         ])),
         Padding(padding: const EdgeInsets.fromLTRB(16, 6, 16, 0), child: Text(
-          plan.manual ? 'Only forced muscles are worked.' : 'Forced muscles first, then the workout is drawn from the available ones.${plan.seed > 0 ? ' Draw ${plan.seed}.' : ''}',
+          plan.manual ? 'Only forced muscles are worked.' : 'Forced muscles first, then the workout is drawn from the available ones.${plan.muscleDraw != null ? ' Drawn.' : ''}',
           style: t.bodySmall,
         )),
         Expanded(child: Stack(children: [
@@ -210,7 +212,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(muscleStateIcon(st), size: 15, color: ink),
           const SizedBox(width: 6),
-          Text(muscleStateLabel[st]!, style: t.labelLarge?.copyWith(color: ink)),
+          Flexible(child: Text(muscleStateLabel[st]!, overflow: TextOverflow.ellipsis, style: t.labelLarge?.copyWith(color: ink))),
         ]),
       ),
     );
@@ -277,7 +279,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
   /// The list: a header per state, the muscles under each, every tile draggable up or down and across the headers.
   /// A tap selects a tile, like a tap on the figure.
   Widget _list(BuildContext context, StrainPoints current, MuscleMap map, DateTime now, Set<String> chosen) {
-    final share = shareOver(context.store.state, now);
+    final rhythm = rhythmOver(context.store.state, now);
     const sections = [MuscleState.forced, MuscleState.available, MuscleState.excluded];
     // the flat list the reorderable view shows: headers and tiles, each with a key
     final items = <({MuscleState? header, String? group})>[];
@@ -309,7 +311,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
       itemBuilder: (context, i) {
         final it = items[i];
         if (it.header != null) return _header(context, it.header!, musclesIn(plan.states, it.header!, plan.order).length, key: ValueKey('h${it.header}'));
-        return _tile(context, i, it.group!, current, map, share, now, chosen, key: ValueKey('g${it.group}'));
+        return _tile(context, i, it.group!, current, map, rhythm, now, chosen, key: ValueKey('g${it.group}'));
       },
     );
   }
@@ -331,7 +333,17 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
     );
   }
 
-  Widget _tile(BuildContext context, int index, String g, StrainPoints current, MuscleMap map, Share share, DateTime now, Set<String> chosen, {required Key key}) {
+  /// A muscle's tag and clock in words: "active · last worked 4 workouts ago", "passive · helped last workout", "ignored".
+  String _tagText(BuildContext context, String g, Rhythm r) {
+    final goal = context.store.state.goal!;
+    return switch (goal.tagOf(g)) {
+      MuscleTag.active => 'active · ${r.dueText(g)}',
+      MuscleTag.passive => 'passive · ${r.helpedText(g)}',
+      MuscleTag.ignored => 'ignored',
+    };
+  }
+
+  Widget _tile(BuildContext context, int index, String g, StrainPoints current, MuscleMap map, Rhythm rhythm, DateTime now, Set<String> chosen, {required Key key}) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final st = plan.states[g]!;
@@ -355,7 +367,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
             contentPadding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
             leading: Container(width: 22, height: 22, decoration: BoxDecoration(color: fill, shape: BoxShape.circle, border: Border.all(color: du.line, width: 0.6))),
             title: Text(muscleTitle(g), style: t.bodyLarge?.copyWith(color: st == MuscleState.excluded ? du.inkSecondary : du.ink)),
-            subtitle: Text('${worked ? 'in today\'s workout · ' : ''}${muscleStrainText(current, map, g, now)} · ${share.bandWord(g)}'),
+            subtitle: Text('${worked ? 'in today\'s workout · ' : ''}${_tagText(context, g, rhythm)} · ${muscleStrainText(current, map, g, now)}'),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(muscleStateIcon(st), size: 16, color: st == MuscleState.forced ? du.accentText : du.inkTertiary),
               ReorderableDragStartListener(index: index, child: Padding(padding: const EdgeInsets.fromLTRB(10, 12, 8, 12), child: Icon(LucideIcons.gripVertical, size: 18, color: du.inkTertiary))),
