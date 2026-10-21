@@ -1,0 +1,12 @@
+Use your built-in image generation tool (gpt-image) to EDIT the image. Do NOT draw with code, SVG, or Python.
+
+Image 1 (f_front_a.png) is the FEMALE FRONT view of our app's body map. Keep it identical except for the two changes below: same figure, framing, silhouette, every other plate and groove, the tones (plates about RGB 170-180, dark base about RGB 40-45), lighting, transparent background, square 1254 x 1254, no text or colour.
+
+Change 1, HANDS: her hands look wrong (the thumb is tucked across the fingers). Put both hands in the SAME pose as the approved male front (image 2 is the male front, image 3 a close-up of his hands): open hands, palms facing forward toward the viewer, fingers relaxed and together pointing down, thumbs angled outward away from the body. Keep her hands female-sized and slender, at the same place at the end of her forearms, same dark charcoal matte as the rest of the base.
+
+Change 2, OBLIQUES: the oblique plate on each flank must line up with the male's exactly in proportion (image 4 is the male torso coloured by muscle: cyan = obliques, green = abs). On the male, each oblique is one long tapered plate whose TOP edge is level with the top of the SECOND row of ab plates (there is a dark gap between it and the chest above), whose BOTTOM tip is level with about the middle of the long lowest ab plate, just above the outer-hip plate, about as wide as one ab plate, its inner edge running parallel to the groove beside the abs and its outer edge on the body's outline. Make her obliques follow those same landmarks on her own ab plates. Nothing else on the torso changes.
+
+Save two independent attempts as:
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f2_front_a.png
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f2_front_b.png
+In your final message, list which generated file became which saved name.
