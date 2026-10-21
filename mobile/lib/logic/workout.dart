@@ -215,3 +215,85 @@ int? currentExercise(Session s) {
 }
 
 SetRef? lastLoggedOrNext(Session s, WorkoutItem item) => lastLogged(s, item) ?? nextSet(s, item);
+
+// ---- pausing ----
+
+/// Pause: the clocks stop here. Nothing moves until resumeWorkout.
+void pauseWorkout(Session s, DateTime now) => s.pausedAt ??= now;
+
+/// Resume: every time in the workout moves on by the pause, so the workout, its items, the set under way and the rest
+/// all carry on where they stopped. pausedSeconds keeps the total, for the real start time.
+void resumeWorkout(Session s, DateTime now) {
+  final p = s.pausedAt;
+  if (p == null) return;
+  s.pausedAt = null;
+  final d = now.difference(p);
+  if (d <= Duration.zero) return;
+  s.pausedSeconds += d.inSeconds;
+  s.startedAt = s.startedAt?.add(d);
+  s.itemStarts.updateAll((_, t) => t.add(d));
+  for (final e in s.exercises) {
+    for (final x in e.sets) {
+      x.start = x.start?.add(d);
+      x.at = x.at?.add(d);
+    }
+  }
+}
+
+// ---- the strip ----
+
+enum BlockState { done, skipped, now, ahead }
+
+/// One block of the strip: a set, or a timed item (warm-up, cardio, stretching). Its weight is its share of the planned
+/// time, set and rest together.
+class StripBlock {
+  const StripBlock(this.item, this.kind, this.weight, this.state, {this.set});
+  final String item;
+  final ItemKind kind;
+  final SetRef? set;
+  final double weight;
+  final BlockState state;
+}
+
+/// The strip and where the user is on it: in block [at], or with [between] in the gap after it, resting.
+class StripView {
+  const StripView(this.blocks, this.at, {this.between = false});
+  final List<StripBlock> blocks;
+  final int at;
+  final bool between;
+}
+
+StripView stripView(Session s) {
+  final items = workoutItems(s);
+  final cur = currentItem(s);
+  final curIdx = cur == null ? -1 : items.indexWhere((x) => x.key == cur.key);
+  final blocks = <StripBlock>[];
+  var at = 0;
+  var between = false;
+  for (var k = 0; k < items.length; k++) {
+    final it = items[k];
+    if (!it.lifting) {
+      final started = s.itemStarts[it.key] != null;
+      final state = k == curIdx ? BlockState.now : k < curIdx ? (started ? BlockState.done : BlockState.skipped) : BlockState.ahead;
+      if (k == curIdx) at = blocks.length;
+      blocks.add(StripBlock(it.key, it.kind, it.minutes * 60.0, state));
+      continue;
+    }
+    final rounds = it.exercises.fold(0, (a, i) => max(a, s.exercises[i].sets.length));
+    final order = [for (var r = 0; r < rounds; r++) for (final i in it.exercises) if (r < s.exercises[i].sets.length) (ex: i, set: r)];
+    for (final r in order) {
+      final x = setOf(s, r);
+      final state = x.lifting ? BlockState.now : x.attempted ? BlockState.done : k < curIdx || s.skipped.contains(r.ex) ? BlockState.skipped : BlockState.ahead;
+      if (k == curIdx && x.lifting) at = blocks.length;
+      blocks.add(StripBlock(it.key, it.kind, s.exercises[r.ex].secPerSet, state, set: r));
+    }
+    if (k == curIdx && liftingSet(s, it) == null) {
+      // resting: in the gap after the last set logged, or before the item's first block
+      final last = lastLogged(s, it);
+      final idx = last == null ? -1 : blocks.indexWhere((b) => b.set == last);
+      at = idx >= 0 ? idx : blocks.length - order.length - 1;
+      between = true;
+    }
+  }
+  return StripView(blocks, at, between: between);
+}

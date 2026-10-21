@@ -66,6 +66,12 @@ android {
     }
 
     buildTypes {
+        // Debug builds install beside the release ones (different key, lower version code), so a dev
+        // loop on a real phone never uninstalls the installed app and its data.
+        debug {
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Easyday Dev")
+        }
         release {
             signingConfig = if (keyProps.containsKey("storeFile")) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }

@@ -175,4 +175,46 @@ void main() {
       expect(sets(b), lessThanOrEqualTo(sets(a)));
     });
   });
+
+  group('pause', () {
+    test('resuming moves every time on by the pause, so the set, the rest and the workout carry on where they stopped', () {
+      final s = fresh();
+      final x = build(s, warmup: 0);
+      startWorkout(s, x, t0);
+      enterReps(x, x.exercises[0].hi, at(30));
+      pauseWorkout(x, at(60));
+      pauseWorkout(x, at(90)); // a second pause changes nothing
+      expect(x.pausedAt, at(60));
+      resumeWorkout(x, at(660));
+      expect(x.pausedAt, isNull);
+      expect(x.pausedSeconds, 600);
+      expect(x.startedAt, at(600));
+      expect(x.exercises[0].sets[0].at, at(630));
+      expect(restSince(x, currentItem(x)!), at(630), reason: 'thirty seconds of rest before the pause, still thirty after it');
+      resumeWorkout(x, at(700)); // not paused: nothing moves
+      expect(x.startedAt, at(600));
+    });
+  });
+
+  group('the strip', () {
+    test('a block per set and per timed part; lifting is in the set, resting in the gap after it', () {
+      final s = fresh();
+      final x = build(s, warmup: 5);
+      startWorkout(s, x, t0);
+      var v = stripView(x);
+      final sets = x.exercises.fold(0, (a, e) => a + e.sets.length);
+      expect(v.blocks.length, sets + 1 + (x.cardioMinutes > 0 ? 1 : 0) + (x.stretchMinutes > 0 ? 1 : 0));
+      expect(v.at, 0);
+      expect(v.between, isFalse);
+      ready(x, at(300)); // into the first exercise, lifting at once
+      v = stripView(x);
+      expect(v.at, 1);
+      expect(v.blocks[0].state, BlockState.done);
+      expect(v.blocks[1].state, BlockState.now);
+      enterReps(x, x.exercises[0].hi, at(340));
+      v = stripView(x);
+      expect(v.between, isTrue);
+      expect(v.at, 1, reason: 'in the gap after the set just logged');
+    });
+  });
 }

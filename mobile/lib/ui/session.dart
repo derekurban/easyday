@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/library.dart';
@@ -17,6 +18,7 @@ import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'motion.dart';
+import 'stage_art.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -33,6 +35,9 @@ class _SessionScreenState extends State<SessionScreen> {
   List<Exercise>? toRate;     // first-time exercises still to get a word, shown before the log
   int? effort;
   bool editing = false;       // the reps reopened to correct the last set
+  Duration _hold = Duration.zero; // how long the next I'm ready waits, so a quick second tap cannot skip what comes
+  String _holdCaption = '';
+  DateTime? _lockedUntil;     // the strip ignores taps while a step is still settling in
   Timer? _tick;
 
   @override
@@ -56,24 +61,18 @@ class _SessionScreenState extends State<SessionScreen> {
     if (x != null && x.type == 'lift' && x.exercises.isNotEmpty && x.itemStarts.isEmpty) store.update((_) => ready(x, store.now));
   }
 
-  /// Every second: the clocks move, the rest timer (when it is on) starts the next set, and the last block ends the
-  /// workout when its minutes are up.
+  /// Every second: the clock moves and the rest timer (when it is on) starts the next set.
   void _onTick() {
     if (!mounted) return;
     final store = context.store;
     final x = store.state.active;
-    if (x == null || x.type != 'lift' || note != null || finishing) return;
+    if (x == null || x.type != 'lift' || note != null || finishing || x.pausedAt != null) return;
     final cur = currentItem(x);
     final now = store.now;
     if (cur != null) {
       if (store.state.settings.restAuto && cur.lifting && !editing) {
         final due = restDue(x, cur);
         if (due != null && !now.isBefore(due)) { store.update((_) => ready(x, due)); return; }
-      }
-      final items = workoutItems(x);
-      if (cur.kind == ItemKind.stretch && items.last.key == cur.key && !now.isBefore(x.itemStarts[cur.key]!.add(Duration(minutes: cur.minutes)))) {
-        setState(() => finishing = true);
-        return;
       }
     }
     setState(() {});
@@ -87,7 +86,8 @@ class _SessionScreenState extends State<SessionScreen> {
     if (finishing) return _feel(context, session);
     if (session.type == 'move') return _move(context, session);
     if (session.exercises.isEmpty) return _feel(context, session);
-    final now = store.now;
+    final paused = session.pausedAt != null;
+    final now = session.pausedAt ?? store.now;
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final items = workoutItems(session);
@@ -98,34 +98,70 @@ class _SessionScreenState extends State<SessionScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: Row(children: [
-          Icon(LucideIcons.clock, size: 16, color: du.inkSecondary),
-          const SizedBox(width: 6),
-          Text(mmss(elapsed), style: t.titleMedium?.copyWith(color: du.inkSecondary, fontFeatures: const [FontFeature.tabularFigures()])),
+        titleSpacing: 20,
+        title: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(paused ? '${mmss(elapsed)} paused' : mmss(elapsed), style: t.titleMedium?.copyWith(color: paused ? du.accentText : du.inkSecondary, fontFeatures: const [FontFeature.tabularFigures()])),
+          const SizedBox(width: 4),
+          IconButton(
+            tooltip: paused ? 'Resume' : 'Pause',
+            onPressed: () => _pause(context, session, !paused),
+            icon: Icon(paused ? LucideIcons.play : LucideIcons.pause, size: 18),
+          ),
         ]),
-        actions: [TextButton.icon(onPressed: () => _stop(context, session), icon: const Icon(LucideIcons.square, size: 14), label: const Text('End'))],
+        actions: [
+          TextButton.icon(onPressed: () => _stop(context, session), icon: const Icon(LucideIcons.square, size: 14), label: const Text('End')),
+          const SizedBox(width: 4),
+        ],
       ),
       body: Column(children: [
-        Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 10), child: _strip(context, session, items, curIdx, now)),
-        Expanded(child: PageSwitcher(
-          index: curIdx,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-            children: cur.lifting ? _liftBody(context, session, items, cur, now) : _blockBody(context, session, items, cur, now),
-          ),
-        )),
+        Padding(padding: const EdgeInsets.fromLTRB(16, 2, 16, 12), child: _strip(context, session, items, curIdx, now)),
+        Expanded(child: Stack(children: [
+          Positioned.fill(child: IgnorePointer(ignoring: paused, child: AnimatedOpacity(
+            duration: m(context, durSlow),
+            opacity: paused ? 0.18 : 1,
+            child: PageSwitcher(
+              index: curIdx,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                children: cur.lifting ? _liftBody(context, session, items, cur, now) : _blockBody(context, session, items, cur, now),
+              ),
+            ),
+          ))),
+          if (paused) Positioned.fill(child: _pausedNote(context)),
+        ])),
         _dock(context, session, items, cur),
       ]),
     );
   }
 
-  // ---- the strip ----
+  void _pause(BuildContext context, Session x, bool pause) {
+    final store = context.store;
+    HapticFeedback.lightImpact();
+    store.update((_) => pause ? pauseWorkout(x, store.now) : resumeWorkout(x, store.now));
+    if (!pause) _lock(const Duration(milliseconds: 600));
+    setState(() {});
+  }
 
-  double _planned(Session x, WorkoutItem it) => switch (it.kind) {
-        ItemKind.exercise => plannedSeconds(x.exercises[it.exercises.single]),
-        ItemKind.circuit => it.exercises.fold(0.0, (a, i) => a + plannedSeconds(x.exercises[i])) + roundRestSeconds * 2,
-        _ => it.minutes * 60.0,
-      };
+  Widget _pausedNote(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Center(child: Pop(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 40), child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 72, height: 72,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: du.accentSubtle, border: Border.all(color: du.accentLine, width: 0.6)),
+        child: Icon(LucideIcons.pause, size: 32, color: du.accentStrong),
+      ),
+      const SizedBox(height: 16),
+      Text('Paused', style: t.headlineLarge),
+      const SizedBox(height: 6),
+      Text('The clock, the set and the rest all wait for you.', style: t.bodyMedium?.copyWith(color: du.inkSecondary), textAlign: TextAlign.center),
+    ]))));
+  }
+
+  void _lock(Duration d) => _lockedUntil = DateTime.now().add(d);
+  bool get _locked => _lockedUntil != null && DateTime.now().isBefore(_lockedUntil!);
+
+  // ---- the strip ----
 
   String _short(Session x, WorkoutItem it) => switch (it.kind) {
         ItemKind.warmup => 'Warm-up',
@@ -153,50 +189,116 @@ class _SessionScreenState extends State<SessionScreen> {
     return rest[0].toUpperCase() + rest.substring(1);
   }
 
-  bool _skipped(Session x, WorkoutItem it) => it.lifting && it.exercises.every((i) => x.skipped.contains(i)) && x.itemStarts[it.key] == null;
-
+  /// The strip: a thin block for every set and every timed part, with gaps between the parts. The part under way stands
+  /// taller; resting, the gap after the last set opens a little and holds a dot. No clock: nothing hurries anyone.
   Widget _strip(BuildContext context, Session x, List<WorkoutItem> items, int curIdx, DateTime now) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
+    final view = stripView(x);
     final cur = items[curIdx];
-    final lifting = cur.lifting && liftingSet(x, cur) != null;
-    final start = x.itemStarts[cur.key];
-    final progress = start == null ? 0.0 : (now.difference(start).inSeconds / max(1.0, _planned(x, cur))).clamp(0.0, 1.0);
-    int flex(WorkoutItem it) => max(1, _planned(x, it).round());
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Row(children: [
-        for (var i = 0; i < items.length; i++)
-          Expanded(flex: flex(items[i]), child: GestureDetector(
-            onTap: i > curIdx ? () => _jump(context, x, items, curIdx, i) : null,
-            child: AnimatedContainer(
-              duration: m(context, durBase),
-              height: 18,
-              margin: EdgeInsets.only(right: i == items.length - 1 ? 0 : 3),
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: i < curIdx ? (_skipped(x, items[i]) ? du.sunk : du.accentStrong) : i == curIdx ? du.accentLine : du.line,
-                borderRadius: BorderRadius.circular(5),
-                border: i == curIdx ? Border.all(color: du.accentStrong, width: 1.5) : null,
+    final label = _nowName(x, cur);
+    final upNext = _nextName(x, items, curIdx);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (d) => _tapStrip(context, x, items, curIdx, view, d.localPosition.dx),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SizedBox(height: 12, child: LayoutBuilder(builder: (context, c) {
+          final geo = _stripGeometry(view, c.maxWidth);
+          final bl = view.blocks;
+          Color fill(StripBlock b) => switch (b.state) {
+                BlockState.done => du.accentLine,
+                BlockState.skipped => du.sunk,
+                BlockState.now => du.accentStrong,
+                BlockState.ahead => du.line,
+              };
+          return Stack(clipBehavior: Clip.none, children: [
+            for (var i = 0; i < bl.length; i++)
+              AnimatedPositioned(
+                key: ValueKey('b$i'),
+                duration: m(context, durSlow), curve: easeOut,
+                left: geo.left[i], width: geo.width[i],
+                top: bl[i].state == BlockState.now ? 2 : 4, height: bl[i].state == BlockState.now ? 8 : 4,
+                child: AnimatedContainer(
+                  duration: m(context, durBase),
+                  decoration: BoxDecoration(color: fill(bl[i]), borderRadius: BorderRadius.circular(4)),
+                ),
               ),
-              child: i == curIdx
-                  ? Align(alignment: Alignment.centerLeft, child: FractionallySizedBox(widthFactor: progress, child: Container(color: lifting ? du.accentStrong : du.accentStrong.withValues(alpha: 0.45))))
-                  : null,
-            ),
-          )),
+            if (view.between)
+              Positioned(left: geo.gapLeft + geo.gapWidth / 2 - 3, top: 3, width: 6, height: 6, child: _RestDot(color: du.accentStrong)),
+          ]);
+        })),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelMedium?.copyWith(letterSpacing: 0, color: du.accentText, fontWeight: FontWeight.w600))),
+          if (upNext != null) ...[
+            const SizedBox(width: 12),
+            Expanded(child: Text('Next: $upNext', textAlign: TextAlign.end, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelMedium?.copyWith(letterSpacing: 0, color: du.inkTertiary))),
+          ],
+        ]),
       ]),
-      const SizedBox(height: 5),
-      Row(children: [
-        for (var i = 0; i < items.length; i++)
-          Expanded(flex: flex(items[i]), child: Padding(
-            padding: EdgeInsets.only(right: i == items.length - 1 ? 0 : 3),
-            child: Text(
-              '${_short(x, items[i])}${i == curIdx && items[i].lifting ? (lifting ? ' · in a set' : ' · resting') : ''}',
-              maxLines: 1, softWrap: false, overflow: TextOverflow.ellipsis,
-              style: t.labelSmall?.copyWith(letterSpacing: 0, color: i == curIdx ? du.accentText : du.inkTertiary, fontWeight: i == curIdx ? FontWeight.w600 : null),
-            ),
-          )),
-      ]),
-    ]);
+    );
+  }
+
+  /// The exercise under way, or the one being rested from (in a circuit, the one up next), or the timed part.
+  String _nowName(Session x, WorkoutItem cur) {
+    if (!cur.lifting) return _short(x, cur);
+    final r = liftingSet(x, cur) ?? (cur.kind == ItemKind.circuit ? nextSet(x, cur) : null) ?? lastLogged(x, cur) ?? nextSet(x, cur);
+    return r == null ? _short(x, cur) : _shortName(x.exercises[r.ex].exercise.name);
+  }
+
+  /// What comes next on the strip that is not this exercise: the circuit's next exercise, else the next part.
+  String? _nextName(Session x, List<WorkoutItem> items, int curIdx) {
+    final cur = items[curIdx];
+    if (cur.kind == ItemKind.circuit) {
+      final order = setOrder(x, cur);
+      final r = liftingSet(x, cur) ?? nextSet(x, cur);
+      final i = r == null ? -1 : order.indexOf(r);
+      for (var k = i + 1; k < order.length; k++) {
+        if (order[k].ex != r!.ex) return _shortName(x.exercises[order[k].ex].exercise.name);
+      }
+    }
+    return curIdx + 1 < items.length ? _short(x, items[curIdx + 1]) : null;
+  }
+
+  /// Where each block sits: sets of one exercise 2 px apart, different parts 7 px apart, and the gap being rested in
+  /// opened to 16 px for its dot.
+  static ({List<double> left, List<double> width, double gapLeft, double gapWidth}) _stripGeometry(StripView view, double w) {
+    final bl = view.blocks;
+    const restGap = 16.0;
+    double gapAfter(int i) => view.between && i == view.at ? restGap : bl[i].item == bl[i + 1].item ? 2.0 : 7.0;
+    final lead = view.between && view.at < 0 ? restGap : 0.0;
+    var gaps = lead;
+    for (var i = 0; i < bl.length - 1; i++) { gaps += gapAfter(i); }
+    final trail = view.between && view.at == bl.length - 1 ? restGap : 0.0;
+    gaps += trail;
+    final total = bl.fold(0.0, (a, b) => a + max(1.0, b.weight));
+    final unit = max(0.0, w - gaps) / max(1.0, total);
+    final left = <double>[], width = <double>[];
+    var x = lead;
+    var gapLeft = 0.0, gapWidth = restGap;
+    for (var i = 0; i < bl.length; i++) {
+      left.add(x);
+      width.add(max(1.0, bl[i].weight) * unit);
+      x += width.last;
+      if (view.between && i == view.at) gapLeft = x;
+      if (i < bl.length - 1) x += gapAfter(i);
+    }
+    if (view.between && view.at < 0) { gapLeft = 0; gapWidth = lead; }
+    return (left: left, width: width, gapLeft: gapLeft, gapWidth: gapWidth);
+  }
+
+  /// A tap on a later part of the strip offers to go there.
+  void _tapStrip(BuildContext context, Session x, List<WorkoutItem> items, int curIdx, StripView view, double dx) {
+    if (_locked || x.pausedAt != null) return;
+    final w = MediaQuery.sizeOf(context).width - 32; // the strip's padding
+    final geo = _stripGeometry(view, w);
+    for (var i = 0; i < view.blocks.length; i++) {
+      if (dx < geo.left[i] + geo.width[i] + 3) {
+        final to = items.indexWhere((it) => it.key == view.blocks[i].item);
+        if (to > curIdx) _jump(context, x, items, curIdx, to);
+        return;
+      }
+    }
   }
 
   Future<void> _jump(BuildContext context, Session x, List<WorkoutItem> items, int curIdx, int to) async {
@@ -218,43 +320,7 @@ class _SessionScreenState extends State<SessionScreen> {
 
   // ---- what to do now ----
 
-  Widget _guide(BuildContext context, {required bool work, required String title, required String sub, DateTime? since, int? plan, DateTime? now}) {
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
-    final fg = work ? du.onAccent : du.ink;
-    final secs = since == null || now == null ? null : max(0, now.difference(since).inSeconds).toDouble();
-    return AnimatedContainer(
-      duration: m(context, durBase),
-      curve: easeOut,
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(color: work ? du.accentStrong : du.sunk, borderRadius: BorderRadius.circular(16)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: t.titleLarge?.copyWith(color: fg)),
-        const SizedBox(height: 6),
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(sub, style: t.bodySmall?.copyWith(color: work ? du.onAccent.withValues(alpha: 0.85) : du.inkSecondary)),
-            if (plan != null && secs != null) Padding(padding: const EdgeInsets.only(top: 8), child: ClipRRect(
-              borderRadius: BorderRadius.circular(2),
-              child: SizedBox(height: 4, child: LinearProgressIndicator(value: (secs / plan).clamp(0.0, 1.0), backgroundColor: du.line, color: du.accentStrong)),
-            )),
-          ])),
-          if (secs != null) Padding(padding: const EdgeInsets.only(left: 12), child: Text(mmss(secs), style: t.displayLarge?.copyWith(fontSize: 30, letterSpacing: -0.8, color: fg, fontFeatures: const [FontFeature.tabularFigures()]))),
-        ]),
-      ]),
-    );
-  }
-
   String _level(SessionExercise e) => e.rungLabel == e.exercise.name ? 'standard' : e.rungLabel;
-
-  String _target(SessionExercise e) {
-    final unit = e.exercise.repLabel == 'seconds' ? ' s' : ' reps';
-    if (e.atCeiling) return 'Top of the progression: beat ${e.bestTotal} total across ${e.sets.length} sets';
-    if (e.nextLevel) return 'The next level: ${e.lo}$unit on every set makes ${e.rungLabel} yours';
-    if (e.intent == intentLight) return 'Lighter today: ${e.lo} to ${e.hi}$unit, nothing judged';
-    return '${e.lo} to ${e.hi}$unit, as many as you can with good form';
-  }
 
   String _nextExercise(Session x, SessionExercise e) {
     final w = e.warmups.isEmpty ? '' : '. Warm up ${e.warmups.map((w) => '${w.reps} × ${fmtLoad(context.store.state, e.exercise, w.kg, equipment: context.store.state.location(x.locationId)?.equipment)}').join(', then ')}';
@@ -282,14 +348,8 @@ class _SessionScreenState extends State<SessionScreen> {
     final shown = (lift ?? last ?? next)!;
     final e = x.exercises[shown.ex];
     final circuit = cur.kind == ItemKind.circuit;
-    final rounds = cur.exercises.fold(0, (a, i) => max(a, x.exercises[i].sets.length));
-    final header = !circuit
-        ? (lift != null ? 'Set ${e.attempted.length + 1} of ${e.sets.length}' : e.attempted.isNotEmpty ? 'Set ${e.attempted.length} of ${e.sets.length} done' : 'Set 1 of ${e.sets.length}')
-        : lift != null
-            ? 'Round ${lift.set + 1} of $rounds · ${cur.exercises.indexOf(lift.ex) + 1} of ${cur.exercises.length}'
-            : last != null ? 'Round ${last.set + 1} of $rounds · ${cur.exercises.indexOf(last.ex) + 1} of ${cur.exercises.length} done' : 'Round 1 of $rounds';
     // the chips: this exercise's sets, or in a circuit this round across the exercises
-    final round = (lift ?? last ?? next)!.set;
+    final round = shown.set;
     final chips = <({SetLog log, bool now, bool tappable})>[
       if (!circuit)
         for (var k = 0; k < e.sets.length; k++) (log: e.sets[k], now: lift != null && lift.ex == shown.ex && lift.set == k, tappable: last != null && last.ex == shown.ex && last.set == k)
@@ -299,22 +359,34 @@ class _SessionScreenState extends State<SessionScreen> {
     ];
     final plan = lift == null ? plannedRest(x, cur) : null;
     final settings = store.state.settings;
-    String restSub() {
+    String restNote() {
       if (plan != null) {
         final what = circuit && next!.set > last!.set ? 'round ${next.set + 1}' : 'set ${x.exercises[next!.ex].attempted.length + 1}';
-        return settings.restAuto ? '${what[0].toUpperCase()}${what.substring(1)} starts by itself at ${mmss(plan.toDouble())}.' : 'About ${mmss(plan.toDouble())} is plenty before $what.';
+        return settings.restAuto ? '${what[0].toUpperCase()}${what.substring(1)} starts by itself after the rest.' : 'Take the rest you need before $what.';
       }
       if (next != null) return 'Next: ${_nextExercise(x, x.exercises[next.ex])}.';
       return "That's every set. ${_nextItemLine(x, items, cur)}";
     }
-    final split = itemSplit(x, cur, now);
+    // a version of a bodyweight exercise is its name; a loaded one is the exercise and its weight
+    final variant = e.exercise.ladder != null;
+    final title = variant ? e.rungLabel : e.exercise.name;
+    final weight = variant || e.rungLabel == e.exercise.name ? null : e.rungLabel;
+    final seconds = e.exercise.repLabel == 'seconds';
+    final note = e.atCeiling
+        ? 'Top of the progression: beat ${e.bestTotal} total across ${e.sets.length} sets'
+        : e.nextLevel ? 'A new level: ${e.lo} on every set makes it yours'
+        : e.intent == intentLight ? 'Lighter today, nothing judged' : null;
     return [
-      Text(header, style: t.bodySmall),
-      const SizedBox(height: 6),
-      Text(e.exercise.name, style: t.headlineLarge),
-      const SizedBox(height: 2),
-      Text(_level(e), style: t.titleLarge?.copyWith(color: du.accentText)),
-      const SizedBox(height: 14),
+      Text(title, style: t.headlineLarge),
+      if (weight != null) Padding(padding: const EdgeInsets.only(top: 2), child: Text(weight, style: t.titleLarge?.copyWith(color: du.accentText))),
+      const SizedBox(height: 10),
+      Row(children: [
+        Icon(LucideIcons.target, size: 16, color: du.inkSecondary),
+        const SizedBox(width: 8),
+        Text('${e.lo} to ${e.hi} ${seconds ? 'seconds' : 'reps'}${e.exercise.perSide ? ' a side' : ''}', style: t.titleMedium),
+      ]),
+      if (note != null) Padding(padding: const EdgeInsets.only(top: 4, left: 24), child: Text(note, style: t.bodySmall?.copyWith(color: du.inkSecondary))),
+      const SizedBox(height: 16),
       Row(children: [
         for (var k = 0; k < chips.length; k++)
           Expanded(child: Padding(
@@ -324,40 +396,30 @@ class _SessionScreenState extends State<SessionScreen> {
               child: AnimatedContainer(
                 duration: m(context, durBase),
                 curve: easeOut,
-                height: 52, alignment: Alignment.center,
+                height: 44, alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: chips[k].log.attempted ? du.accentSubtle : du.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: chips[k].now ? du.accentStrong : (chips[k].log.attempted ? du.accentLine : du.line), width: chips[k].now ? 2 : 0.6),
                 ),
                 child: chips[k].log.attempted
-                    ? Text('${chips[k].log.reps}', style: t.headlineMedium?.copyWith(color: du.accentText))
-                    : Text(chips[k].now ? 'now' : '·', style: chips[k].now ? t.labelMedium?.copyWith(color: du.accentText) : t.headlineMedium?.copyWith(color: du.inkTertiary)),
+                    ? Text('${chips[k].log.reps}', style: t.titleLarge?.copyWith(color: du.accentText))
+                    : Text(chips[k].now ? 'now' : '·', style: chips[k].now ? t.labelMedium?.copyWith(color: du.accentText) : t.titleLarge?.copyWith(color: du.inkTertiary)),
               ),
             ),
           )),
       ]),
       if (circuit) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${cur.exercises.map((i) => x.exercises[i].exercise.name).join(' → ')}, then rest and go again.', style: t.labelSmall)),
-      if (lift != null)
-        _guide(context, work: true, title: 'Go give it your best!', sub: _target(e), since: setOf(x, lift).start, now: now)
-      else
-        _guide(context, work: false, title: "Rest up and let us know when you're ready", sub: restSub(), since: restSince(x, cur), plan: plan, now: now),
-      const SizedBox(height: 12),
-      _splitBar(context, split.lifting, split.rest),
       const SizedBox(height: 16),
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(LucideIcons.bookOpen, size: 14, color: du.inkTertiary),
-        const SizedBox(width: 6),
-        Expanded(child: Text(howAt(e.exercise, e.rung), style: t.bodySmall?.copyWith(color: du.inkSecondary))),
-      ]),
+      StageArt(stage: lift == null ? Stage.rest : stageOf(e.exercise.type), note: lift == null ? restNote() : null),
+      const SizedBox(height: 24),
+      HowToSteps(howAt(e.exercise, e.rung)),
     ];
   }
 
   List<Widget> _blockBody(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur, DateTime now) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    final start = x.itemStarts[cur.key] ?? now;
-    final left = max(0, start.add(Duration(minutes: cur.minutes)).difference(now).inSeconds).toDouble();
     final routine = switch (cur.kind) {
       ItemKind.warmup => routines['reset']!,
       ItemKind.stretch => _lowerDay(x) ? routines['hips']! : routines['upper']!,
@@ -372,17 +434,22 @@ class _SessionScreenState extends State<SessionScreen> {
         used += m.seconds;
       }
     }
-    final (title, sub) = switch (cur.kind) {
-      ItemKind.warmup => ("Warm up, then let us know when you're ready", _nextItemLine(x, items, cur)),
-      ItemKind.cardio => ('Keep it easy', 'A pace you could talk through. ${_nextItemLine(x, items, cur)}'),
-      _ => ('Stretch it out', 'The workout ends when the timer does, or tap Finish.'),
+    final (stage, note) = switch (cur.kind) {
+      ItemKind.warmup => (Stage.warmup, _nextItemLine(x, items, cur)),
+      ItemKind.cardio => (Stage.cardio, 'A pace you could talk through. ${_nextItemLine(x, items, cur)}'),
+      _ => (Stage.stretching, 'Take your time. Tap Finish when you are done.'),
     };
     return [
-      Text('${_name(x, cur)} · ${cur.minutes} minutes', style: t.bodySmall),
-      const SizedBox(height: 8),
-      Text(mmss(left), style: t.displayLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
-      _guide(context, work: false, title: title, sub: sub),
+      Text(_name(x, cur), style: t.headlineLarge),
+      const SizedBox(height: 10),
+      Row(children: [
+        Icon(LucideIcons.target, size: 16, color: du.inkSecondary),
+        const SizedBox(width: 8),
+        Text('About ${cur.minutes} minutes', style: t.titleMedium),
+      ]),
       const SizedBox(height: 16),
+      StageArt(stage: stage, note: note),
+      const SizedBox(height: 24),
       if (moves.isNotEmpty)
         Panel(padding: EdgeInsets.zero, child: Column(children: [
           for (var i = 0; i < moves.length; i++) ...[
@@ -415,67 +482,87 @@ class _SessionScreenState extends State<SessionScreen> {
 
   Widget _dock(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur) {
     final du = context.du;
-    final picking = cur.lifting && (liftingSet(x, cur) != null || (editing && lastLogged(x, cur) != null));
+    final paused = x.pausedAt != null;
+    final picking = !paused && cur.lifting && (liftingSet(x, cur) != null || (editing && lastLogged(x, cur) != null));
+    final Widget child;
+    if (paused) {
+      child = KeyedSubtree(key: const ValueKey('paused'), child: SizedBox(width: double.infinity, height: 60, child: FilledButton.icon(
+        onPressed: () => _pause(context, x, false), icon: const Icon(LucideIcons.play, size: 18), label: const Text('Resume'))));
+    } else if (picking) {
+      final r = (liftingSet(x, cur) ?? lastLogged(x, cur))!;
+      child = KeyedSubtree(key: ValueKey('reps ${r.ex} ${r.set} $editing'), child: _repsWheel(context, x, cur));
+    } else {
+      final last = cur.lifting ? lastLogged(x, cur) : null;
+      final hold = _hold;
+      _hold = Duration.zero; // spent on this button; a rebuild of the same one does not wait again
+      child = _HoldButton(
+        key: ValueKey('ready ${cur.key} ${last?.ex} ${last?.set}'),
+        label: _readyLabel(x, items, cur),
+        caption: _holdCaption,
+        hold: m(context, hold),
+        onPressed: () => _ready(context, x),
+      );
+    }
     return Container(
       padding: EdgeInsets.fromLTRB(16, 10, 16, 14 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
       child: AnimatedSwitcher(
-        duration: m(context, durBase),
+        duration: m(context, durSlow),
         switchInCurve: easeSettle,
         switchOutCurve: easeOut,
-        transitionBuilder: (child, a) => FadeTransition(opacity: a, child: SizeTransition(sizeFactor: a, axisAlignment: 1, child: ScaleTransition(scale: Tween(begin: 0.96, end: 1.0).animate(a), child: child))),
-        child: picking
-            ? KeyedSubtree(key: const ValueKey('reps'), child: _repsScale(context, x, cur))
-            : KeyedSubtree(key: const ValueKey('ready'), child: SizedBox(width: double.infinity, height: 60, child: FilledButton(
-                onPressed: () => _ready(context, x),
-                child: Text(_readyLabel(x, items, cur), overflow: TextOverflow.ellipsis),
-              ))),
+        transitionBuilder: (child, a) => FadeTransition(opacity: a, child: SizeTransition(sizeFactor: a, axisAlignment: 1, child: ScaleTransition(scale: Tween(begin: 0.94, end: 1.0).animate(a), child: child))),
+        child: child,
       ),
     );
   }
 
-  /// The reps: the range set for this exercise, one button for anything under it and one for anything over.
-  Widget _repsScale(BuildContext context, Session x, WorkoutItem cur) {
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
+  /// The reps on a wheel: scroll to the number, then log it. It opens on the last set's reps, or the top of the range.
+  Widget _repsWheel(BuildContext context, Session x, WorkoutItem cur) {
     final lift = liftingSet(x, cur);
     final r = (lift ?? lastLogged(x, cur))!;
     final e = x.exercises[r.ex];
     final seconds = e.exercise.repLabel == 'seconds';
     final step = seconds && e.hi - e.lo > 12 ? 5 : 1;
-    final values = <int>[for (var v = e.lo; v < e.hi; v += step) v, e.hi];
-    final options = <(String, int)>[('< ${e.lo}', max(0, e.lo - step)), for (final v in values) ('$v', v), ('> ${e.hi}', e.hi + step)];
-    final selected = lift == null ? setOf(x, r).reps : null;
-    final perRow = options.length <= 8 ? options.length : (options.length / 2).ceil();
-    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text(lift == null ? 'Fix that set: tap the right number' : seconds ? 'How many seconds did you hold?' : 'How many reps did you get?', style: t.labelMedium, textAlign: TextAlign.center),
-      const SizedBox(height: 10),
-      LayoutBuilder(builder: (context, c) {
-        final w = (c.maxWidth - 6 * (perRow - 1)) / perRow;
-        return Wrap(spacing: 6, runSpacing: 6, children: [
-          for (final (label, v) in options)
-            SizedBox(width: w, height: 52, child: v == selected
-                ? FilledButton(style: FilledButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero), onPressed: () => _logReps(context, x, v), child: Text(label, style: t.titleMedium?.copyWith(color: du.onAccent)))
-                : OutlinedButton(style: OutlinedButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-                    onPressed: () => _logReps(context, x, v),
-                    child: Text(label, style: t.titleMedium?.copyWith(color: label.startsWith('<') || label.startsWith('>') ? du.inkSecondary : du.ink)))),
-        ]);
-      }),
-      if (lift == null) TextButton(onPressed: () => setState(() => editing = false), child: const Text('Keep it as it was')),
-    ]);
+    final top = e.hi + step * max(6, (e.hi - e.lo) ~/ step);
+    final values = <int>[for (var v = 0; v <= top; v += step) v];
+    final before = lift == null ? setOf(x, r).reps : [for (final s in e.sets) if (s.attempted) s.reps!].lastOrNull;
+    final start = before ?? e.hi;
+    var initial = 0;
+    for (var i = 0; i < values.length; i++) { if ((values[i] - start).abs() < (values[initial] - start).abs()) initial = i; }
+    final unit = seconds ? 'seconds' : 'reps';
+    return _RepWheel(
+      title: lift == null ? 'Fix that set' : seconds ? 'How many seconds did you hold?' : 'How many reps did you get?',
+      values: values, initial: initial, lo: e.lo, hi: e.hi, unit: unit,
+      action: lift == null ? 'Save' : 'Log',
+      onLog: (v) => _logReps(context, x, v),
+      onCancel: lift == null ? () => setState(() => editing = false) : null,
+    );
   }
 
   void _logReps(BuildContext context, Session x, int reps) {
     final store = context.store;
+    final fixing = editing;
+    HapticFeedback.mediumImpact();
     store.update((_) => enterReps(x, reps, store.now));
-    setState(() => editing = false);
+    setState(() {
+      editing = false;
+      if (!fixing) { _hold = const Duration(milliseconds: 2400); _holdCaption = 'Take a breather'; }
+    });
+    _lock(const Duration(milliseconds: 2400));
   }
 
   void _ready(BuildContext context, Session x) {
     final store = context.store;
     var more = true;
+    HapticFeedback.lightImpact();
     store.update((_) => more = ready(x, store.now));
-    setState(() { editing = false; if (!more) finishing = true; });
+    setState(() {
+      editing = false;
+      if (!more) finishing = true;
+      _hold = const Duration(milliseconds: 1600);
+      _holdCaption = 'Get set';
+    });
+    _lock(const Duration(milliseconds: 1600));
   }
 
   Widget _splitBar(BuildContext context, double lifting, double rest, {bool key = true}) {
@@ -542,6 +629,7 @@ class _SessionScreenState extends State<SessionScreen> {
     final store = context.store;
     final p = stop ?? pendingFinish;
     final f = Finish(feel: feel, stopReason: p?.stopReason, stopAt: p?.stopAt, effort: effort);
+    resumeWorkout(session, store.now); // ended while paused: the pause is not workout time
     finishSession(store.state, session, f, store.now);
     note = session.note;
     toRate = firstTimers(store.state, session);
@@ -585,7 +673,7 @@ class _SessionScreenState extends State<SessionScreen> {
     final st = s.settings;
     if (!st.calendar || !st.autoTrack || session.startedAt == null || session.endedAt == null) return;
     final text = workoutEventText(s, session, (e) => e.rungLabel);
-    final id = await CalendarBridge.writeEvent(calendarId: st.calendarId, eventId: session.calendarEventId, begin: session.startedAt!, end: session.endedAt!, title: text.title, description: text.description);
+    final id = await CalendarBridge.writeEvent(calendarId: st.calendarId, eventId: session.calendarEventId, begin: session.startedAt!.subtract(Duration(seconds: session.pausedSeconds)), end: session.endedAt!, title: text.title, description: text.description);
     if (id != null && mounted) context.store.update((_) => session.calendarEventId = id);
   }
 
@@ -697,4 +785,182 @@ class _SessionScreenState extends State<SessionScreen> {
       ]),
     );
   }
+}
+
+/// A button that arrives before it can be pressed: for [hold] it shows [caption] while it fills, then turns into
+/// [label]. A quick second tap after the last step lands on nothing instead of skipping what comes next.
+class _HoldButton extends StatefulWidget {
+  const _HoldButton({super.key, required this.label, required this.caption, required this.hold, required this.onPressed});
+  final String label;
+  final String caption;
+  final Duration hold;
+  final VoidCallback onPressed;
+  @override
+  State<_HoldButton> createState() => _HoldButtonState();
+}
+
+class _HoldButtonState extends State<_HoldButton> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: widget.hold > Duration.zero ? widget.hold : const Duration(milliseconds: 1));
+    if (widget.hold > Duration.zero) {
+      _c.forward().whenComplete(() { if (mounted) setState(() {}); });
+    } else {
+      _c.value = 1;
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final ready = _c.isCompleted;
+    return SizedBox(width: double.infinity, height: 60, child: AnimatedSwitcher(
+      duration: m(context, durSlow),
+      switchInCurve: easeSettle,
+      switchOutCurve: easeOut,
+      transitionBuilder: (child, a) => FadeTransition(opacity: a, child: ScaleTransition(scale: Tween(begin: 0.92, end: 1.0).animate(a), child: child)),
+      child: ready
+          ? SizedBox.expand(key: const ValueKey('go'), child: FilledButton(onPressed: widget.onPressed, child: Text(widget.label, overflow: TextOverflow.ellipsis)))
+          : ClipRRect(
+              key: const ValueKey('hold'),
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(fit: StackFit.expand, children: [
+                ColoredBox(color: du.sunk),
+                AnimatedBuilder(animation: _c, builder: (context, _) => Align(alignment: Alignment.centerLeft, child: FractionallySizedBox(
+                  widthFactor: Curves.easeInOut.transform(_c.value), heightFactor: 1, child: ColoredBox(color: du.accentSubtle)))),
+                Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(LucideIcons.wind, size: 18, color: du.accentText),
+                  const SizedBox(width: 8),
+                  Text(widget.caption, style: t.labelLarge?.copyWith(color: du.accentText)),
+                ])),
+              ]),
+            ),
+    ));
+  }
+}
+
+/// The reps on a sideways wheel: the target range in ink, the rest faint, the one in the window large. Log arrives a
+/// moment after the wheel does, so the tap that started the set cannot end it.
+class _RepWheel extends StatefulWidget {
+  const _RepWheel({required this.title, required this.values, required this.initial, required this.lo, required this.hi, required this.unit, required this.action, required this.onLog, this.onCancel});
+  final String title;
+  final List<int> values;
+  final int initial;
+  final int lo, hi;
+  final String unit;
+  final String action;
+  final ValueChanged<int> onLog;
+  final VoidCallback? onCancel;
+  @override
+  State<_RepWheel> createState() => _RepWheelState();
+}
+
+class _RepWheelState extends State<_RepWheel> {
+  static const _extent = 58.0;
+  late final FixedExtentScrollController _ctl = FixedExtentScrollController(initialItem: widget.initial);
+  late int _sel = widget.initial;
+
+  @override
+  void dispose() {
+    _ctl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final v = widget.values[_sel];
+    final word = widget.unit == 'reps' && v == 1 ? 'rep' : widget.unit == 'seconds' && v == 1 ? 'second' : widget.unit;
+    return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Text(widget.title, style: t.labelMedium, textAlign: TextAlign.center),
+      const SizedBox(height: 8),
+      SizedBox(height: 72, child: Stack(alignment: Alignment.center, children: [
+        Container(width: _extent, height: 72, decoration: BoxDecoration(
+          color: du.accentSubtle, borderRadius: BorderRadius.circular(14), border: Border.all(color: du.accentLine, width: 1))),
+        ShaderMask(
+          shaderCallback: (r) => const LinearGradient(colors: [Color(0x00000000), Color(0xFF000000), Color(0xFF000000), Color(0x00000000)], stops: [0, 0.22, 0.78, 1]).createShader(r),
+          blendMode: BlendMode.dstIn,
+          child: RotatedBox(quarterTurns: 3, child: ListWheelScrollView.useDelegate(
+            controller: _ctl,
+            itemExtent: _extent,
+            diameterRatio: 2.4,
+            perspective: 0.004,
+            physics: const FixedExtentScrollPhysics(),
+            onSelectedItemChanged: (i) { HapticFeedback.selectionClick(); setState(() => _sel = i); },
+            childDelegate: ListWheelChildBuilderDelegate(childCount: widget.values.length, builder: (context, i) {
+              final n = widget.values[i];
+              final inRange = n >= widget.lo && n <= widget.hi;
+              final on = i == _sel;
+              return RotatedBox(quarterTurns: 1, child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _ctl.animateToItem(i, duration: m(context, durSlow), curve: easeOut),
+                child: Center(child: AnimatedDefaultTextStyle(
+                  duration: m(context, durFast),
+                  style: (on ? t.headlineLarge : t.titleLarge)!.copyWith(
+                    color: on ? du.accentText : inRange ? du.ink : du.inkTertiary,
+                    fontFeatures: const [FontFeature.tabularFigures()]),
+                  child: Text('$n'),
+                )),
+              ));
+            }),
+          )),
+        ),
+      ])),
+      const SizedBox(height: 12),
+      Row(children: [
+        if (widget.onCancel != null) ...[
+          Expanded(child: SizedBox(height: 60, child: OutlinedButton(onPressed: widget.onCancel, child: const Text('Keep it')))),
+          const SizedBox(width: 8),
+        ],
+        Expanded(flex: 2, child: _HoldButton(
+          key: ValueKey('log ${widget.action}'),
+          label: '${widget.action} $v $word',
+          caption: widget.action == 'Log' ? 'Lift first' : 'Pick the number',
+          hold: m(context, const Duration(milliseconds: 900)),
+          onPressed: () => widget.onLog(v),
+        )),
+      ]),
+    ]);
+  }
+}
+
+/// The dot in the gap while resting: it breathes slowly, so it reads as a pause, not a countdown.
+class _RestDot extends StatefulWidget {
+  const _RestDot({required this.color});
+  final Color color;
+  @override
+  State<_RestDot> createState() => _RestDotState();
+}
+
+class _RestDotState extends State<_RestDot> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.maybeDisableAnimationsOf(context) == true) { _c.value = 1; } else if (!_c.isAnimating) { _c.repeat(reverse: true); }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Pop(child: FadeTransition(
+        opacity: Tween(begin: 0.45, end: 1.0).animate(CurvedAnimation(parent: _c, curve: easeInOut)),
+        child: DecoratedBox(decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle)),
+      ));
 }
