@@ -4,11 +4,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import 'app.dart';
 import 'motion.dart';
+import 'muscle_tags.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -157,31 +157,22 @@ class _GoalEditorState extends State<GoalEditor> {
       Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ValueSlider(label: 'Cardio', value: g.cardioPct, min: 0, max: 50, step: 5, icon: LucideIcons.footprints, display: (v) => v == 0 ? 'none' : '$v % of every workout', onChanged: (v) => _set((x) => x.cardioPct = v)),
         ValueSlider(label: 'Stretching', value: g.stretchPct, min: 0, max: 30, step: 5, icon: LucideIcons.stretchHorizontal, display: (v) => v == 0 ? 'none' : '$v % of every workout', onChanged: (v) => _set((x) => x.stretchPct = v)),
-        Text('Reserved at the end of every workout, stretching last. Cardio also takes any minutes the lifting leaves.', style: t.bodySmall),
+        Text('Reserved at the end of every workout, stretching last. Cardio also takes any minutes the strength exercises leave.', style: t.bodySmall),
         const SizedBox(height: 10),
         ChoiceRow<int>(
-          label: 'A cardio or mobility day after every',
+          label: 'A cardio or stretching day after every',
           value: g.moveEvery, options: const {0: 'never', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'},
-          hint: 'lifting days', onChanged: (v) => _set((x) => x.moveEvery = v),
+          hint: 'strength workouts', onChanged: (v) => _set((x) => x.moveEvery = v),
         ),
       ])),
       const SizedBox(height: 16),
-      const SectionHeader('Muscles over the week', icon: LucideIcons.personStanding),
+      const SectionHeader('Muscles', icon: LucideIcons.personStanding),
       Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        ValueSlider(label: 'Look back', value: g.lookBackDays, min: lookBackMin, max: lookBackMax, step: 1, icon: LucideIcons.calendarDays, display: (v) => '$v days', onChanged: (v) => _set((x) => x.lookBackDays = v)),
-        ValueSlider(label: 'Sets per muscle group', value: g.targetSets(widget.daysPerWeek), min: setsTargetMin, max: setsTargetMax, step: 1, icon: LucideIcons.repeat, display: (v) => '$v sets${g.setsTarget == null ? ', from your days a week' : ''}', onChanged: (v) => _set((x) => x.setsTarget = v)),
-        Text('Each muscle group aims for this many sets over the look-back. A main muscle counts a set, a helper half. The workout goes to the muscles that are ready and furthest behind.', style: t.bodySmall),
-        const SizedBox(height: 10),
+        Text('Active muscles get exercises of their own, each in turn: the more of them, the longer each waits. Passive ones are helped along the way and steer the choice of exercise. Ignored ones are not considered. The template set these; change any.', style: t.bodySmall),
+        const SizedBox(height: 12),
+        MuscleTags(goal: g, onChanged: () => _set((_) {})),
+        const Divider(height: 20),
         ChoiceRow<Explore>(label: 'Try new exercises', value: g.explore, options: {for (final v in Explore.values) v: exploreLabel[v]!}, hint: 'How often an exercise you have not rated takes a turn from a practised one: one in ${exploreRun[g.explore]} appearances, in the last place, never on a hard day.', onChanged: (v) => _set((x) => x.explore = v)),
-        const Divider(height: 16),
-        Text('Emphasis', style: t.labelMedium),
-        Text('More keeps a muscle behind for longer, so it is picked more often and goes first. Less is half, never none.', style: t.bodySmall),
-        const SizedBox(height: 6),
-        for (final grp in muscleGroups)
-          Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [
-            SizedBox(width: 104, child: Text(grp, style: t.bodyMedium)),
-            Expanded(child: Segmented<int>(value: g.emphasisOf(grp), options: {for (final e in const [-1, 0, 1]) e: emphasisLabel[e]!}, onChanged: (v) => _set((x) => x.setEmphasis(grp, v)))),
-          ])),
       ])),
       const SizedBox(height: 8),
       Row(children: [

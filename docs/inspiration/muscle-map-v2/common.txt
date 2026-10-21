@@ -1,0 +1,11 @@
+Use your built-in image generation tool (gpt-image) to create the images. Do NOT draw with code, SVG, or Python.
+
+This is a REPLACEMENT asset for the body map in our fitness app, so likeness to the attached reference matters as much as the corrections. Match the reference exactly in everything not listed under "Corrections":
+- Same male figure, proportions, pose (arms slightly out from the body, palms forward), straight-on orthographic-looking camera, full body centred, same framing and scale (the figure fills the same area of a square canvas, head near the top edge, feet near the bottom).
+- Same matte 3D render look: dark charcoal body (head, hands, feet, knees, elbows and the deep grooves between muscles) and smooth raised muscle "plates" separated by those dark grooves.
+- Plates are a mid-light matte grey (about RGB 190-205), NOT white and not brighter than the reference. Same soft top-left lighting and subtle shading as the reference.
+- Crisp, clean edges and grooves like a high-quality 3D render; no blur, painterly texture, noise or compression artifacts.
+- TRANSPARENT background (no white, no floor, no shadow). Square 1:1 image, highest resolution available.
+- No colour, no text, no labels, no arrows, no tint.
+
+Each light plate must be exactly one region of these app muscle names, and every light area must belong to one: chest, front shoulders, side shoulders, rear shoulders, biceps, triceps, forearms, abs, obliques, traps, lats, upper back, lower back, glutes, outer hips, inner thighs, quads, hamstrings, calves, shins. Anything that is none of these (hands, feet, head, joints, tendons, and muscles we do not track) is drawn as the dark charcoal base, not as a plate.

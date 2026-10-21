@@ -5,13 +5,18 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 
 ## Workout
 
-- **A warm-up that follows the workout.** The warm-up block is one fixed routine; it could lean on the
-  muscles the first exercises use, the way stretching could follow strain points.
+- **A warm-up picker.** The warm-up block is one fixed routine. The library now has what a real warm-up is made of
+  (`EXERCISE_DATA.md`): light cardio to raise the pulse, then moving stretches, then one stability drill, plus power
+  reps on leg days, leaning on the muscles the first exercises use. Power and stability exercises have levels and
+  cards already but are never built into a workout; this is where they would go.
+- **Interval cardio.** The cardio block and the cardio day are steady only. The library's interval entries
+  (mountain climbers, sled pushes, kettlebell thrusters and the like) could make a 30 s on, 30 s off option.
 - **Rep counts past the range.** The reps take one button for anything under the range and one for anything
   over, logged as one rep beyond. An exercise at the top of its progression, chasing a best total, would
   read better with the real count.
-- **Stretching that follows strain points.** The mobility routine at the end picked by which muscle groups
-  were worked today.
+- **A stretching picker that follows strain points.** The stretching block at the end is one of three fixed
+  routines. Every stretch in the library lists the muscles it lengthens (`targets`) and its seconds, so the block
+  could be held stretches picked for the muscles carrying the most strain today.
 - **An effort budget.** Points per set, summed and capped by energy, was the model until 2026-10-15. It
   balanced well but could not be explained to a user, so energy became three dials and spare minutes a
   plain setting. The budget could return as an internal guard if a long normal day ever feels like too much.
@@ -27,7 +32,7 @@ when one is picked up it gets its own note or a place in `APPLICATION.md`. Nothi
 
 - **Derived difficulty breakdown.** Tag each exercise with the three parts of the rubric (muscle mass,
   spine or hang load, heavy load) so the card can show where its difficulty came from. The library's finer
-  number exists; the 137 rows are not tagged with the parts.
+  number exists; the library's rows are not tagged with the parts.
 - **Half levels.** A pause or tempo step between two versions where the jump is large.
 - **Step guides with pictures.** A layer on top of the how-to text, never a replacement for it.
 - **User-made exercises.** Removed from scope on 2026-10-15. The data shape still allows them.

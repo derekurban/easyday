@@ -74,7 +74,7 @@ class _LocationEditorState extends State<LocationEditor> {
         ]),
       ],
       const SizedBox(height: 6),
-      Text('${l.equipment.length} items ticked. Equipment decides which exercises can fill each slot and how far a bodyweight progression goes.', style: t.bodySmall),
+      Text('${l.equipment.length} items ticked. Equipment decides which exercises you can do here and how far a bodyweight progression goes.', style: t.bodySmall),
       for (final g in equipmentGroups) ...[
         Padding(padding: const EdgeInsets.only(top: 16, bottom: 6), child: Row(children: [
           Icon(equipmentGroupIcon(g.name), size: 14, color: du.inkTertiary), const SizedBox(width: 6), Text(g.name, style: t.labelMedium),

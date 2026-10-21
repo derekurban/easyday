@@ -9,7 +9,9 @@ from scipy import ndimage as ndi
 from skimage.restoration import inpaint_biharmonic
 os.makedirs("work", exist_ok=True)
 name = sys.argv[1]
-spots = [tuple(map(int, s.split(","))) for s in sys.argv[2:]]
+spots = [tuple(map(int, s.split(","))) for s in sys.argv[2:] if not s.startswith("keep:")]
+# keep:x,y = the light region at x,y is a plate even where the 3x3 opening breaks it up (thin diagonal strips)
+keeps = [tuple(map(int, s[5:].split(","))) for s in sys.argv[2:] if s.startswith("keep:")]
 im = np.asarray(Image.open(f"source/{name}.png").convert("RGBA")).astype(float)
 rgb, alpha = im[..., :3].copy(), im[..., 3]
 # --- paint out nipples (biharmonic inpaint inside small disks)
@@ -33,7 +35,13 @@ m0 = s / np.maximum(w0, 1); m1 = (s[-1] - s) / np.maximum(w1, 1)
 T = float(cen[np.argmax(w0 * w1 * (m0 - m1) ** 2)])
 tophat = ndi.grey_closing(g, size=(9, 9)) - g          # thin dark lines -> large values
 light = (g > T) & (tophat < 28) & fig
+raw = ndi.binary_erosion(fig, iterations=2) & light
 light = ndi.binary_erosion(fig, iterations=2) & ndi.binary_opening(light, structure=np.ones((3, 3)))
+if keeps:
+    rl, _ = ndi.label(raw)
+    for x, y in keeps:
+        assert rl[y, x], ("keep point is not on a light pixel", x, y)
+        light |= rl == rl[y, x]
 lab, n = ndi.label(light)
 areas = ndi.sum(np.ones_like(lab), lab, index=np.arange(1, n + 1))
 keep = np.where(areas >= 60)[0] + 1

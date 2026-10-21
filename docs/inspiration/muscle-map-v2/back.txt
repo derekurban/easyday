@@ -1,0 +1,13 @@
+Attached image 1 is the current BACK view. Attached image 2 is the same render with plates coloured by app name (red = traps, blue = upper back, green = lats, orange = lower back, purple = rear shoulders, pink = side shoulders, olive = triceps, brown = glutes, yellow = outer hips, cyan = obliques; grey = others).
+
+Corrections (back view):
+1. traps = UPPER trapezius only: its own plate on each side, from the base of the skull along the neck to the top of the shoulder, ending at about the level of the spine of the shoulder blade. A clear groove separates it from the plate below.
+2. upper back = MIDDLE + LOWER trapezius: a separate plate on each side covering the area BETWEEN the shoulder blades and tapering along the spine to a point at about the bottom of the rib cage. This is the area rows and posture work train, so it must read clearly as "between the shoulder blades".
+3. Keep the plate on each shoulder blade (infraspinatus) as it is; it is also upper back.
+4. Lower back: show the spinal erectors as two long upright columns either side of the spine in the lower back (instead of lens shapes), the spine itself a dark central groove.
+5. Everything else (deltoids, triceps, forearms, lats, flank obliques, glutes, gluteus medius, hamstrings, calves) as in the reference.
+
+Save two independent attempts as:
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\v3_back_a.png
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\v3_back_b.png
+In your final message, list which generated file became which saved name.

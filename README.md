@@ -26,8 +26,9 @@ merge publishes. Details: `mobile/README.md`, "Branches and releases" and "Updat
 | `muscle-map/assets/` | **Shipped muscle maps**: per view a base image + an id map, plus `flat.json` |
 | `muscle-map/pipeline/` | Rebuilds `assets/` from the renders and verifies them pixel-by-pixel |
 | `muscle-map/playground/` | Reference renderer: all exercises, male/female, custom highlighting |
-| `data/exercises.json` | [free-exercise-db](https://github.com/yuhonas/free-exercise-db): 876 exercises, public domain |
-| `docs/` | Muscle-mapping decisions and project history |
+| `data/library.json` | **The app's exercise library**: 324 exercises, stretches and cardio choices. Edit it, then `python mobile/tool/gen_library.py`; the rules are `docs/app/EXERCISE_DATA.md` |
+| `data/exercises.json` | [free-exercise-db](https://github.com/yuhonas/free-exercise-db): 876 exercises, public domain; the playground's data and a source the library drew on |
+| `docs/` | The app spec (`docs/app/`), muscle-mapping decisions, project history, and the 2026 exercise review record (`docs/exercise-review/`) |
 | `mobile/` | The Android app (Flutter): `lib/` code, `test/`, `android/`, `tool/` dev scripts |
 | `.github/workflows/` | `release.yml`: staging and prod releases on merge |
 | `app/` | Mobile prototype: onboarding, today, session, progress, settings. Logic in `app/js/{planner,loops,params}.js`; illustrations in `app/art/` (monoline SVGs generated with Codex, see `app/art/manifest.json`) |
@@ -43,7 +44,7 @@ node serve.mjs          # http://localhost:5179/muscle-map/playground/
 ```
 cd muscle-map/pipeline
 python -m venv .venv && .venv/Scripts/python -m pip install -r requirements.txt
-.venv/Scripts/python make.py      # segment -> remove nipples -> build -> verify (ends with "ALL PASS")
+.venv/Scripts/python make.py      # segment -> build -> verify -> outlines (ends with "ALL PASS")
 ```
 Plate -> muscle assignments live in `muscle-map/pipeline/labels.py`.
 

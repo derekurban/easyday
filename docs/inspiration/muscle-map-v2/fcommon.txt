@@ -1,0 +1,11 @@
+Use your built-in image generation tool (gpt-image) to create the images. Do NOT draw with code, SVG, or Python.
+
+This is a REPLACEMENT asset for the FEMALE body map in our fitness app. Likeness to the attached female reference matters as much as the corrections. Match the female reference exactly in everything not listed under "Corrections":
+- Same female figure (hair bun, proportions, pose, hand position), straight-on orthographic-looking camera, full body centred, same framing and scale on the square canvas (head near the top edge, feet near the bottom).
+- Same matte 3D render look: dark charcoal body (head, hair, hands, feet, knees, elbows and the deep grooves between muscles) and smooth raised muscle "plates" separated by those dark grooves.
+- Tones: plates a mid-light matte grey about RGB 170-180 (NOT white, not brighter than the reference); dark base about RGB 40-45. Same soft lighting and subtle shading as the reference.
+- Crisp, clean edges and grooves like a high-quality 3D render; no blur, painterly texture, noise or compression artifacts.
+- TRANSPARENT background (no white, no floor, no shadow). Square 1:1, 1254 x 1254.
+- No colour, no text, no labels, no arrows, no tint.
+
+The muscle breakdown must be the SAME as the approved male version (attached as images 3 and 4: image 3 is the approved male render, image 4 is it coloured by app muscle name). Each light plate is exactly one region of these app names, and every light area belongs to one: chest, front shoulders, side shoulders, rear shoulders, biceps, triceps, forearms, abs, obliques, traps, lats, upper back, lower back, glutes, outer hips, inner thighs, quads, hamstrings, calves, shins. Anything else (hands, feet, head, hair, joints, muscles we do not track) is the dark charcoal base, not a plate. Keep the female figure's own shapes and proportions; copy only the segmentation from the male.

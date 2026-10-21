@@ -2,6 +2,7 @@
 // Pure functions over events the bridge read; nothing here touches the phone. CALENDAR.md.
 import 'dart:math';
 
+import '../data/library.dart';
 import '../data/model.dart';
 
 class CalEvent {
@@ -119,7 +120,7 @@ String minutesOfDay(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60
       lines.add('${e.exercise.name} · ${levelOf(e)} · ${reps.isEmpty ? 'not started' : reps}');
     }
   } else {
-    lines.add(x.kind == 'cardio' ? 'Cardio, ${x.minutes} minutes' : 'Mobility: ${x.routine}');
+    lines.add(x.kind == 'cardio' ? 'Cardio, ${x.minutes} minutes' : 'Stretching: ${routines[x.routine]?.name ?? x.routine}');
   }
   if (x.note.isNotEmpty) lines.add(x.note);
   return (title: title, description: lines.join('\n'));
