@@ -1,5 +1,5 @@
 // During: a strip of the whole workout, the item under way, and one thing to do at a time. A set starts lifting; the
-// reps end it and the guide says rest; I'm ready starts the next. Then the time it took, lifting and rest, and closure.
+// reps end it and the guide says rest; I'm ready starts the next. Then the time it took, set time and rest, and closure.
 import 'dart:async';
 import 'dart:math';
 
@@ -190,7 +190,7 @@ class _SessionScreenState extends State<SessionScreen> {
           Expanded(flex: flex(items[i]), child: Padding(
             padding: EdgeInsets.only(right: i == items.length - 1 ? 0 : 3),
             child: Text(
-              '${_short(x, items[i])}${i == curIdx && items[i].lifting ? (lifting ? ' · lifting' : ' · resting') : ''}',
+              '${_short(x, items[i])}${i == curIdx && items[i].lifting ? (lifting ? ' · in a set' : ' · resting') : ''}',
               maxLines: 1, softWrap: false, overflow: TextOverflow.ellipsis,
               style: t.labelSmall?.copyWith(letterSpacing: 0, color: i == curIdx ? du.accentText : du.inkTertiary, fontWeight: i == curIdx ? FontWeight.w600 : null),
             ),
@@ -257,7 +257,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   String _nextExercise(Session x, SessionExercise e) {
-    final w = e.warmups.isEmpty ? '' : '. Warm up ${e.warmups.map((w) => '${w.reps} × ${fmtKg(context.store.state, w.kg)}').join(', then ')}';
+    final w = e.warmups.isEmpty ? '' : '. Warm up ${e.warmups.map((w) => '${w.reps} × ${fmtLoad(context.store.state, e.exercise, w.kg, equipment: context.store.state.location(x.locationId)?.equipment)}').join(', then ')}';
     return '${e.exercise.name.toLowerCase()}, ${_level(e)}$w';
   }
 
@@ -363,7 +363,15 @@ class _SessionScreenState extends State<SessionScreen> {
       ItemKind.stretch => _lowerDay(x) ? routines['hips']! : routines['upper']!,
       _ => null,
     };
-    final moves = routine == null ? const <Move>[] : routine.moves.take(max(1, (cur.minutes * 60 / routine.seconds).ceil())).toList();
+    final moves = <Move>[];
+    if (routine != null) {
+      var used = 0;
+      for (final m in routine.moves) {
+        if (moves.isNotEmpty && used >= cur.minutes * 60) break;
+        moves.add(m);
+        used += m.seconds;
+      }
+    }
     final (title, sub) = switch (cur.kind) {
       ItemKind.warmup => ("Warm up, then let us know when you're ready", _nextItemLine(x, items, cur)),
       ItemKind.cardio => ('Keep it easy', 'A pace you could talk through. ${_nextItemLine(x, items, cur)}'),
@@ -379,7 +387,7 @@ class _SessionScreenState extends State<SessionScreen> {
         Panel(padding: EdgeInsets.zero, child: Column(children: [
           for (var i = 0; i < moves.length; i++) ...[
             if (i > 0) const Divider(height: 1),
-            ListTile(dense: true, leading: Icon(LucideIcons.stretchHorizontal, size: 18, color: du.inkTertiary), title: Text(moves[i].n), subtitle: Text('${routine!.seconds} seconds')),
+            ListTile(dense: true, leading: Icon(LucideIcons.stretchHorizontal, size: 18, color: du.inkTertiary), title: Text(moves[i].n), subtitle: Text('${moves[i].seconds} seconds')),
           ],
         ])),
       if (cur.kind == ItemKind.cardio)
@@ -484,7 +492,7 @@ class _SessionScreenState extends State<SessionScreen> {
         if (rest >= 1) Expanded(flex: max(1, (rest * 10).round()), child: Container(color: du.accentLine)),
       ]))),
       if (key) Padding(padding: const EdgeInsets.only(top: 6), child: Row(children: [
-        swatch(du.accentStrong), const SizedBox(width: 5), Text('Lifting ${amount(lifting)}', style: t.labelSmall?.copyWith(color: du.inkSecondary, letterSpacing: 0)),
+        swatch(du.accentStrong), const SizedBox(width: 5), Text('Set time ${amount(lifting)}', style: t.labelSmall?.copyWith(color: du.inkSecondary, letterSpacing: 0)),
         const SizedBox(width: 14),
         swatch(du.accentLine), const SizedBox(width: 5), Text('Rest ${amount(rest)}', style: t.labelSmall?.copyWith(color: du.inkSecondary, letterSpacing: 0)),
       ])),
@@ -654,7 +662,7 @@ class _SessionScreenState extends State<SessionScreen> {
   String _amounts(AppState s, double lifting, double rest) {
     final total = lifting + rest;
     String a(double v) => s.settings.timeAsShare ? '${total <= 0 ? 0 : (v / total * 100).round()} %' : mmss(v);
-    return 'lifting ${a(lifting)} · rest ${a(rest)}';
+    return 'set time ${a(lifting)} · rest ${a(rest)}';
   }
 
   Widget _move(BuildContext context, Session session) {
@@ -675,10 +683,10 @@ class _SessionScreenState extends State<SessionScreen> {
             const SectionHeader('How hard did it feel', icon: LucideIcons.gauge),
             ChoiceRow<int>(value: effort ?? 2, options: const {1: 'Light', 2: 'Steady', 3: 'Hard'}, icons: const {1: LucideIcons.feather, 2: LucideIcons.activity, 3: LucideIcons.flame}, onChanged: (v) => setState(() => effort = v)),
           ] else ...[
-            Text('${r!.seconds} seconds each. Breathe.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
+            Text('About ${(r!.seconds / 60).ceil()} minutes, each move for its own time. Breathe.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
             const SizedBox(height: 12),
             for (var i = 0; i < r.moves.length; i++)
-              ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(LucideIcons.stretchHorizontal, size: 36), title: Text(r.moves[i].n), subtitle: Text(r.moves[i].how)),
+              ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(LucideIcons.stretchHorizontal, size: 36), title: Text(r.moves[i].n), subtitle: Text('${r.moves[i].seconds} seconds. ${r.moves[i].how}')),
           ],
         ])),
         Container(

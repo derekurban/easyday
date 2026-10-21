@@ -30,12 +30,12 @@ AppState fresh({String template = 'home_full'}) {
   return s;
 }
 
-Session build(AppState s, {Energy energy = Energy.normal, int minutes = 45, DateTime? at, List<String> muscles = const []}) =>
-    buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, liftInstead: true), at ?? t0);
+Session build(AppState s, {Energy energy = Energy.normal, int minutes = 45, DateTime? at, List<String> muscles = const [], Map<String, String> picks = const {}}) =>
+    buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, picks: picks, liftInstead: true), at ?? t0);
 
 /// Run a lifting session with every set at the target (the top), finishing cleanly.
-Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes = 35, List<String> muscles = const []}) {
-  final session = buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, liftInstead: true), at);
+Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes = 35, List<String> muscles = const [], Map<String, String> picks = const {}}) {
+  final session = buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, picks: picks, liftInstead: true), at);
   startSession(s, session, at);
   var clock = at;
   for (var i = 0; i < session.exercises.length; i++) {
@@ -125,7 +125,7 @@ void main() {
   });
 
   group('muscle map', () {
-    /// A finished workout of the given exercises and set counts, every set attempted unless [light] or [planned] say.
+    /// A finished workout of the given browsable and set counts, every set attempted unless [light] or [planned] say.
     Session logged(AppState s, DateTime at, Map<String, int> exSets, {bool light = false}) {
       final x = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45), at);
       final template = x.exercises.first;
@@ -145,10 +145,10 @@ void main() {
 
     test('strain points from set: 0.20 on each primary muscle, 0.10 on each helper, half for a light set', () {
       final row = exerciseById['bb_row']!;
-      expect(strainPointsFromSet(row).byMuscle, {'upper back': 0.20, 'lats': 0.10, 'biceps': 0.10, 'rear shoulders': 0.10});
+      expect(strainPointsFromSet(row).byMuscle, {'upper back': 0.20, 'lats': 0.20, 'biceps': 0.10, 'lower back': 0.10, 'rear shoulders': 0.10});
       expect(strainPointsFromSet(row, light: true)['upper back'], closeTo(0.10, 1e-9));
       expect(strainPointsFromSets(row, 3)['upper back'], closeTo(0.60, 1e-9));
-      expect(strainPointsFromSets(row, 3)['lats'], closeTo(0.30, 1e-9));
+      expect(strainPointsFromSets(row, 3)['biceps'], closeTo(0.30, 1e-9));
     });
 
     test('strain points from exercise count the attempted sets, or every set when planned', () {
@@ -225,7 +225,7 @@ void main() {
       }
       expect(days[0].points.isEmpty, isTrue);
       expect(map.lastWorked()['quads'], t0.add(const Duration(days: 2)));
-      expect(map.lastWorked()['calves'], t0.add(const Duration(days: 2)), reason: 'helping counts as worked');
+      expect(map.lastWorked()['inner thighs'], t0.add(const Duration(days: 2)), reason: 'helping counts as worked');
       expect(map.lastWorked()['abs'], isNull);
       expect(agoText(t0, t0.add(const Duration(days: 1))), 'yesterday');
       expect(dayText(DateTime(2026, 10, 17), t0), 'Saturday');
@@ -252,9 +252,9 @@ void main() {
       final s = fresh(template: 'gym');
       final first = run(s, t0, minutes: 60);
       expect(first.exercises.map((e) => e.muscle).toSet().length, first.exercises.length, reason: 'one exercise per muscle');
-      expect(first.exercises.first.muscle, 'Quads', reason: 'nothing separates the groups yet: the big movers first');
+      expect(first.exercises.first.muscle, 'quads', reason: 'nothing separates the muscles yet: the big movers first');
       expect(first.exercises.first.exId, 'bb_squat', reason: 'nothing practised or rated: the library rank decides');
-      expect(first.exercises.map((e) => e.muscle), contains('Chest'));
+      expect(first.exercises.map((e) => e.muscle), contains('chest'));
       final day1 = t0.add(const Duration(days: 1));
       final again = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45), day1);
       final current = MuscleMap(s).currentStrainPoints(day1);
@@ -262,50 +262,49 @@ void main() {
       for (final e in again.exercises) {
         expect(e.exercise.primary.every(current.strainFree), isTrue, reason: '${e.exId} works ${e.exercise.primary} with $current');
         expect(first.exercises.any((f) => f.muscle == e.muscle), isFalse, reason: 'yesterday\'s muscles carry strain and have had sets; fresh ones are behind');
-        expect(e.why, contains('ready'));
-        expect(e.why, contains('behind'));
+        expect(e.why, isNot(contains('carrying strain')));
+        expect(e.why, contains('never worked yet'));
       }
       // the user's own muscle stands, strain or not, and the plan says so
-      final chestFirst = first.exercises.firstWhere((e) => e.muscle == 'Chest');
-      final picked = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45, muscles: const ['Chest'], picks: {'Chest1': chestFirst.exId}), day1);
-      final chest = picked.exercises.firstWhere((e) => e.muscle == 'Chest');
+      final chestFirst = first.exercises.firstWhere((e) => e.muscle == 'chest');
+      final picked = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45, muscles: const ['chest'], picks: {'chest1': chestFirst.exId}), day1);
+      final chest = picked.exercises.firstWhere((e) => e.muscle == 'chest');
       expect(chest.exId, chestFirst.exId);
       expect(chest.asked, isTrue);
       expect(chest.why, contains('you asked for it'));
       expect(chest.why, contains('still carrying strain'));
-      // the share ledger: a set to each main muscle's group, a half to each helper's; behind under half the target
-      final share = shareOver(s, day1);
-      expect(share.of('Quads'), 3);
-      expect(share.band('Quads'), 0);
-      expect(share.band('Forearms'), 0);
-      expect(share.deficit('Forearms'), greaterThan(share.deficit('Quads')));
-      // two days on everything is strain-free again, and the same muscles asked for bring the same exercises back
+      // the rhythm: the quads were a main muscle last workout; the biceps only helped, so they are never worked and more overdue
+      final rhythm = rhythmOver(s, day1);
+      expect(rhythm.sinceOf('quads'), 0);
+      expect(rhythm.neverWorked('biceps'), isTrue);
+      expect(rhythm.overdue('biceps'), greaterThan(rhythm.overdue('quads')));
+      // Once recovered, asking for the same muscles covers them again. Passive help can beat familiarity.
       final day3 = t0.add(const Duration(days: 3));
       final later = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 60, muscles: first.exercises.map((e) => e.muscle).toList()), day3);
       expect(MuscleMap(s).currentStrainPoints(day3).isEmpty, isTrue);
       for (final e in first.exercises) {
-        expect(later.exercises.any((x) => x.exId == e.exId), isTrue, reason: '${e.exId} is practised and strain-free');
+        expect(later.exercises.any((x) => x.exercise.primary.contains(e.muscle)), isTrue, reason: '${e.muscle} is requested and strain-free');
       }
     });
 
-    test('share and emphasis choose the muscle; the word chooses the exercise; not for me is the last resort', () {
+    test('tags and frequency choose the muscle; the word chooses the exercise; not for me is the last resort', () {
       final s = fresh(template: 'gym');
-      // emphasis: more keeps a muscle behind for longer, so it is picked first among equals
-      s.goal!.setEmphasis('Calves', 1);
-      expect(build(s).exercises.first.muscle, 'Calves');
-      s.goal!.setEmphasis('Calves', 0);
+      // more often: a muscle's turn is twice as overdue, so among muscles never worked it goes first
+      s.goal!.setOften('calves', 1);
+      expect(build(s).exercises.first.muscle, 'calves');
+      s.goal!.setOften('calves', 0);
       // a liked exercise beats a practised one for the same muscle; a disliked one fills only when nothing else is ready
-      final quads = exercises.where((e) => primaryGroups(e).contains('Quads') && available(e, s.locations.first.equipment)).toList();
-      final first = build(s).exercises.firstWhere((e) => e.muscle == 'Quads');
+      final quads = browsable.where((e) => e.isStrength && e.primary.contains('quads') && available(e, s.locations.first.equipment)).toList();
+      final first = build(s).exercises.firstWhere((e) => e.muscle == 'quads');
       final other = quads.firstWhere((e) => e.id != first.exId);
       ensureState(s, exerciseById[first.exId]!).appearances = 3;
-      expect(build(s).exercises.firstWhere((e) => e.muscle == 'Quads').exId, first.exId, reason: 'practised first');
+      expect(build(s).exercises.firstWhere((e) => e.muscle == 'quads').exId, first.exId, reason: 'practised first');
       ensureState(s, other).preference = prefLiked;
-      expect(build(s).exercises.firstWhere((e) => e.muscle == 'Quads').exId, other.id, reason: 'liked beats practised');
-      expect(build(s).exercises.firstWhere((e) => e.muscle == 'Quads').why, contains('you like it'));
+      expect(build(s).exercises.firstWhere((e) => e.muscle == 'quads').exId, other.id, reason: 'liked beats practised');
+      expect(build(s).exercises.firstWhere((e) => e.muscle == 'quads').why, contains('you like it'));
       for (final e in quads) { ensureState(s, e).preference = prefNo; }
       ensureState(s, other).preference = prefNo;
-      final last = build(s, muscles: const ['Quads']).exercises.firstWhere((e) => e.muscle == 'Quads');
+      final last = build(s, muscles: const ['quads']).exercises.firstWhere((e) => e.muscle == 'quads');
       expect(s.ex[last.exId]!.preference, prefNo);
       expect(last.why, contains('not for you'));
       // a manual pick of an unrated exercise counts as liked for a while; three swaps out in a row ask
@@ -315,27 +314,26 @@ void main() {
       noteSwappedOut(s, [other.id]);
       noteSwappedOut(s, [other.id]);
       expect(st.swappedOut, 2);
-      run(s, t0, muscles: const ['Quads']);
+      run(s, t0, muscles: const ['quads']);
       expect(s.ex.values.where((x) => x.appearances > 0).every((x) => x.swappedOut == 0), isTrue, reason: 'doing it resets the count');
     });
 
     test('something new takes the last place once the practised pick has had its run, never on a hard day', () {
       final s = fresh(template: 'gym');
       s.goal!.explore = Explore.often;   // one in two
-      for (final e in exercises) { ensureState(s, e).preference = prefFine; }
+      for (final e in browsable) { ensureState(s, e).preference = prefFine; }
       final gym = s.locations.first.equipment;
-      final quads = exercises.where((e) => primaryGroups(e).contains('Quads') && available(e, gym)).toList();
+      final quads = browsable.where((e) => e.isStrength && e.primary.contains('quads') && available(e, gym)).toList();
       ensureState(s, quads.last).preference = null;   // the one unrated candidate for the quads
-      // the squat has had two workouts in a row for the quads; with more emphasis and a high target the quads stay behind
-      // and lead, so a one-exercise workout's only place is theirs
-      s.goal!.setEmphasis('Quads', 1);
-      s.goal!.setsTarget = 30;
-      run(s, t0, muscles: const ['Quads']);
-      run(s, t0.add(const Duration(days: 3)), muscles: const ['Quads']);
+      // the squat has had two workouts in a row for the quads; with every other muscle ignored, a one-exercise workout's
+      // only place is theirs
+      for (final m in trackedMuscles) { if (m != 'quads') s.goal!.setTag(m, MuscleTag.ignored); }
+      run(s, t0, muscles: const ['quads']);
+      run(s, t0.add(const Duration(days: 3)), muscles: const ['quads']);
       s.goal!.exercises = const Tri(1, 1, 1);
       final day6 = t0.add(const Duration(days: 6));
       final next = build(s, at: day6);
-      expect(next.exercises.single.muscle, 'Quads');
+      expect(next.exercises.single.muscle, 'quads');
       expect(next.exercises.single.exId, quads.last.id, reason: 'the unrated one takes the turn');
       expect(next.exercises.single.fresh, isTrue);
       expect(next.exercises.single.why, contains('something new'));
@@ -343,7 +341,7 @@ void main() {
       s.goal!.explore = Explore.rarely;
       expect(build(s, at: day6).exercises.single.exId, isNot(quads.last.id), reason: 'one in eight: not yet');
       // after the workout, the first-timer is the one to ask about
-      final sess = run(s, day6, muscles: const ['Quads']);
+      final sess = run(s, day6, muscles: const ['quads']);
       expect(firstTimers(s, sess).map((e) => e.id), isNot(contains(quads.last.id)), reason: 'rarely: the squat came back');
     });
 
@@ -351,7 +349,7 @@ void main() {
       final s = fresh(template: 'gym');
       final ex = exerciseById['bb_squat']!;
       run(s, t0);                                            // clean: steps up after
-      run(s, t0.add(const Duration(days: 2)), energy: Energy.hard, muscles: const ['Quads']);  // the next level on the hardest, reached
+      run(s, t0.add(const Duration(days: 2)), energy: Energy.hard, muscles: const ['quads'], picks: const {'quads1': 'bb_squat'});  // the next level on the hardest, reached
       final h = levelHistory(s, ex);
       expect(h.length, 3, reason: 'two workouts and now');
       expect(h[0].stepped, isTrue);
@@ -377,23 +375,23 @@ void main() {
       return names;
     }
 
-    test('every plate is named with a standard muscle name, and every name but the shins folds onto a group', () {
+    test('every plate is named with a standard muscle name, and every name folds onto a group', () {
       final names = mapNames();
       expect(names, unorderedEquals(muscleNames), reason: 'the map shows every muscle and only those');
-      for (final n in names.where((n) => n != 'shins')) { expect(muscleGroups, contains(muscleGroup(n)), reason: n); }
+      for (final n in names) { expect(muscleGroups, contains(muscleGroup(n)), reason: n); }
       expect(File('assets/muscle/male_front.png').existsSync(), isTrue);
       expect(File('assets/muscle/female_back_ids.png').existsSync(), isTrue);
     });
 
-    test('exercises are tagged only with standard muscle names, and every muscle on the map but the shins can light up', () {
+    test('exercises are tagged only with standard muscle names, and every muscle on the map can light up', () {
       final tagged = <String>{};
-      for (final e in exercises) {
+      for (final e in browsable) {
         expect(e.primary, isNotEmpty, reason: e.id);
         for (final m in [...e.primary, ...e.secondary]) { expect(muscleNames, contains(m), reason: '${e.id}: $m'); tagged.add(m); }
       }
-      for (final n in mapNames().where((n) => n != 'shins')) { expect(tagged, contains(n), reason: 'no exercise works $n'); }
+      for (final n in mapNames()) { expect(tagged, contains(n), reason: 'no exercise works $n'); }
       expect(exerciseById['hip_abduction']!.primary, ['outer hips']);
-      expect(exerciseById['face_pull']!.primary, ['rear shoulders']);
+      expect(exerciseById['face_pull']!.primary, ['rear shoulders', 'upper back']);
       expect(exerciseById['lat_raise']!.primary, ['side shoulders']);
       expect(exerciseById['russian_twist']!.primary, ['obliques']);
     });
@@ -473,12 +471,12 @@ void main() {
       expect(howAt(pushup, 3), pushup.how);
       expect(howAt(pushup, 4), contains('Feet up'));
       final dips = exerciseById['dips']!;
-      expect(howAt(dips, 3), contains('2 seconds at the bottom'));
+      expect(howAt(dips, 3), contains('pause there for 2 seconds'));
       final band = exerciseById['band_row']!;
       expect(howAt(band, 2), contains('heavy band'));
       final squat = exerciseById['bb_squat']!;
       expect(howAt(squat, 5), squat.how);
-      for (final e in exercises.where((e) => !e.loaded)) {
+      for (final e in browsable.where((e) => !e.loaded)) {
         for (var r = 0; r < e.ladder!.variants.length; r++) { expect(howAt(e, r).trim(), isNotEmpty, reason: '${e.id} $r'); }
       }
     });
@@ -503,7 +501,7 @@ void main() {
     test('every exercise lands in a named group under every index', () {
       for (final ix in ExerciseIndex.values) {
         final order = indexOrder(ix);
-        for (final e in exercises) {
+        for (final e in browsable) {
           expect(order, contains(indexGroup(e, ix)), reason: '${e.id} under ${ix.name}');
         }
       }
@@ -515,7 +513,7 @@ void main() {
       expect(muscleGroup('rear shoulders'), 'Shoulders');
       expect(muscleGroup('obliques'), 'Core');
       expect(muscleGroup('outer hips'), 'Glutes');
-      expect(muscleGroup('shins'), 'Other');
+      expect(muscleGroup('shins'), 'Calves');
       expect(muscleTitle('front shoulders'), 'Front shoulders');
       expect(indexGroup(exerciseById['pushup']!, ExerciseIndex.muscle), 'Chest');
       expect(indexGroup(exerciseById['pushup']!, ExerciseIndex.region), 'Upper body');
@@ -523,9 +521,9 @@ void main() {
       expect(indexGroup(exerciseById['pushup']!, ExerciseIndex.progression), 'By version');
     });
     test('grouping keeps heading order and never lists an exercise twice', () {
-      final groups = groupBy(exercises, ExerciseIndex.muscle);
+      final groups = groupBy(browsable, ExerciseIndex.muscle);
       expect(groups.map((g) => g.key).toList(), muscleGroups.where((g) => groups.any((x) => x.key == g)).toList());
-      expect(groups.fold(0, (n, g) => n + g.value.length), exercises.length);
+      expect(groups.fold(0, (n, g) => n + g.value.length), browsable.length);
     });
     test('the index is a setting that round-trips', () {
       final s = fresh()..settings.index = ExerciseIndex.equipment;
@@ -560,7 +558,7 @@ void main() {
 
     test('one rep short at the next level is read by its worth: within the range at your level, so it holds', () {
       final s = fresh()..settings.stepUp = 3;
-      for (final e in exercises) { ensureState(s, e).appearances = 2; }   // a first appearance is never pushed
+      for (final e in browsable) { ensureState(s, e).appearances = 2; }   // a first appearance is never pushed
       final session = startNormal(s, energy: Energy.hard);
       final i = session.exercises.indexWhere((e) => e.intent == intentExtra && e.exercise.loaded);
       final e = session.exercises[i];
@@ -664,14 +662,25 @@ void main() {
       expect(g.rowFor(3), [heavyReps]);
       expect(g.exercises.ideal, 4);
       expect(g.program, 'strength');
-      expect(g.lookBackDays, lookBackDefault);
-      expect(g.setsTarget, isNull);
-      expect(g.targetSets(3), 8);
-      expect(g.targetFor('Back', 3), 8);
-      g.setEmphasis('Back', 1);
-      expect(g.targetFor('Back', 3), 12);
+      expect(g.often, isEmpty);
+      expect(g.tagOf('lats'), MuscleTag.active);
+      expect(g.tagOf('forearms'), MuscleTag.passive, reason: 'get stronger marks the big movers active');
+      expect(g.tagOf('shins'), MuscleTag.ignored);
+      g.setOften('lats', 1);
+      g.setTag('forearms', MuscleTag.active);
       final back = GoalConfig.fromJson(jsonDecode(jsonEncode(g.toJson())));
-      expect(back.emphasisOf('Back'), 1);
+      expect(back.oftenOf('lats'), 1);
+      expect(back.tagOf('forearms'), MuscleTag.active);
+      // emphasis, the old name for how often, saved per group before selection ran on muscles, spreads to the group's
+      // muscles; a muscle's own word wins
+      final old = GoalConfig.fromJson({...g.toJson(), 'often': null, 'emphasis': {'Back': 1, 'Core': -1, 'traps': 0}});
+      expect(old.oftenOf('lats'), 1);
+      expect(old.oftenOf('upper back'), 1);
+      expect(old.oftenOf('traps'), 0);
+      expect(old.oftenOf('abs'), -1);
+      expect(old.oftenOf('lower back'), -1);
+      expect(old.oftenOf('chest'), 0);
+      expect(old.often.keys.every(trackedMuscles.contains), isTrue);
       expect(back.explore, Explore.rarely);
       // old plans carried a rotation and pattern pauses: both are dropped, the defaults stay
       final plan = Plan.fromJson({'rotation': [{'type': 'lift', 'name': 'Workout A', 'patterns': ['squat']}], 'index': 2, 'paused': {'squat': 1, 'bb_squat': 1}, 'timeDefault': 40});

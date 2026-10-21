@@ -1,4 +1,5 @@
-// Catalog: every exercise grouped by the chosen index, with its level and cost. Search, a few filters, tap for the card.
+// Catalog: every exercise with levels (strength, power, stability) grouped by the chosen index, with its level and cost.
+// Search, a few filters, tap for the card. Stretches and cardio live in the stretching routines and the cardio choices.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -40,7 +41,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
       if (q.isNotEmpty && !e.name.toLowerCase().contains(q) && !muscleGroupsOf(e).any((g) => g.toLowerCase().contains(q)) && !indexGroup(e, ix).toLowerCase().contains(q)) return false;
       return true;
     }
-    final groups = groupBy(exercises.where(keep), ix);
+    final groups = groupBy(browsable.where(keep), ix);
     final shown = groups.fold(0, (n, g) => n + g.value.length);
     void toggle(_Filter f, bool v) => setState(() {
           if (v) { filters.add(f); if (f == _Filter.bodyweight) filters.remove(_Filter.loaded); if (f == _Filter.loaded) filters.remove(_Filter.bodyweight); } else { filters.remove(f); }
@@ -57,7 +58,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
         rows.add(ListTile(
           leading: IconBadge(exerciseIcon(e), size: 36, accent: st != null),
           title: Text(e.name),
-          subtitle: Text(st == null ? (e.loaded ? 'by weight · not yet practised' : '${e.ladder!.variants.length} levels · not yet practised') : 'level: ${rungLabel(s, e, st, st.rung)}'),
+          subtitle: Text('${e.isStrength || ix == ExerciseIndex.type ? '' : '${typeLabel[e.type]!.toLowerCase()} · '}${st == null ? (e.loaded ? 'by weight · not yet practised' : '${e.ladder!.variants.length} levels · not yet practised') : 'level: ${rungLabel(s, e, st, st.rung)}'}'),
           trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
             DifficultyTag(difficultyInPlay(e, st)),
             if (st != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(mmss(st.secPerSet), style: t.labelSmall)),
@@ -72,7 +73,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: TextField(
-            decoration: InputDecoration(hintText: 'Search ${exercises.length} exercises', prefixIcon: const Icon(LucideIcons.search, size: 18), isDense: true),
+            decoration: InputDecoration(hintText: 'Search ${browsable.length} exercises', prefixIcon: const Icon(LucideIcons.search, size: 18), isDense: true),
             onChanged: (v) => setState(() => query = v),
           ),
         ),

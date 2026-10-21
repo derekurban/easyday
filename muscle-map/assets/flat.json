@@ -20,7 +20,7 @@
  ],
  "maps": {
   "male_front": {
-   "T": 113.5,
+   "T": 115.5,
    "w": 1254,
    "h": 1254,
    "plates": [
@@ -29,15 +29,15 @@
      "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 568,
-     "cy": 202
+     "cx": 567,
+     "cy": 201
     },
     {
      "id": 2,
      "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 683,
+     "cx": 684,
      "cy": 202
     },
     {
@@ -54,7 +54,7 @@
      "name": "side shoulders",
      "group": "shoulders",
      "cx": 786,
-     "cy": 250
+     "cy": 248
     },
     {
      "id": 5,
@@ -69,7 +69,7 @@
      "muscle": "Anterior deltoid",
      "name": "front shoulders",
      "group": "shoulders",
-     "cx": 756,
+     "cx": 757,
      "cy": 248
     },
     {
@@ -85,7 +85,7 @@
      "muscle": "Pectoralis major",
      "name": "chest",
      "group": "chest",
-     "cx": 686,
+     "cx": 687,
      "cy": 285
     },
     {
@@ -102,82 +102,66 @@
      "name": "biceps",
      "group": "biceps",
      "cx": 780,
-     "cy": 354
+     "cy": 355
     },
     {
      "id": 11,
      "muscle": "Triceps (lateral head)",
      "name": "triceps",
      "group": "triceps",
-     "cx": 437,
-     "cy": 348
+     "cx": 814,
+     "cy": 346
     },
     {
      "id": 12,
      "muscle": "Triceps (lateral head)",
      "name": "triceps",
      "group": "triceps",
-     "cx": 814,
-     "cy": 347
+     "cx": 436,
+     "cy": 348
     },
     {
      "id": 13,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 658,
-     "cy": 364
+     "cx": 592,
+     "cy": 365
     },
     {
      "id": 14,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 592,
-     "cy": 364
+     "cx": 658,
+     "cy": 365
     },
     {
      "id": 15,
-     "muscle": "Serratus anterior",
+     "muscle": "External oblique",
      "name": "obliques",
      "group": "abdominals",
-     "cx": 709,
-     "cy": 369
+     "cx": 545,
+     "cy": 460
     },
     {
      "id": 16,
-     "muscle": "Serratus anterior",
+     "muscle": "External oblique",
      "name": "obliques",
      "group": "abdominals",
-     "cx": 541,
-     "cy": 369
+     "cx": 706,
+     "cy": 461
     },
     {
      "id": 17,
-     "muscle": "Serratus anterior",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 542,
-     "cy": 395
-    },
-    {
-     "id": 18,
-     "muscle": "Serratus anterior",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 708,
-     "cy": 395
-    },
-    {
-     "id": 19,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 593,
+     "cx": 594,
      "cy": 408
     },
     {
-     "id": 20,
+     "id": 18,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
@@ -185,7 +169,7 @@
      "cy": 408
     },
     {
-     "id": 21,
+     "id": 19,
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
@@ -193,31 +177,31 @@
      "cy": 471
     },
     {
+     "id": 20,
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 841,
+     "cy": 472
+    },
+    {
+     "id": 21,
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 868,
+     "cy": 490
+    },
+    {
      "id": 22,
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 840,
-     "cy": 472
+     "cx": 382,
+     "cy": 490
     },
     {
      "id": 23,
-     "muscle": "Serratus anterior",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 544,
-     "cy": 424
-    },
-    {
-     "id": 24,
-     "muscle": "Serratus anterior",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 706,
-     "cy": 424
-    },
-    {
-     "id": 25,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
@@ -225,15 +209,15 @@
      "cy": 451
     },
     {
-     "id": 26,
+     "id": 24,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 656,
+     "cx": 657,
      "cy": 451
     },
     {
-     "id": 27,
+     "id": 25,
      "muscle": "Forearm flexors",
      "name": "forearms",
      "group": "forearms",
@@ -241,7 +225,7 @@
      "cy": 491
     },
     {
-     "id": 28,
+     "id": 26,
      "muscle": "Forearm flexors",
      "name": "forearms",
      "group": "forearms",
@@ -249,39 +233,7 @@
      "cy": 492
     },
     {
-     "id": 29,
-     "muscle": "External oblique",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 547,
-     "cy": 485
-    },
-    {
-     "id": 30,
-     "muscle": "External oblique",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 704,
-     "cy": 485
-    },
-    {
-     "id": 31,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 386,
-     "cy": 473
-    },
-    {
-     "id": 32,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 865,
-     "cy": 473
-    },
-    {
-     "id": 33,
+     "id": 27,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
@@ -289,7 +241,7 @@
      "cy": 532
     },
     {
-     "id": 34,
+     "id": 28,
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
@@ -297,23 +249,23 @@
      "cy": 532
     },
     {
-     "id": 35,
+     "id": 29,
      "muscle": "Tensor fasciae latae",
      "name": "outer hips",
      "group": "abductors",
-     "cx": 519,
+     "cx": 518,
      "cy": 570
     },
     {
-     "id": 36,
+     "id": 30,
      "muscle": "Tensor fasciae latae",
      "name": "outer hips",
      "group": "abductors",
      "cx": 732,
-     "cy": 570
+     "cy": 569
     },
     {
-     "id": 37,
+     "id": 31,
      "muscle": "Rectus femoris",
      "name": "quads",
      "group": "quadriceps",
@@ -321,7 +273,7 @@
      "cy": 682
     },
     {
-     "id": 38,
+     "id": 32,
      "muscle": "Rectus femoris",
      "name": "quads",
      "group": "quadriceps",
@@ -329,31 +281,23 @@
      "cy": 681
     },
     {
-     "id": 39,
+     "id": 33,
      "muscle": "Adductors",
      "name": "inner thighs",
      "group": "adductors",
      "cx": 594,
-     "cy": 638
+     "cy": 639
     },
     {
-     "id": 40,
+     "id": 34,
      "muscle": "Adductors",
      "name": "inner thighs",
      "group": "adductors",
      "cx": 656,
-     "cy": 639
+     "cy": 640
     },
     {
-     "id": 41,
-     "muscle": "Vastus lateralis",
-     "name": "quads",
-     "group": "quadriceps",
-     "cx": 738,
-     "cy": 724
-    },
-    {
-     "id": 42,
+     "id": 35,
      "muscle": "Vastus lateralis",
      "name": "quads",
      "group": "quadriceps",
@@ -361,23 +305,31 @@
      "cy": 727
     },
     {
-     "id": 43,
-     "muscle": "Vastus medialis",
+     "id": 36,
+     "muscle": "Vastus lateralis",
      "name": "quads",
      "group": "quadriceps",
-     "cx": 584,
-     "cy": 760
+     "cx": 739,
+     "cy": 725
     },
     {
-     "id": 44,
+     "id": 37,
      "muscle": "Vastus medialis",
      "name": "quads",
      "group": "quadriceps",
      "cx": 666,
+     "cy": 760
+    },
+    {
+     "id": 38,
+     "muscle": "Vastus medialis",
+     "name": "quads",
+     "group": "quadriceps",
+     "cx": 584,
      "cy": 761
     },
     {
-     "id": 45,
+     "id": 39,
      "muscle": "Tibialis anterior",
      "name": "shins",
      "group": null,
@@ -385,23 +337,23 @@
      "cy": 965
     },
     {
-     "id": 46,
+     "id": 40,
      "muscle": "Tibialis anterior",
      "name": "shins",
      "group": null,
-     "cx": 723,
+     "cx": 724,
      "cy": 965
     },
     {
-     "id": 47,
+     "id": 41,
      "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
-     "cx": 575,
+     "cx": 576,
      "cy": 931
     },
     {
-     "id": 48,
+     "id": 42,
      "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
@@ -417,19 +369,19 @@
    "plates": [
     {
      "id": 1,
-     "muscle": "Trapezius",
+     "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 587,
-     "cy": 255
+     "cx": 578,
+     "cy": 195
     },
     {
      "id": 2,
-     "muscle": "Trapezius",
+     "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 663,
-     "cy": 255
+     "cx": 672,
+     "cy": 195
     },
     {
      "id": 3,
@@ -437,14 +389,14 @@
      "name": "side shoulders",
      "group": "shoulders",
      "cx": 465,
-     "cy": 246
+     "cy": 245
     },
     {
      "id": 4,
      "muscle": "Lateral deltoid",
      "name": "side shoulders",
      "group": "shoulders",
-     "cx": 784,
+     "cx": 785,
      "cy": 244
     },
     {
@@ -460,187 +412,203 @@
      "muscle": "Posterior deltoid",
      "name": "rear shoulders",
      "group": "shoulders",
-     "cx": 755,
+     "cx": 756,
      "cy": 254
     },
     {
      "id": 7,
-     "muscle": "Infraspinatus & teres",
+     "muscle": "Middle & lower trapezius",
      "name": "upper back",
      "group": "middle back",
-     "cx": 537,
-     "cy": 295
+     "cx": 595,
+     "cy": 297
     },
     {
      "id": 8,
-     "muscle": "Infraspinatus & teres",
+     "muscle": "Middle & lower trapezius",
      "name": "upper back",
      "group": "middle back",
-     "cx": 713,
-     "cy": 294
+     "cx": 655,
+     "cy": 297
     },
     {
      "id": 9,
+     "muscle": "Infraspinatus & teres",
+     "name": "upper back",
+     "group": "middle back",
+     "cx": 536,
+     "cy": 296
+    },
+    {
+     "id": 10,
+     "muscle": "Infraspinatus & teres",
+     "name": "upper back",
+     "group": "middle back",
+     "cx": 714,
+     "cy": 296
+    },
+    {
+     "id": 11,
      "muscle": "Triceps (long head)",
      "name": "triceps",
      "group": "triceps",
      "cx": 468,
-     "cy": 351
+     "cy": 352
     },
     {
-     "id": 10,
+     "id": 12,
      "muscle": "Triceps (long head)",
      "name": "triceps",
      "group": "triceps",
      "cx": 780,
-     "cy": 352
-    },
-    {
-     "id": 11,
-     "muscle": "Triceps (lateral head)",
-     "name": "triceps",
-     "group": "triceps",
-     "cx": 433,
-     "cy": 345
-    },
-    {
-     "id": 12,
-     "muscle": "Triceps (lateral head)",
-     "name": "triceps",
-     "group": "triceps",
-     "cx": 816,
-     "cy": 343
+     "cy": 353
     },
     {
      "id": 13,
-     "muscle": "Latissimus dorsi",
-     "name": "lats",
-     "group": "lats",
-     "cx": 560,
-     "cy": 402
+     "muscle": "Triceps (lateral head)",
+     "name": "triceps",
+     "group": "triceps",
+     "cx": 817,
+     "cy": 343
     },
     {
      "id": 14,
-     "muscle": "Latissimus dorsi",
-     "name": "lats",
-     "group": "lats",
-     "cx": 688,
-     "cy": 402
+     "muscle": "Triceps (lateral head)",
+     "name": "triceps",
+     "group": "triceps",
+     "cx": 431,
+     "cy": 348
     },
     {
      "id": 15,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 402,
-     "cy": 479
+     "muscle": "Latissimus dorsi",
+     "name": "lats",
+     "group": "lats",
+     "cx": 554,
+     "cy": 392
     },
     {
      "id": 16,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 847,
-     "cy": 480
+     "muscle": "Latissimus dorsi",
+     "name": "lats",
+     "group": "lats",
+     "cx": 694,
+     "cy": 392
     },
     {
      "id": 17,
-     "muscle": "Erector spinae",
-     "name": "lower back",
-     "group": "lower back",
-     "cx": 604,
-     "cy": 486
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 403,
+     "cy": 479
     },
     {
      "id": 18,
      "muscle": "Erector spinae",
      "name": "lower back",
      "group": "lower back",
-     "cx": 646,
-     "cy": 486
+     "cx": 651,
+     "cy": 477
     },
     {
      "id": 19,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 813,
-     "cy": 490
+     "muscle": "Erector spinae",
+     "name": "lower back",
+     "group": "lower back",
+     "cx": 599,
+     "cy": 478
     },
     {
      "id": 20,
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 436,
-     "cy": 488
+     "cx": 848,
+     "cy": 480
     },
     {
      "id": 21,
-     "muscle": "External oblique",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 540,
-     "cy": 474
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 815,
+     "cy": 492
     },
     {
      "id": 22,
-     "muscle": "External oblique",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 710,
-     "cy": 474
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 435,
+     "cy": 489
     },
     {
      "id": 23,
-     "muscle": "Gluteus maximus",
-     "name": "glutes",
-     "group": "glutes",
-     "cx": 559,
-     "cy": 580
+     "muscle": "External oblique",
+     "name": "obliques",
+     "group": "abdominals",
+     "cx": 542,
+     "cy": 475
     },
     {
      "id": 24,
+     "muscle": "External oblique",
+     "name": "obliques",
+     "group": "abdominals",
+     "cx": 708,
+     "cy": 474
+    },
+    {
+     "id": 25,
      "muscle": "Gluteus maximus",
      "name": "glutes",
      "group": "glutes",
      "cx": 690,
-     "cy": 581
-    },
-    {
-     "id": 25,
-     "muscle": "Gluteus medius",
-     "name": "outer hips",
-     "group": "abductors",
-     "cx": 513,
-     "cy": 549
+     "cy": 582
     },
     {
      "id": 26,
-     "muscle": "Gluteus medius",
-     "name": "outer hips",
-     "group": "abductors",
-     "cx": 736,
-     "cy": 550
+     "muscle": "Gluteus maximus",
+     "name": "glutes",
+     "group": "glutes",
+     "cx": 560,
+     "cy": 581
     },
     {
      "id": 27,
+     "muscle": "Gluteus medius",
+     "name": "outer hips",
+     "group": "abductors",
+     "cx": 512,
+     "cy": 550
+    },
+    {
+     "id": 28,
+     "muscle": "Gluteus medius",
+     "name": "outer hips",
+     "group": "abductors",
+     "cx": 737,
+     "cy": 549
+    },
+    {
+     "id": 29,
      "muscle": "Vastus lateralis",
      "name": "quads",
      "group": "quadriceps",
      "cx": 501,
-     "cy": 680
+     "cy": 681
     },
     {
-     "id": 28,
+     "id": 30,
      "muscle": "Vastus lateralis",
      "name": "quads",
      "group": "quadriceps",
-     "cx": 748,
+     "cx": 749,
      "cy": 679
     },
     {
-     "id": 29,
+     "id": 31,
      "muscle": "Semitendinosus",
      "name": "hamstrings",
      "group": "hamstrings",
@@ -648,7 +616,7 @@
      "cy": 704
     },
     {
-     "id": 30,
+     "id": 32,
      "muscle": "Semitendinosus",
      "name": "hamstrings",
      "group": "hamstrings",
@@ -656,43 +624,27 @@
      "cy": 705
     },
     {
-     "id": 31,
+     "id": 33,
      "muscle": "Biceps femoris",
      "name": "hamstrings",
      "group": "hamstrings",
      "cx": 545,
-     "cy": 748
-    },
-    {
-     "id": 32,
-     "muscle": "Biceps femoris",
-     "name": "hamstrings",
-     "group": "hamstrings",
-     "cx": 703,
-     "cy": 748
-    },
-    {
-     "id": 33,
-     "muscle": "Gastrocnemius",
-     "name": "calves",
-     "group": "calves",
-     "cx": 519,
-     "cy": 924
+     "cy": 749
     },
     {
      "id": 34,
-     "muscle": "Gastrocnemius",
-     "name": "calves",
-     "group": "calves",
-     "cx": 729,
-     "cy": 923
+     "muscle": "Biceps femoris",
+     "name": "hamstrings",
+     "group": "hamstrings",
+     "cx": 704,
+     "cy": 749
     },
     {
      "id": 35,
      "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
-     "cx": 566,
+     "cx": 519,
      "cy": 925
     },
     {
@@ -700,29 +652,45 @@
      "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
-     "cx": 682,
-     "cy": 927
+     "cx": 730,
+     "cy": 924
     },
     {
      "id": 37,
+     "muscle": "Gastrocnemius",
+     "name": "calves",
+     "group": "calves",
+     "cx": 567,
+     "cy": 927
+    },
+    {
+     "id": 38,
+     "muscle": "Gastrocnemius",
+     "name": "calves",
+     "group": "calves",
+     "cx": 681,
+     "cy": 929
+    },
+    {
+     "id": 39,
      "muscle": "Soleus",
      "name": "calves",
      "group": "calves",
      "cx": 543,
-     "cy": 1036
+     "cy": 1037
     },
     {
-     "id": 38,
+     "id": 40,
      "muscle": "Soleus",
      "name": "calves",
      "group": "calves",
-     "cx": 704,
-     "cy": 1036
+     "cx": 705,
+     "cy": 1037
     }
    ]
   },
   "female_front": {
-   "T": 106.5,
+   "T": 109.5,
    "w": 1254,
    "h": 1254,
    "plates": [
@@ -731,19 +699,27 @@
      "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 663,
-     "cy": 248
+     "cx": 580,
+     "cy": 247
     },
     {
      "id": 2,
      "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 580,
-     "cy": 248
+     "cx": 663,
+     "cy": 247
     },
     {
      "id": 3,
+     "muscle": "Lateral deltoid",
+     "name": "side shoulders",
+     "group": "shoulders",
+     "cx": 478,
+     "cy": 287
+    },
+    {
+     "id": 4,
      "muscle": "Anterior deltoid",
      "name": "front shoulders",
      "group": "shoulders",
@@ -751,20 +727,12 @@
      "cy": 284
     },
     {
-     "id": 4,
+     "id": 5,
      "muscle": "Anterior deltoid",
      "name": "front shoulders",
      "group": "shoulders",
-     "cx": 734,
+     "cx": 735,
      "cy": 284
-    },
-    {
-     "id": 5,
-     "muscle": "Lateral deltoid",
-     "name": "side shoulders",
-     "group": "shoulders",
-     "cx": 479,
-     "cy": 287
     },
     {
      "id": 6,
@@ -772,7 +740,7 @@
      "name": "side shoulders",
      "group": "shoulders",
      "cx": 764,
-     "cy": 288
+     "cy": 286
     },
     {
      "id": 7,
@@ -787,7 +755,7 @@
      "muscle": "Pectoralis major",
      "name": "chest",
      "group": "chest",
-     "cx": 675,
+     "cx": 676,
      "cy": 325
     },
     {
@@ -795,7 +763,7 @@
      "muscle": "Biceps",
      "name": "biceps",
      "group": "biceps",
-     "cx": 760,
+     "cx": 761,
      "cy": 386
     },
     {
@@ -803,7 +771,7 @@
      "muscle": "Biceps",
      "name": "biceps",
      "group": "biceps",
-     "cx": 482,
+     "cx": 481,
      "cy": 387
     },
     {
@@ -811,7 +779,7 @@
      "muscle": "Triceps (lateral head)",
      "name": "triceps",
      "group": "triceps",
-     "cx": 455,
+     "cx": 454,
      "cy": 383
     },
     {
@@ -819,7 +787,7 @@
      "muscle": "Triceps (lateral head)",
      "name": "triceps",
      "group": "triceps",
-     "cx": 786,
+     "cx": 788,
      "cy": 383
     },
     {
@@ -827,7 +795,7 @@
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 594,
+     "cx": 593,
      "cy": 400
     },
     {
@@ -835,24 +803,24 @@
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 649,
+     "cx": 650,
      "cy": 400
     },
     {
      "id": 15,
-     "muscle": "Obliques & serratus",
+     "muscle": "External oblique",
      "name": "obliques",
      "group": "abdominals",
-     "cx": 551,
-     "cy": 473
+     "cx": 694,
+     "cy": 486
     },
     {
      "id": 16,
-     "muscle": "Obliques & serratus",
+     "muscle": "External oblique",
      "name": "obliques",
      "group": "abdominals",
-     "cx": 692,
-     "cy": 472
+     "cx": 550,
+     "cy": 485
     },
     {
      "id": 17,
@@ -875,15 +843,15 @@
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 416,
-     "cy": 506
+     "cx": 415,
+     "cy": 505
     },
     {
      "id": 20,
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 826,
+     "cx": 827,
      "cy": 505
     },
     {
@@ -891,7 +859,7 @@
      "muscle": "Rectus abdominis",
      "name": "abs",
      "group": "abdominals",
-     "cx": 593,
+     "cx": 594,
      "cy": 485
     },
     {
@@ -900,14 +868,14 @@
      "name": "abs",
      "group": "abdominals",
      "cx": 650,
-     "cy": 486
+     "cy": 485
     },
     {
      "id": 23,
      "muscle": "Forearm flexors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 441,
+     "cx": 442,
      "cy": 522
     },
     {
@@ -915,8 +883,8 @@
      "muscle": "Forearm flexors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 800,
-     "cy": 523
+     "cx": 801,
+     "cy": 522
     },
     {
      "id": 25,
@@ -924,7 +892,7 @@
      "name": "abs",
      "group": "abdominals",
      "cx": 599,
-     "cy": 567
+     "cy": 566
     },
     {
      "id": 26,
@@ -932,54 +900,54 @@
      "name": "abs",
      "group": "abdominals",
      "cx": 644,
-     "cy": 567
+     "cy": 566
     },
     {
      "id": 27,
      "muscle": "Tensor fasciae latae",
      "name": "outer hips",
      "group": "abductors",
-     "cx": 515,
-     "cy": 583
+     "cx": 729,
+     "cy": 581
     },
     {
      "id": 28,
      "muscle": "Tensor fasciae latae",
      "name": "outer hips",
      "group": "abductors",
-     "cx": 728,
-     "cy": 582
+     "cx": 515,
+     "cy": 581
     },
     {
      "id": 29,
      "muscle": "Rectus femoris",
      "name": "quads",
      "group": "quadriceps",
-     "cx": 538,
-     "cy": 697
+     "cx": 706,
+     "cy": 696
     },
     {
      "id": 30,
      "muscle": "Rectus femoris",
      "name": "quads",
      "group": "quadriceps",
-     "cx": 705,
-     "cy": 697
+     "cx": 538,
+     "cy": 696
     },
     {
      "id": 31,
      "muscle": "Adductors",
      "name": "inner thighs",
      "group": "adductors",
-     "cx": 587,
-     "cy": 663
+     "cx": 588,
+     "cy": 662
     },
     {
      "id": 32,
      "muscle": "Adductors",
      "name": "inner thighs",
      "group": "adductors",
-     "cx": 657,
+     "cx": 656,
      "cy": 662
     },
     {
@@ -988,7 +956,7 @@
      "name": "quads",
      "group": "quadriceps",
      "cx": 505,
-     "cy": 741
+     "cy": 742
     },
     {
      "id": 34,
@@ -1003,8 +971,8 @@
      "muscle": "Vastus medialis",
      "name": "quads",
      "group": "quadriceps",
-     "cx": 574,
-     "cy": 784
+     "cx": 575,
+     "cy": 785
     },
     {
      "id": 36,
@@ -1020,15 +988,15 @@
      "name": "shins",
      "group": null,
      "cx": 515,
-     "cy": 981
+     "cy": 982
     },
     {
      "id": 38,
      "muscle": "Tibialis anterior",
      "name": "shins",
      "group": null,
-     "cx": 727,
-     "cy": 981
+     "cx": 728,
+     "cy": 982
     },
     {
      "id": 39,
@@ -1044,318 +1012,334 @@
      "name": "calves",
      "group": "calves",
      "cx": 680,
-     "cy": 953
+     "cy": 954
     }
    ]
   },
   "female_back": {
-   "T": 105.5,
+   "T": 102.5,
    "w": 1254,
    "h": 1254,
    "plates": [
     {
      "id": 1,
-     "muscle": "Trapezius",
+     "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 655,
-     "cy": 296
+     "cx": 589,
+     "cy": 238
     },
     {
      "id": 2,
-     "muscle": "Trapezius",
+     "muscle": "Upper trapezius",
      "name": "traps",
      "group": "traps",
-     "cx": 592,
-     "cy": 297
+     "cx": 661,
+     "cy": 238
     },
     {
      "id": 3,
      "muscle": "Lateral deltoid",
      "name": "side shoulders",
      "group": "shoulders",
-     "cx": 482,
-     "cy": 279
+     "cx": 485,
+     "cy": 278
     },
     {
      "id": 4,
      "muscle": "Lateral deltoid",
      "name": "side shoulders",
      "group": "shoulders",
-     "cx": 764,
-     "cy": 281
+     "cx": 766,
+     "cy": 279
     },
     {
      "id": 5,
      "muscle": "Posterior deltoid",
      "name": "rear shoulders",
      "group": "shoulders",
-     "cx": 507,
-     "cy": 287
+     "cx": 509,
+     "cy": 288
     },
     {
      "id": 6,
      "muscle": "Posterior deltoid",
      "name": "rear shoulders",
      "group": "shoulders",
-     "cx": 738,
-     "cy": 287
+     "cx": 741,
+     "cy": 288
     },
     {
      "id": 7,
-     "muscle": "Infraspinatus & teres",
+     "muscle": "Middle & lower trapezius",
      "name": "upper back",
      "group": "middle back",
-     "cx": 548,
-     "cy": 322
+     "cx": 602,
+     "cy": 330
     },
     {
      "id": 8,
-     "muscle": "Infraspinatus & teres",
+     "muscle": "Middle & lower trapezius",
      "name": "upper back",
      "group": "middle back",
-     "cx": 698,
-     "cy": 322
+     "cx": 649,
+     "cy": 330
     },
     {
      "id": 9,
-     "muscle": "Triceps (long head)",
-     "name": "triceps",
-     "group": "triceps",
-     "cx": 485,
-     "cy": 378
+     "muscle": "Infraspinatus & teres",
+     "name": "upper back",
+     "group": "middle back",
+     "cx": 549,
+     "cy": 325
     },
     {
      "id": 10,
-     "muscle": "Triceps (long head)",
-     "name": "triceps",
-     "group": "triceps",
-     "cx": 760,
-     "cy": 378
+     "muscle": "Infraspinatus & teres",
+     "name": "upper back",
+     "group": "middle back",
+     "cx": 701,
+     "cy": 325
     },
     {
      "id": 11,
-     "muscle": "Latissimus dorsi",
-     "name": "lats",
-     "group": "lats",
-     "cx": 565,
-     "cy": 425
+     "muscle": "Triceps (long head)",
+     "name": "triceps",
+     "group": "triceps",
+     "cx": 763,
+     "cy": 379
     },
     {
      "id": 12,
-     "muscle": "Latissimus dorsi",
-     "name": "lats",
-     "group": "lats",
-     "cx": 680,
-     "cy": 425
+     "muscle": "Triceps (long head)",
+     "name": "triceps",
+     "group": "triceps",
+     "cx": 487,
+     "cy": 380
     },
     {
      "id": 13,
-     "muscle": "Triceps (lateral head)",
-     "name": "triceps",
-     "group": "triceps",
-     "cx": 451,
-     "cy": 397
+     "muscle": "Latissimus dorsi",
+     "name": "lats",
+     "group": "lats",
+     "cx": 684,
+     "cy": 421
     },
     {
      "id": 14,
-     "muscle": "Triceps (lateral head)",
-     "name": "triceps",
-     "group": "triceps",
-     "cx": 795,
-     "cy": 398
+     "muscle": "Latissimus dorsi",
+     "name": "lats",
+     "group": "lats",
+     "cx": 566,
+     "cy": 421
     },
     {
      "id": 15,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 416,
-     "cy": 511
+     "muscle": "Triceps (lateral head)",
+     "name": "triceps",
+     "group": "triceps",
+     "cx": 453,
+     "cy": 396
     },
     {
      "id": 16,
-     "muscle": "Forearm extensors",
-     "name": "forearms",
-     "group": "forearms",
-     "cx": 829,
-     "cy": 511
+     "muscle": "Triceps (lateral head)",
+     "name": "triceps",
+     "group": "triceps",
+     "cx": 798,
+     "cy": 398
     },
     {
      "id": 17,
      "muscle": "Erector spinae",
      "name": "lower back",
      "group": "lower back",
-     "cx": 643,
-     "cy": 514
+     "cx": 646,
+     "cy": 507
     },
     {
      "id": 18,
      "muscle": "Erector spinae",
      "name": "lower back",
      "group": "lower back",
-     "cx": 602,
-     "cy": 514
+     "cx": 604,
+     "cy": 507
     },
     {
      "id": 19,
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 445,
-     "cy": 521
+     "cx": 418,
+     "cy": 511
     },
     {
      "id": 20,
      "muscle": "Forearm extensors",
      "name": "forearms",
      "group": "forearms",
-     "cx": 799,
-     "cy": 520
+     "cx": 832,
+     "cy": 511
     },
     {
      "id": 21,
-     "muscle": "External oblique",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 552,
-     "cy": 508
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 447,
+     "cy": 522
     },
     {
      "id": 22,
-     "muscle": "External oblique",
-     "name": "obliques",
-     "group": "abdominals",
-     "cx": 694,
-     "cy": 508
+     "muscle": "Forearm extensors",
+     "name": "forearms",
+     "group": "forearms",
+     "cx": 802,
+     "cy": 520
     },
     {
      "id": 23,
-     "muscle": "Gluteus maximus",
-     "name": "glutes",
-     "group": "glutes",
-     "cx": 559,
-     "cy": 604
+     "muscle": "External oblique",
+     "name": "obliques",
+     "group": "abdominals",
+     "cx": 553,
+     "cy": 507
     },
     {
      "id": 24,
-     "muscle": "Gluteus maximus",
-     "name": "glutes",
-     "group": "glutes",
-     "cx": 687,
-     "cy": 604
+     "muscle": "External oblique",
+     "name": "obliques",
+     "group": "abdominals",
+     "cx": 698,
+     "cy": 507
     },
     {
      "id": 25,
-     "muscle": "Gluteus medius",
-     "name": "outer hips",
-     "group": "abductors",
-     "cx": 736,
-     "cy": 573
+     "muscle": "Gluteus maximus",
+     "name": "glutes",
+     "group": "glutes",
+     "cx": 561,
+     "cy": 604
     },
     {
      "id": 26,
-     "muscle": "Gluteus medius",
-     "name": "outer hips",
-     "group": "abductors",
-     "cx": 509,
-     "cy": 574
+     "muscle": "Gluteus maximus",
+     "name": "glutes",
+     "group": "glutes",
+     "cx": 689,
+     "cy": 604
     },
     {
      "id": 27,
-     "muscle": "Vastus lateralis",
-     "name": "quads",
-     "group": "quadriceps",
-     "cx": 750,
-     "cy": 700
+     "muscle": "Gluteus medius",
+     "name": "outer hips",
+     "group": "abductors",
+     "cx": 739,
+     "cy": 572
     },
     {
      "id": 28,
-     "muscle": "Vastus lateralis",
-     "name": "quads",
-     "group": "quadriceps",
-     "cx": 496,
-     "cy": 701
+     "muscle": "Gluteus medius",
+     "name": "outer hips",
+     "group": "abductors",
+     "cx": 512,
+     "cy": 572
     },
     {
      "id": 29,
-     "muscle": "Semitendinosus",
-     "name": "hamstrings",
-     "group": "hamstrings",
-     "cx": 586,
-     "cy": 715
+     "muscle": "Vastus lateralis",
+     "name": "quads",
+     "group": "quadriceps",
+     "cx": 498,
+     "cy": 701
     },
     {
      "id": 30,
-     "muscle": "Semitendinosus",
-     "name": "hamstrings",
-     "group": "hamstrings",
-     "cx": 660,
-     "cy": 716
+     "muscle": "Vastus lateralis",
+     "name": "quads",
+     "group": "quadriceps",
+     "cx": 753,
+     "cy": 700
     },
     {
      "id": 31,
-     "muscle": "Biceps femoris",
+     "muscle": "Semitendinosus",
      "name": "hamstrings",
      "group": "hamstrings",
-     "cx": 542,
-     "cy": 758
+     "cx": 589,
+     "cy": 714
     },
     {
      "id": 32,
-     "muscle": "Biceps femoris",
+     "muscle": "Semitendinosus",
      "name": "hamstrings",
      "group": "hamstrings",
-     "cx": 704,
-     "cy": 759
+     "cx": 659,
+     "cy": 714
     },
     {
      "id": 33,
-     "muscle": "Gastrocnemius",
-     "name": "calves",
-     "group": "calves",
-     "cx": 517,
-     "cy": 947
+     "muscle": "Biceps femoris",
+     "name": "hamstrings",
+     "group": "hamstrings",
+     "cx": 544,
+     "cy": 760
     },
     {
      "id": 34,
-     "muscle": "Gastrocnemius",
-     "name": "calves",
-     "group": "calves",
-     "cx": 728,
-     "cy": 947
+     "muscle": "Biceps femoris",
+     "name": "hamstrings",
+     "group": "hamstrings",
+     "cx": 705,
+     "cy": 758
     },
     {
      "id": 35,
      "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
-     "cx": 561,
-     "cy": 955
+     "cx": 518,
+     "cy": 948
     },
     {
      "id": 36,
      "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
-     "cx": 684,
-     "cy": 955
+     "cx": 731,
+     "cy": 948
     },
     {
      "id": 37,
-     "muscle": "Soleus",
+     "muscle": "Gastrocnemius",
      "name": "calves",
      "group": "calves",
-     "cx": 532,
-     "cy": 1051
+     "cx": 563,
+     "cy": 956
     },
     {
      "id": 38,
+     "muscle": "Gastrocnemius",
+     "name": "calves",
+     "group": "calves",
+     "cx": 686,
+     "cy": 956
+    },
+    {
+     "id": 39,
      "muscle": "Soleus",
      "name": "calves",
      "group": "calves",
-     "cx": 712,
-     "cy": 1051
+     "cx": 534,
+     "cy": 1053
+    },
+    {
+     "id": 40,
+     "muscle": "Soleus",
+     "name": "calves",
+     "group": "calves",
+     "cx": 715,
+     "cy": 1053
     }
    ]
   }

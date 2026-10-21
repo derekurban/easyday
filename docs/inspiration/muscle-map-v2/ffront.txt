@@ -1,0 +1,11 @@
+Attached image 1 is the current FEMALE FRONT view. Image 2 is it coloured by app name (red = traps, salmon = chest, purple = front shoulders, pink = side shoulders, olive = triceps, green = abs, cyan = obliques, yellow = outer hips; grey = others such as biceps, forearms, quads, inner thighs, calves, shins). Images 3 and 4 are the approved MALE front and its colouring.
+
+Corrections (female front view), matching the male:
+1. The serratus anterior (the finger-like plates on the upper ribs below the armpit and beside the chest, currently part of the cyan obliques) is not tracked. Draw that area as the dark charcoal base, so no light plate there.
+2. obliques = external oblique only: one clean plate on each flank, from the lower ribs down to the top of the hip bone, beside the abs, like the approved male.
+3. Keep the upper trapezius plates at the neck (traps), chest, front and side deltoids, biceps, triceps, forearms, the ab plates (abs), tensor fasciae latae at the hip (outer hips), adductors (inner thighs), the quadriceps plates, calves and shins as in the female reference.
+
+Save two independent attempts as:
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f_front_a.png
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f_front_b.png
+In your final message, list which generated file became which saved name.

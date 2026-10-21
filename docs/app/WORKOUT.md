@@ -148,13 +148,13 @@ Two sliders in Settings → Goal, each a share of every workout's minutes.
 
 | Slider | Default | Range | What it does |
 |---|---|---|---|
-| Cardio | 15 % | 0 to 50 % | reserved at the end of every workout, after the lifting; also takes any slack the lifting leaves |
-| Stretching | 10 % | 0 to 30 % | reserved last, after cardio; one of the fixed mobility routines sized to the minutes |
+| Cardio | 15 % | 0 to 50 % | reserved at the end of every workout, after the strength exercises; also takes any slack they leave |
+| Stretching | 10 % | 0 to 30 % | reserved last, after cardio; one of the fixed stretching routines sized to the minutes |
 
 A 60-minute workout at the defaults is 45 minutes of lifting, 9 of cardio and 6 of stretching. Cardio is a single
 duration with the effort tap at the end, as in a movement workout. Stretching has no tap. At zero a block
 disappears, and with both at zero any slack is rest and the workout says "no rush." Neither gives strain points
-for now. Movement workouts, a whole session of cardio or mobility, stay as they are: the alternative to lifting,
+for now. Movement workouts, a whole workout of cardio or stretching, stay as they are: the alternative to strength,
 one tap away.
 
 ## A time limit, or a number of exercises
@@ -171,7 +171,7 @@ spare minutes then, and an easy day keeps the count it was given. The switch is 
    share left out on the plan for today is not taken). Loaded hard exercises also carry their own warm-up
    sets. With the time limit off the window is open and the count decides.
 2. **Pick the muscles, then an exercise for each,** as `SELECTION.md` says: ready muscles furthest behind
-   their share, emphasis first, and for each the exercise the location allows that is ready, preferred and
+   whose turn it is, most overdue first, and for each the exercise the location allows that is ready, preferred and
    practised. Energy plays no part.
 3. **Assign intents** by the recipe. Each gets its expression, its sets and its target.
 4. **Fit the minutes at normal.** The ideal sets everywhere. Over: exercises go down to the fewest, light
@@ -185,7 +185,7 @@ spare minutes then, and an easy day keeps the count it was given. The switch is 
    list. Easy never grows past the ideal.
 6. **Cardio and stretching close it.** Stretching takes its share last; cardio takes its share before
    that, plus any slack the lifting left when spare minutes are not rest.
-7. **Order** emphasised muscles first, then hardest first, while the user is fresh; at the same difficulty,
+7. **Order** muscles marked more often first, then hardest first, while the user is fresh; at the same difficulty,
    extra and working before light. Strength lands on what goes first, so what the user cares about leads.
 
 On the plan the user can reshuffle, swap any exercise for another for the same muscle available here,
@@ -277,7 +277,7 @@ how-to (`EXERCISES.md`). The calendar can lower the two picks on a busy day (`CA
 | Warm-up block | 5 minutes | the plan: none, 3, 5, 8; kept for next time |
 | A time limit, or a number of exercises | the minutes | Today, a switch; kept |
 | When the planned rest runs out | keep resting | Settings → Workout: keep resting, start the next set |
-| Show lifting and rest as | minutes | Settings → Workout: minutes, share of time |
+| Show set time and rest as | minutes | Settings → Workout: minutes, share of time |
 
 ## Open questions
 

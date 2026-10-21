@@ -17,7 +17,7 @@ class HowItWorks extends StatelessWidget {
       LucideIcons.listOrdered,
       'Every exercise has a progression',
       'A progression is the list of levels an exercise can get harder by. For a barbell or machine it is the next weight. For dumbbells, the next pair. '
-          'For a bodyweight move it is the next version: wall push-ups, then incline, then knee, then full push-ups, and so on.',
+          'For a bodyweight exercise it is the next version: wall push-ups, then incline, then knee, then full push-ups, and so on.',
     ),
     (
       LucideIcons.circleDot,

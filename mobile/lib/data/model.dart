@@ -95,9 +95,10 @@ const exploreLabel = {Explore.rarely: 'Rarely', Explore.sometimes: 'Sometimes', 
 const exploreRun = {Explore.rarely: 8, Explore.sometimes: 4, Explore.often: 2};
 /// Emphasis per muscle group: less, usual, more, as a share of the sets target.
 const emphasisLabel = {-1: 'Less', 0: 'Usual', 1: 'More'};
-const emphasisShare = {-1: 0.5, 0: 1.0, 1: 1.5};
-const lookBackMin = 3, lookBackMax = 14, lookBackDefault = 7;
-const setsTargetMin = 2, setsTargetMax = 30;
+/// How often an active muscle's turn comes round, against its plain turn: less is half as often, more twice.
+const oftenLabel = {-1: 'Less', 0: 'Usual', 1: 'More'};
+const oftenFactor = {-1: 0.5, 0: 1.0, 1: 2.0};
+
 
 /// The sets target per muscle group seeded from days per week: 6 for two days, 8 for three, 10 for four or more.
 int seedSetsTarget(int daysPerWeek) => daysPerWeek <= 2 ? 6 : daysPerWeek == 3 ? 8 : 10;
@@ -132,8 +133,8 @@ class GoalConfig {
   GoalConfig({
     required this.template, required this.name, required List<Band> bands, required this.exercises, required this.sets, required this.pushes,
     required this.moveEvery, this.spare = Spare.exercises, this.cardioPct = defaultCardioPct, this.stretchPct = defaultStretchPct,
-    this.lookBackDays = lookBackDefault, this.setsTarget, Map<String, int>? emphasis, this.explore = Explore.rarely,
-  }) : bands = [for (final b in bands) b.copy()], emphasis = {...?emphasis};
+    Map<String, int>? often, Map<String, MuscleTag>? tags, this.explore = Explore.rarely,
+  }) : bands = [for (final b in bands) b.copy()], often = {...?often}, tags = {...?tags};
   String template;       // the template it was last filled from, for the icon
   String name;
   List<Band> bands;      // rep bands, each tagged with the difficulties it applies to; several per difficulty cycle by workout
@@ -144,26 +145,30 @@ class GoalConfig {
   Spare spare;           // what spare minutes are for
   int cardioPct;         // share of every workout's minutes for cardio at the end
   int stretchPct;        // share for stretching, last
-  int lookBackDays;      // the days a muscle group's share looks back over (3 to 14)
-  int? setsTarget;       // sets per muscle group over the look-back; null is seeded from days per week
-  Map<String, int> emphasis;  // muscle group -> -1 less, 1 more; absent is usual
+  Map<String, int> often;         // muscle -> -1 less, 1 more often; absent is usual
+  Map<String, MuscleTag> tags;    // muscle -> its tag where it differs from the template's default
   Explore explore;       // how often an unrated exercise takes a turn
 
   /// The working set count: the usual.
   int get workingSets => sets.ideal;
 
-  /// The sets target per muscle group over the look-back, the setting or the seed from days per week.
-  int targetSets(int daysPerWeek) => setsTarget ?? seedSetsTarget(daysPerWeek);
+  /// How often a muscle's turn comes round: -1 less, 0 usual, 1 more.
+  int oftenOf(String muscle) => often[muscle] ?? 0;
 
-  /// A group's emphasis: -1 less, 0 usual, 1 more.
-  int emphasisOf(String group) => emphasis[group] ?? 0;
-
-  /// A group's target: the sets target scaled by its emphasis, half, one or one and a half.
-  double targetFor(String group, int daysPerWeek) => targetSets(daysPerWeek) * emphasisShare[emphasisOf(group)]!;
-
-  void setEmphasis(String group, int v) {
-    if (v == 0) { emphasis.remove(group); } else { emphasis[group] = v.clamp(-1, 1); }
+  void setOften(String muscle, int v) {
+    if (v == 0) { often.remove(muscle); } else { often[muscle] = v.clamp(-1, 1); }
   }
+
+  /// A muscle's tag: the user's, else the template's default (the shins ignored everywhere).
+  MuscleTag tagOf(String muscle) => tags[muscle] ?? defaultTag(template, muscle);
+
+  void setTag(String muscle, MuscleTag tag) {
+    if (tag == defaultTag(template, muscle)) { tags.remove(muscle); } else { tags[muscle] = tag; }
+  }
+
+  /// The muscles that get exercises of their own, in the map's order.
+  List<String> get activeMuscles => [for (final m in trackedMuscles) if (tagOf(m) == MuscleTag.active) m];
+  List<String> get passiveMuscles => [for (final m in trackedMuscles) if (tagOf(m) == MuscleTag.passive) m];
 
   /// The bands for a difficulty, in list order.
   List<RepRange> rowFor(int difficulty) => [for (final b in bands) if (b.difficulties.contains(difficulty)) b.range];
@@ -206,9 +211,8 @@ class GoalConfig {
     spare = Spare.exercises;
     cardioPct = defaultCardioPct;
     stretchPct = defaultStretchPct;
-    lookBackDays = lookBackDefault;
-    setsTarget = null;
-    emphasis = {};
+    often = {};
+    tags = {};
     explore = Explore.rarely;
   }
 
@@ -216,7 +220,7 @@ class GoalConfig {
         'template': template, 'name': name, 'bands': [for (final b in bands) {'r': _rr(b.range), 'd': b.difficulties.toList()..sort()}],
         'exercises': _tri(exercises), 'sets': _tri(sets), 'pushes': _tri(pushes), 'moveEvery': moveEvery,
         'spare': _e(spare), 'cardioPct': cardioPct, 'stretchPct': stretchPct,
-        'lookBackDays': lookBackDays, 'setsTarget': setsTarget, 'emphasis': emphasis, 'explore': _e(explore),
+        'often': often, 'tags': tags.map((k, v) => MapEntry(k, _e(v))), 'explore': _e(explore),
       };
   static GoalConfig fromJson(Map<String, dynamic> j) {
     final tpl = goals[j['template']];
@@ -244,9 +248,12 @@ class GoalConfig {
       pushes: j['pushes'] != null ? _ptri(j['pushes']).clampTo(pushesMin, pushesMax) : oldExtras != null ? (oldExtras == 0 ? const Tri(2, 5, 10) : Tri(max(0, oldExtras - 1), oldExtras, oldExtras + 1)).clampTo(pushesMin, pushesMax) : t.pushes,
       moveEvery: j['moveEvery'] ?? t.moveEvery, spare: _p(Spare.values, j['spare'], Spare.exercises),
       cardioPct: j['cardioPct'] ?? defaultCardioPct, stretchPct: j['stretchPct'] ?? defaultStretchPct,
-      lookBackDays: ((j['lookBackDays'] ?? lookBackDefault) as int).clamp(lookBackMin, lookBackMax),
-      setsTarget: j['setsTarget'] == null ? null : (j['setsTarget'] as int).clamp(setsTargetMin, setsTargetMax),
-      emphasis: (j['emphasis'] as Map? ?? {}).map((k, v) => MapEntry(k as String, (v as int).clamp(-1, 1)))..removeWhere((k, v) => v == 0 || !muscleGroups.contains(k)),
+      // emphasis was the old name for how often, and per group before selection ran on muscles
+      often: _oftenFrom((j['often'] ?? j['emphasis']) as Map? ?? {}),
+      tags: {
+        for (final e in (j['tags'] as Map? ?? {}).entries)
+          if (trackedMuscles.contains(e.key)) e.key as String: _p(MuscleTag.values, e.value, MuscleTag.active),
+      },
       explore: _p(Explore.values, j['explore'], Explore.rarely),
     );
   }
@@ -420,7 +427,7 @@ class SessionExercise {
         'why': why, 'fresh': fresh, 'asked': asked,
       };
   static SessionExercise fromJson(Map<String, dynamic> j) => SessionExercise(
-        slot: j['slot'], exId: j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
+        slot: j['slot'], exId: exerciseRenames[j['exId']] ?? j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
         why: j['why'] ?? '', fresh: j['fresh'] ?? false, asked: j['asked'] ?? false,
         rung: j['rung'], rungLabel: j['rungLabel'], target: j['target'],
         lo: j['lo'], hi: j['hi'], atCeiling: j['atCeiling'] ?? false, bestTotal: j['bestTotal'] ?? 0,
@@ -433,10 +440,26 @@ class SessionExercise {
         ..usualLoadKg = (j['usualLoadKg'] as num?)?.toDouble();
 }
 
-/// The muscle group an exercise is filed under: its first primary muscle's. For older sessions that carried no muscle.
+/// The muscle an exercise is filed under: its first primary muscle. For older sessions that carried no muscle.
 String _groupOf(String exId) {
   final ex = exerciseById[exId];
-  return ex == null || ex.primary.isEmpty ? 'Other' : muscleGroup(ex.primary.first);
+  return ex == null || ex.primary.isEmpty ? 'other' : ex.primary.first;
+}
+
+/// How often as saved: per muscle, or per group before selection ran on muscles, when a group's word spreads to each
+/// of its muscles. A muscle's own word wins over its group's.
+Map<String, int> _oftenFrom(Map j) {
+  final out = <String, int>{};
+  for (final e in j.entries) {
+    final v = (e.value as int).clamp(-1, 1);
+    if (v == 0 || !muscleGroups.contains(e.key)) continue;
+    for (final m in musclesOfGroup(e.key as String)) { out[m] = v; }
+  }
+  for (final e in j.entries) {
+    final v = (e.value as int).clamp(-1, 1);
+    if (trackedMuscles.contains(e.key)) { if (v == 0) { out.remove(e.key); } else { out[e.key as String] = v; } }
+  }
+  return out;
 }
 
 class Session {
@@ -482,6 +505,8 @@ class Session {
   String note = '';      // the one line to the human
   bool swappedToMove = false;
   int? calendarEventId;  // the event auto-track wrote, so the calendar read can tell it from busy time
+  List<String> uncovered = [];  // forced muscles no exercise could cover today, or a swap uncovered; never saved
+  List<String> requirements = []; // preview requirements, retained across exercise draws and swaps; never saved
 
   int? get elapsedMinutes => startedAt == null || endedAt == null ? null : endedAt!.difference(startedAt!).inMinutes;
 
@@ -527,19 +552,20 @@ class Plan {
   Energy energyDefault = Energy.normal;
   int timeDefault = minutesDefault;
   DateTime? continuedOn;  // the day the user chose to start another workout after finishing one
-  List<({String group, DateTime at})> asked = [];  // muscles asked for by hand, for the one line suggesting more emphasis
-  List<String> moreSuggested = [];                 // groups that line has been said for
+  List<({String muscle, DateTime at})> asked = [];  // muscles asked for by hand, for the one line suggesting more emphasis
+  List<String> moreSuggested = [];                  // muscles that line has been said for
   Map<String, dynamic> toJson() => {
         'paused': paused.map((k, v) => MapEntry(k, _ms(v))), 'energyDefault': _e(energyDefault), 'timeDefault': timeDefault, 'continuedOn': _ms(continuedOn),
-        'asked': [for (final a in asked) {'g': a.group, 'at': _ms(a.at)}], 'moreSuggested': moreSuggested,
+        'asked': [for (final a in asked) {'g': a.muscle, 'at': _ms(a.at)}], 'moreSuggested': moreSuggested,
       };
   static Plan fromJson(Map<String, dynamic> j) => Plan()
     ..paused = ((j['paused'] as Map? ?? {}).map((k, v) => MapEntry(k as String, _d(v)!))..removeWhere((k, _) => !exerciseById.containsKey(k)))
     ..energyDefault = _p(Energy.values, j['energyDefault'], Energy.normal)
     ..timeDefault = j['timeDefault'] is int ? j['timeDefault'] : minutesDefault
     ..continuedOn = _d(j['continuedOn'])
-    ..asked = [for (final a in (j['asked'] as List? ?? [])) (group: a['g'] as String, at: _d(a['at'])!)]
-    ..moreSuggested = List<String>.from(j['moreSuggested'] ?? []);
+    // entries from before selection ran on muscles named groups: they are dropped, the window is two weeks anyway
+    ..asked = [for (final a in (j['asked'] as List? ?? [])) if (trackedMuscles.contains(a['g'])) (muscle: a['g'] as String, at: _d(a['at'])!)]
+    ..moreSuggested = [for (final m in List<String>.from(j['moreSuggested'] ?? [])) if (trackedMuscles.contains(m)) m];
 }
 
 class Person {
@@ -552,7 +578,7 @@ class Person {
 }
 
 class AppState {
-  int version = 4;
+  int version = 5;
   Profile? profile;
   GoalConfig? goal;
   List<Location> locations = [];
@@ -586,7 +612,7 @@ class AppState {
       ..settings = Settings.fromJson(j['settings'] ?? {})
       ..plan = j['plan'] == null ? null : Plan.fromJson(j['plan'])
       ..ex = (j['ex'] as Map? ?? {}).map((k, v) => MapEntry(k as String, ExerciseState.fromJson(v)))
-      ..version = 4
+      ..version = 5
       ..person = Person.fromJson(j['person'] ?? {})
       ..sessions = ((j['sessions'] ?? []) as List).map((x) => Session.fromJson(x)).toList()
       ..active = j['active'] == null ? null : Session.fromJson(j['active'])
@@ -598,8 +624,14 @@ class AppState {
     if (s.goal == null && j['profile']?['goal'] != null) s.goal = GoalConfig.fromTemplate(goals[j['profile']['goal']] ?? goals.values.first);
     // older builds named workouts "Day A"
     for (final x in s.sessions) { if (x.name.startsWith('Day ')) x.name = 'Workout ${x.name.substring(4)}'; }
+    // merged exercises: progress follows the id that replaced them
+    for (final r in exerciseRenames.entries) {
+      final st = s.ex.remove(r.key);
+      if (st != null) s.ex.putIfAbsent(r.value, () => st);
+    }
     s.ex.removeWhere((k, _) => !exerciseById.containsKey(k));
     if ((j['version'] ?? 1) < 4) _migrateMaxes(s, j);
+    if ((j['version'] ?? 1) < 5) _migrateLibrary(s);
     return s;
   }
 
@@ -609,6 +641,34 @@ class AppState {
   }
 
   Session? get lastSession => sessions.isEmpty ? null : sessions.last;
+}
+
+/// Version 5 brought the reviewed exercise library (docs/app/EXERCISE_DATA.md). Ladders whose versions moved keep each
+/// saved level on the same version by name, in progress and in history; locations get the new gear they already have
+/// (a gym has everything; a barbell comes with plates).
+void _migrateLibrary(AppState s) {
+  // the assisted machine's level was kept as assistance, which ran backwards; it starts again from experience
+  s.ex.remove('assisted_pullup');
+  for (final id in rungHistory.keys) {
+    final st = s.ex[id];
+    if (st != null) {
+      st.rung = remapRung(id, st.rung);
+      st.startRung = remapRung(id, st.startRung);
+    }
+  }
+  for (final x in [...s.sessions, if (s.active != null) s.active!]) {
+    for (final e in x.exercises) {
+      if (rungHistory.containsKey(e.exId)) e.rung = remapRung(e.exId, e.rung);
+    }
+  }
+  const added = ['weight_plate', 'bench_decline', 'preacher_bench', 'sled', 'gym_rings', 'wrist_roller'];
+  for (final l in s.locations) {
+    if (l.template == 'gym') {
+      for (final g in added) { if (!l.equipment.contains(g)) l.equipment.add(g); }
+    } else if (l.equipment.contains('barbell') && !l.equipment.contains('weight_plate')) {
+      l.equipment.add('weight_plate');
+    }
+  }
 }
 
 /// Before version 4 a loaded exercise's base was its working weight; now it is an estimated max. Lift it by the share the

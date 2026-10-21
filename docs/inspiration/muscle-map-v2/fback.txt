@@ -1,0 +1,14 @@
+Attached image 1 is the current FEMALE BACK view. Image 2 is it coloured by app name (red = traps, blue = upper back, green = lats, orange = lower back, purple = rear shoulders, pink = side shoulders, olive = triceps, brown = glutes, yellow = outer hips, cyan = obliques; grey = others). Images 3 and 4 are the approved MALE back and its colouring.
+
+Corrections (female back view), matching the male:
+1. traps = UPPER trapezius only: its own plate on each side from the base of the skull along the neck to the top of the shoulder, ending at about the level of the spine of the shoulder blade, with a clear groove below it.
+2. upper back = MIDDLE + LOWER trapezius: a separate plate on each side covering the area BETWEEN the shoulder blades, tapering along the spine to a point at about the bottom of the rib cage.
+3. Keep the plate on each shoulder blade (infraspinatus); it is also upper back.
+4. Lower back: the spinal erectors as two long upright columns either side of the spine in the lower back; the spine a dark central groove.
+5. Hands: from behind we must see the BACKS of the hands (knuckles, nails, thumbs on their natural side), like the approved male. Keep the female reference's hand pose and size.
+6. Everything else (deltoids, triceps, forearms, lats, flank obliques, glutes, gluteus medius, hamstrings, calves) as in the female reference.
+
+Save two independent attempts as:
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f_back_a.png
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f_back_b.png
+In your final message, list which generated file became which saved name.

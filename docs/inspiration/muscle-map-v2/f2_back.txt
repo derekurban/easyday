@@ -1,0 +1,10 @@
+Use your built-in image generation tool (gpt-image) to EDIT the image. Do NOT draw with code, SVG, or Python.
+
+Image 1 (f_back_b.png) is the FEMALE BACK view of our app's body map. Keep it identical except for the hands: same figure, framing, silhouette, every plate and groove, the tones (plates about RGB 170-180, dark base about RGB 40-45), lighting, transparent background, square 1254 x 1254, no text or colour.
+
+Change, HANDS: her front view is being changed so her palms face forward, like the male. So from behind, show the BACKS of both hands in the SAME pose as the approved male back (image 2 is the male back, image 3 a close-up of his hands): backs of the hands toward the viewer, knuckles and the nail side of the fingers visible, fingers relaxed and together pointing down, thumbs angled outward away from the body. Keep her hands female-sized and slender, at the same place at the end of her forearms, in the same smooth dark charcoal matte as the rest of the base.
+
+Save two independent attempts as:
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f2_back_a.png
+C:\Users\derek\.t3\worktrees\easyday\t3-fb2675dd\docs\inspiration\muscle-map-v2\f2_back_b.png
+In your final message, list which generated file became which saved name.

@@ -2,6 +2,7 @@
 // level, the timing model, the budgets and defaults for next time, then one line to the human. Section 8 of APPLICATION.md.
 import 'dart:math';
 
+import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import 'builder.dart' show changeSeconds, warmupSetsSeconds;
@@ -65,7 +66,7 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
     _learnSpare(s, session, lines);
     _learnAsked(s, session, now, lines);
   } else {
-    lines.add(session.kind == 'cardio' ? 'Movement counts. The next workout is ready tomorrow.' : 'Mobility done. The next workout is ready tomorrow.');
+    lines.add(session.kind == 'cardio' ? 'Cardio counts. The next workout is ready tomorrow.' : 'Stretching done. The next workout is ready tomorrow.');
   }
 
   _learnDefaults(s, session, now, lines);
@@ -76,16 +77,18 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
 }
 
 /// The muscles the user asked for by hand: remembered, and after three asks in two weeks one line suggests more
-/// emphasis for the group. Never a change.
+/// emphasis for the muscle. Never a change.
 void _learnAsked(AppState s, Session session, DateTime now, List<String> lines) {
   final p = s.plan!;
   for (final e in session.exercises) {
-    if (e.asked && e.attempted.isNotEmpty) p.asked.add((group: e.muscle, at: now));
+    if (e.asked && e.attempted.isNotEmpty) p.asked.add((muscle: e.muscle, at: now));
   }
   p.asked.removeWhere((a) => daysBetween(a.at, now) > askedMuscleDays * 2);
-  for (final grp in moreSuggestions(s, now)) {
-    p.moreSuggested.add(grp);
-    lines.add('You keep asking for ${grp.toLowerCase()}. Set it to more in Settings → Goal if you like.');
+  for (final m in moreSuggestions(s, now)) {
+    p.moreSuggested.add(m);
+    lines.add(s.goal!.tagOf(m) == MuscleTag.active
+        ? 'You keep forcing $m. Set it to more often in Settings → Goal if you like.'
+        : 'You keep forcing $m. Mark it active in Settings → Goal if you like.');
   }
 }
 
