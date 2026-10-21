@@ -29,9 +29,6 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: write   # to cancel the run when a check fails
     defaults:
       run:
         working-directory: mobile
@@ -48,9 +45,15 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
-      - name: Stop the build
-        if: failure()
-        env:
+  # A failing check cancels the build and release. A job of its own, so the check itself still reads as failed.
+  stop:
+    needs: check
+    if: failure() && github.ref_name != 'dev'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - env:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
