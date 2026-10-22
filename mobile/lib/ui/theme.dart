@@ -68,7 +68,8 @@ ThemeData buildTheme(Brightness b) {
     cardTheme: CardThemeData(color: du.surface, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: hairline)),
     dividerTheme: DividerThemeData(color: du.line, thickness: 0.6, space: 0.6),
     filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
-        backgroundColor: du.accentStrong, foregroundColor: du.onAccent, minimumSize: const Size(64, 52), textStyle: text.labelLarge,
+        backgroundColor: du.accentStrong, foregroundColor: du.onAccent, disabledBackgroundColor: du.sunk, disabledForegroundColor: du.inkTertiary,
+        minimumSize: const Size(64, 52), textStyle: text.labelLarge,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
     outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
         foregroundColor: du.ink, side: hairline, minimumSize: const Size(64, 52), textStyle: text.labelLarge, backgroundColor: du.surface,
@@ -109,15 +110,17 @@ ThemeData buildTheme(Brightness b) {
 
 /// A resting card: surface, hairline ring, soft lift.
 class Panel extends StatelessWidget {
-  const Panel({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.sunk = false});
+  const Panel({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.sunk = false, this.clip = false});
   final Widget child;
   final EdgeInsets padding;
   final VoidCallback? onTap;
   final bool sunk;
+  final bool clip; // children stay inside the rounded corners
   @override
   Widget build(BuildContext context) {
     final du = context.du;
     final box = Container(
+      clipBehavior: clip ? Clip.antiAlias : Clip.none,
       decoration: BoxDecoration(
         color: sunk ? du.sunk : du.surface,
         borderRadius: BorderRadius.circular(14),

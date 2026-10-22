@@ -11,6 +11,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../data/library.dart';
 import 'motion.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 enum Stage { strength, power, stability, cardio, stretching, warmup, rest }
 
@@ -100,7 +101,7 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
     final (word, line) = _words[widget.stage]!;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(14)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         AnimatedSwitcher(
           duration: m(context, durSlow),
@@ -582,25 +583,15 @@ class HowToSteps extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final du = context.du;
     final steps = split(text);
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Icon(LucideIcons.bookOpen, size: 16, color: du.inkSecondary),
-        const SizedBox(width: 8),
-        Text('How to do it', style: t.labelLarge?.copyWith(color: du.inkSecondary)),
-      ]),
+      const Subhead('How to do it', icon: LucideIcons.bookOpen),
       const SizedBox(height: 12),
       for (var i = 0; i < steps.length; i++)
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 24, height: 24,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: du.accentSubtle, shape: BoxShape.circle, border: Border.all(color: du.accentLine, width: 0.6)),
-              child: Text('${i + 1}', style: t.labelMedium?.copyWith(color: du.accentText, letterSpacing: 0)),
-            ),
+            StepNumber(i + 1),
             const SizedBox(width: 12),
             Expanded(child: Padding(padding: const EdgeInsets.only(top: 2), child: Text(steps[i], style: t.bodyMedium))),
           ]),

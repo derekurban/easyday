@@ -105,7 +105,7 @@ class _SessionScreenState extends State<SessionScreen> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        titleSpacing: 8,
+        titleSpacing: 6,
         // the clock and its pause button are one target: tap anywhere on them
         title: Tooltip(message: paused ? 'Resume' : 'Pause', child: Material(color: Colors.transparent, child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -133,7 +133,7 @@ class _SessionScreenState extends State<SessionScreen> {
             step: _view == null ? _step(session, cur) : 'view $_view',
             forward: _viewForward,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
               children: _view != null
                   ? _viewBody(context, session, items, view.blocks[_view!], now)
                   : cur.lifting ? _liftBody(context, session, items, cur, now) : _blockBody(context, session, items, cur, now),
@@ -237,11 +237,13 @@ class _SessionScreenState extends State<SessionScreen> {
         SizedBox(height: 14, child: LayoutBuilder(builder: (context, c) {
           final geo = _stripGeometry(view, c.maxWidth);
           final bl = view.blocks;
-          Color fill(StripBlock b) => switch (b.state) {
-                BlockState.done => du.accentLine,
-                BlockState.skipped => du.sunk,
-                BlockState.now => du.accentStrong,
-                BlockState.ahead => du.line,
+          // done is a clear green short of the one under way; skipped is hollow, a ring with nothing in it
+          final done = Color.lerp(du.accentLine, du.accentStrong, 0.5)!;
+          BoxDecoration deco(StripBlock b, double r) => switch (b.state) {
+                BlockState.done => BoxDecoration(color: done, borderRadius: BorderRadius.circular(r)),
+                BlockState.skipped => BoxDecoration(border: Border.all(color: du.line, width: 1), borderRadius: BorderRadius.circular(r)),
+                BlockState.now => BoxDecoration(color: du.accentStrong, borderRadius: BorderRadius.circular(r)),
+                BlockState.ahead => BoxDecoration(color: du.line, borderRadius: BorderRadius.circular(r)),
               };
           // a block is 8 tall; the one under way 14; the one looked at keeps its own fill, 8 tall, inside a gap and a
           // bright outline that together come to the same 14
@@ -258,12 +260,10 @@ class _SessionScreenState extends State<SessionScreen> {
                   child: AnimatedContainer(
                     duration: m(context, durBase),
                     padding: looked ? const EdgeInsets.all(1.5) : EdgeInsets.zero,
-                    decoration: BoxDecoration(
-                      color: looked ? Colors.transparent : fill(bl[i]),
-                      borderRadius: BorderRadius.circular(7),
-                      border: looked ? Border.all(color: du.accentStrong, width: 1.5) : null,
-                    ),
-                    child: looked ? DecoratedBox(decoration: BoxDecoration(color: fill(bl[i]), borderRadius: BorderRadius.circular(4))) : null,
+                    decoration: looked
+                        ? BoxDecoration(borderRadius: BorderRadius.circular(7), border: Border.all(color: du.accentStrong, width: 1.5))
+                        : deco(bl[i], 7),
+                    child: looked ? DecoratedBox(decoration: deco(bl[i], 4)) : null,
                   ),
                 );
               }(),
@@ -441,17 +441,27 @@ class _SessionScreenState extends State<SessionScreen> {
     // every exercise with a set in, the most recent first
     DateTime lastAt(SessionExercise e) => e.sets.where((s) => s.attempted && s.at != null).fold(DateTime(0), (a, s) => s.at!.isAfter(a) ? s.at! : a);
     final worked = [for (final e in x.exercises) if (e.attempted.isNotEmpty) e]..sort((a, b) => lastAt(b).compareTo(lastAt(a)));
+    // the set just done, in the slot the target row has while lifting, so the picture stays put between the two
+    final last = lastLogged(x, cur);
+    final e = last == null ? null : x.exercises[last.ex];
+    final reps = last == null ? null : setOf(x, last).reps;
+    final weight = e == null ? null : _weightOf(e);
     return [
       Text('Rest', style: t.headlineLarge),
+      if (e != null) ...[
+        const SizedBox(height: 8),
+        Row(children: [
+          Icon(LucideIcons.check, size: 16, color: du.accentText),
+          const SizedBox(width: 8),
+          Expanded(child: Text('Set ${last!.set + 1} of ${e.sets.length} done · $reps ${e.exercise.repLabel == 'seconds' ? 'seconds' : reps == 1 ? 'rep' : 'reps'}', style: t.titleMedium?.copyWith(color: du.accentText))),
+          if (weight != null) Text(weight, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
+        ]),
+      ],
       const SizedBox(height: 16),
       const StageArt(stage: Stage.rest),
       if (worked.isNotEmpty) ...[
         const SizedBox(height: 24),
-        Row(children: [
-          Icon(LucideIcons.activity, size: 16, color: du.inkSecondary),
-          const SizedBox(width: 8),
-          Text('Recent performance', style: t.labelLarge?.copyWith(color: du.inkSecondary)),
-        ]),
+        const Subhead('Recent performance', icon: LucideIcons.activity),
         const SizedBox(height: 12),
         for (var i = 0; i < worked.length; i++)
           Padding(padding: const EdgeInsets.only(bottom: 8), child: _performanceTile(context, worked[i], now, latest: i == 0)),
@@ -487,11 +497,10 @@ class _SessionScreenState extends State<SessionScreen> {
         ]),
       ]));
     // the most recent: a green bar down its left edge, inside the rounded corners
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(14), border: Border.all(color: du.line, width: 0.6)),
-      child: latest ? Stack(children: [content, Positioned(left: 0, top: 0, bottom: 0, width: 4, child: ColoredBox(color: du.accentStrong))]) : content,
+    return Panel(
+      padding: EdgeInsets.zero,
+      clip: true,
+      child: SizedBox(width: double.infinity, child: latest ? Stack(children: [content, Positioned(left: 0, top: 0, bottom: 0, width: 4, child: ColoredBox(color: du.accentStrong))]) : content),
     );
   }
 
@@ -517,7 +526,7 @@ class _SessionScreenState extends State<SessionScreen> {
       Text(_name(x, cur), style: t.headlineLarge),
       const SizedBox(height: 8),
       Row(children: [
-        Icon(LucideIcons.target, size: 16, color: du.inkSecondary),
+        Icon(LucideIcons.timer, size: 16, color: du.inkSecondary),
         const SizedBox(width: 8),
         Text('About ${cur.minutes} minutes', style: t.titleMedium),
       ]),
@@ -578,7 +587,7 @@ class _SessionScreenState extends State<SessionScreen> {
       if (b.set != null && setOf(x, b.set!).attempted) {
         child = KeyedSubtree(key: ValueKey('change $_view'), child: _fixWheel(context, x, b.set!, back));
       } else {
-        child = KeyedSubtree(key: ValueKey('look $_view'), child: SizedBox(width: double.infinity, height: 60,
+        child = KeyedSubtree(key: ValueKey('look $_view'), child: SizedBox(width: double.infinity, height: 56,
             child: OutlinedButton.icon(onPressed: back, icon: const Icon(LucideIcons.undo2, size: 18), label: const Text('Return'))));
       }
     } else if (cur.lifting && liftingSet(x, cur) != null) {
@@ -617,6 +626,7 @@ class _SessionScreenState extends State<SessionScreen> {
           ? KeyedSubtree(key: ValueKey('ready ${cur.key}'), child: button)
           : Column(key: ValueKey('ready+fix ${cur.key} ${last!.ex} ${last.set}'), mainAxisSize: MainAxisSize.min, children: [
               Align(alignment: Alignment.centerLeft, child: TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: du.inkSecondary),
                 onPressed: () { HapticFeedback.selectionClick(); setState(() { _viewForward = false; _view = lastBlock; }); },
                 icon: const Icon(LucideIcons.pencil, size: 14),
                 label: const Text('Fix the last set'),
@@ -710,7 +720,7 @@ class _SessionScreenState extends State<SessionScreen> {
       Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(LucideIcons.timer, size: 22, color: du.accentText),
         const SizedBox(width: 8),
-        Text(mmss(s.toDouble()), style: t.displayLarge?.copyWith(fontSize: 40, color: du.ink, fontFeatures: const [FontFeature.tabularFigures()])),
+        Text(mmss(s.toDouble()), style: t.headlineLarge?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
       ]),
       const SizedBox(height: 10),
       _HoldButton(key: const ValueKey('watch done'), label: enabled ? label : 'Paused', caption: _holdCaption, hold: m(context, hold), onPressed: !enabled ? null : () {
@@ -842,7 +852,7 @@ class _SessionScreenState extends State<SessionScreen> {
             ])))),
         ])),
         Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(
-          onPressed: () => setState(() => toRate = []), icon: const Icon(LucideIcons.chevronRight, size: 18), label: const Text('Continue')))),
+          onPressed: () => setState(() => toRate = []), iconAlignment: IconAlignment.end, icon: const Icon(LucideIcons.chevronRight, size: 18), label: const Text('Continue')))),
       ]),
     );
   }
@@ -889,15 +899,14 @@ class _SessionScreenState extends State<SessionScreen> {
             ],
             if (items.any((it) => it.lifting)) ...[
               const SizedBox(height: 18),
-              Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('On exercises', style: t.labelMedium),
-                const SizedBox(height: 8),
-                _splitBar(context, split.lifting, split.rest),
-              ])),
+              const Subhead('On exercises', icon: LucideIcons.activity),
+              const SizedBox(height: 10),
+              Panel(child: _splitBar(context, split.lifting, split.rest)),
             ],
             if (items.isNotEmpty) ...[
               const SizedBox(height: 18),
-              const SectionHeader('Where the time went', icon: LucideIcons.timer),
+              const Subhead('Where the time went', icon: LucideIcons.timer),
+              const SizedBox(height: 10),
               Panel(padding: const EdgeInsets.fromLTRB(16, 6, 16, 6), child: Column(children: [
                 for (final it in items) () {
                   final secs = itemEnd(session, it, end).difference(session.itemStarts[it.key]!).inSeconds.toDouble();
@@ -1015,7 +1024,7 @@ class _HoldButtonState extends State<_HoldButton> with SingleTickerProviderState
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final ready = _c.isCompleted;
-    return SizedBox(width: double.infinity, height: 60, child: AnimatedSwitcher(
+    return SizedBox(width: double.infinity, height: 56, child: AnimatedSwitcher(
       duration: m(context, durSlow),
       switchInCurve: easeSettle,
       switchOutCurve: easeOut,
@@ -1028,7 +1037,7 @@ class _HoldButtonState extends State<_HoldButton> with SingleTickerProviderState
               child: Stack(fit: StackFit.expand, children: [
                 ColoredBox(color: du.sunk),
                 AnimatedBuilder(animation: _c, builder: (context, _) => Align(alignment: Alignment.centerLeft, child: FractionallySizedBox(
-                  widthFactor: Curves.easeInOut.transform(_c.value), heightFactor: 1, child: ColoredBox(color: du.accentSubtle)))),
+                  widthFactor: Curves.easeInOut.transform(_c.value), heightFactor: 1, child: ColoredBox(color: Color.lerp(du.accentSubtle, du.accentLine, 0.5)!)))),
                 Center(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(LucideIcons.wind, size: 18, color: du.accentText),
                   const SizedBox(width: 8),
@@ -1083,7 +1092,7 @@ class _RepWheelState extends State<_RepWheel> {
       const SizedBox(height: 8),
       SizedBox(height: 72, child: Stack(alignment: Alignment.center, children: [
         Container(width: _extent, height: 72, decoration: BoxDecoration(
-          color: du.accentSubtle, borderRadius: BorderRadius.circular(14), border: Border.all(color: du.accentLine, width: 1))),
+          color: du.accentSubtle, borderRadius: BorderRadius.circular(14), border: Border.all(color: du.accentLine, width: 1.5))),
         ShaderMask(
           shaderCallback: (r) => const LinearGradient(colors: [Color(0x00000000), Color(0xFF000000), Color(0xFF000000), Color(0x00000000)], stops: [0, 0.22, 0.78, 1]).createShader(r),
           blendMode: BlendMode.dstIn,
@@ -1115,7 +1124,7 @@ class _RepWheelState extends State<_RepWheel> {
       ])),
       const SizedBox(height: 12),
       Row(children: [
-        if (widget.onCancel != null) Expanded(child: SizedBox(height: 60, child: widget.cancelIcon == null
+        if (widget.onCancel != null) Expanded(child: SizedBox(height: 56, child: widget.cancelIcon == null
             ? OutlinedButton(onPressed: widget.onCancel, child: Text(widget.cancelLabel, maxLines: 1, overflow: TextOverflow.ellipsis))
             : OutlinedButton.icon(onPressed: widget.onCancel, icon: Icon(widget.cancelIcon, size: 18), label: Text(widget.cancelLabel, maxLines: 1, overflow: TextOverflow.ellipsis)))),
         if (widget.onCancel != null && widget.onLog != null) const SizedBox(width: 8),
@@ -1173,10 +1182,11 @@ class _MoveListState extends State<_MoveList> {
           alignment: Alignment.topCenter,
           child: _open != i
               ? const SizedBox(width: double.infinity)
-              : Padding(padding: const EdgeInsets.fromLTRB(48, 0, 16, 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              : Padding(padding: const EdgeInsets.fromLTRB(15, 0, 16, 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   for (final (k, step) in HowToSteps.split(widget.rows[i].how).indexed)
                     Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      SizedBox(width: 20, child: Text('${k + 1}.', style: t.bodyMedium?.copyWith(color: du.accentText))),
+                      StepNumber(k + 1, size: 20),
+                      const SizedBox(width: 13),
                       Expanded(child: Text(step, style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
                     ])),
                 ])),
