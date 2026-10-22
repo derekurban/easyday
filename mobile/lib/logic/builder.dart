@@ -33,6 +33,7 @@ void expirePauses(AppState s, DateTime now) {
     final ex = exerciseById[id];
     final st = s.ex[id];
     if (ex != null && st != null) {
+      relayLevel(s, ex, st);
       st.rung = max(ex.loaded ? floorRung(s, ex, st) : 0, st.rung - 1);
       st.topRun = 0;
       st.shortRun = 0;
@@ -50,6 +51,8 @@ void applyDecay(AppState s, DateTime now) {
     if (st.lastDoneAt == null) continue;
     final periods = daysBetween(st.lastDoneAt!, now) ~/ (weeks * 7);
     if (periods <= st.decayPeriodsApplied) continue;
+    final ex = exerciseById[entry.key];
+    if (ex != null) relayLevel(s, ex, st);
     for (var i = st.decayPeriodsApplied; i < periods; i++) {
       if (st.rung > st.startRung) {
         st.rung--;

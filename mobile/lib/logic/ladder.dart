@@ -28,11 +28,42 @@ RepRange rangeFor(AppState s, Exercise ex, RepRange base) {
   return r;
 }
 
-/// The level steps the max by enough that even the lightest band moves by one plate step.
-double levelStepKg(AppState s, Exercise ex) => stepKg(s, ex) / lightestShare;
+/// The reps a loaded exercise's level is kept in: the card's range if set, else the first range the goal gives its
+/// difficulty. Here one level is exactly one plate step; other reps carry the weight to them.
+RepRange homeRange(AppState s, Exercise ex) => todayRange(s, ex);
 
-/// The estimated max at a rung.
-double maxFor(AppState s, Exercise ex, ExerciseState st, int rung) => st.baseKg! + rung * levelStepKg(s, ex);
+/// A weight for one rep range carried to another by the percent-of-max table: what lifts the same at those reps.
+double carryLoad(double kg, RepRange from, RepRange to) => kg * pctFor(to) / pctFor(from);
+
+/// A loaded level's grid: the weight at level 0 in the home reps, and the plate step each level adds. When the home
+/// reps or the step have changed since the grid was laid (the goal, the card's reps, the unit), or the level was saved
+/// before version 7 as an estimated max, it is laid again around the current level, so that level keeps its weight.
+({double base, double step}) levelGrid(AppState s, Exercise ex, ExerciseState st) {
+  final step = stepKg(s, ex), home = homeRange(s, ex);
+  if (st.baseReps == home && st.baseStepKg == step) return (base: st.baseKg!, step: step);
+  final now = st.baseReps == null || st.baseStepKg == null
+      ? (st.baseKg! + st.rung * step / lightestShare) * pctFor(home) // the old max stepped by a plate over the lightest share
+      : carryLoad(st.baseKg! + st.rung * st.baseStepKg!, st.baseReps!, home);
+  return (base: max(ex.platesAdded ? 0.0 : step, roundStep(now, step)) - st.rung * step, step: step);
+}
+
+/// Keep the saved grid in step with [levelGrid], before anything moves the level.
+void relayLevel(AppState s, Exercise ex, ExerciseState st) {
+  if (!ex.loaded || st.baseKg == null) return;
+  final g = levelGrid(s, ex, st);
+  st.baseKg = g.base;
+  st.baseReps = homeRange(s, ex);
+  st.baseStepKg = g.step;
+}
+
+/// A level's working weight in the home reps: the base plus one plate step a level.
+double levelKg(AppState s, Exercise ex, ExerciseState st, int rung) {
+  final g = levelGrid(s, ex, st);
+  return g.base + rung * g.step;
+}
+
+/// The estimated max behind a level, by the percent-of-max table. Shown on the card; seeds a related exercise.
+double maxFor(AppState s, Exercise ex, ExerciseState st, int rung) => levelKg(s, ex, st, rung) / pctFor(homeRange(s, ex));
 
 /// Smallest practical step for a loaded exercise, in kilograms, following the display unit.
 double stepKg(AppState s, Exercise ex) {
@@ -50,12 +81,14 @@ String fmtKg(AppState s, double kg, {String suffix = ''}) {
   return '${kg % 1 == 0 ? kg.toInt() : kg.toStringAsFixed(1)} kg$suffix';
 }
 
-/// Load in kilograms for a loaded exercise at a rung, for a rep band (today's by default). Never below one step, except
-/// on a Smith machine or landmine, where 0 is the empty bar. For the assisted machine this is what the user lifts
-/// ([assistRefKg] less the assistance); [fmtLoad] shows it as assistance.
+/// Load in kilograms for a loaded exercise at a rung, for a rep band (the home reps by default): the level's weight in
+/// the home reps, carried to other reps and rounded to a plate step. Never below one step, except on a Smith machine
+/// or landmine, where 0 is the empty bar. For the assisted machine this is what the user lifts ([assistRefKg] less the
+/// assistance); [fmtLoad] shows it as assistance.
 double loadFor(AppState s, Exercise ex, ExerciseState st, int rung, [RepRange? range]) {
-  final step = stepKg(s, ex);
-  return max(ex.platesAdded ? 0 : step, roundStep(maxFor(s, ex, st, rung) * pctFor(range ?? todayRange(s, ex)), step));
+  final step = stepKg(s, ex), home = homeRange(s, ex);
+  final kg = levelKg(s, ex, st, rung);
+  return max(ex.platesAdded ? 0 : step, range == null || range == home ? kg : roundStep(carryLoad(kg, home, range), step));
 }
 
 /// The assisted machine's loads are assistance, which falls as the user gets stronger. The app works with what the user
@@ -115,11 +148,11 @@ String fmtLevelStep(AppState s, Exercise ex, {Iterable<String>? equipment}) {
   return fmtKg(s, stepKg(s, ex), suffix: ex.each && !ex.platesAdded ? _perWhat(usedOption(ex, eq)) : '');
 }
 
-/// Lowest rung a loaded exercise can hold: the lightest band is still one plate step.
+/// Lowest rung a loaded exercise can hold: one plate step in the home reps, or the empty bar where 0 is one.
 int floorRung(AppState s, Exercise ex, ExerciseState st) {
   if (!ex.loaded) return 0;
-  final minMax = stepKg(s, ex) / lightestShare;
-  return (-(st.baseKg! - minMax) / levelStepKg(s, ex)).ceil();
+  final g = levelGrid(s, ex, st);
+  return (((ex.platesAdded ? 0 : g.step) - g.base) / g.step).round();
 }
 
 /// Highest rung at a location, or null when the ladder has no top (loaded, or loading gear present).
@@ -175,13 +208,17 @@ int difficultyInPlay(Exercise ex, ExerciseState? st) {
 /// muscle, the most practised one.
 ExerciseState ensureState(AppState s, Exercise ex) {
   final existing = s.ex[ex.id];
-  if (existing != null) return existing;
+  if (existing != null) {
+    relayLevel(s, ex, existing);
+    return existing;
+  }
   final exp = experienceIndex(s.profile!.experience);
   final seed = seedSeconds(s, ex, todayRange(s, ex));
   late final ExerciseState st;
   if (ex.loaded) {
-    // the library's starting weights are middle-band working weights; the level is the max behind them
-    var base = startLoad(ex, exp) / pctFor(middleReps);
+    // the library's starting weights are middle-band working weights; the level keeps them in the home reps
+    final home = homeRange(s, ex), step = stepKg(s, ex);
+    var base = carryLoad(startLoad(ex, exp), middleReps, home);
     ExerciseState? knownSt;
     Exercise? known;
     final group = ex.primary.isEmpty ? null : muscleGroup(ex.primary.first);
@@ -195,7 +232,7 @@ ExerciseState ensureState(AppState s, Exercise ex) {
       final ratio = (maxFor(s, known, knownSt!, knownSt.rung) / (startLoad(known, exp) / pctFor(middleReps))).clamp(0.5, 2.0);
       base = base * ratio;
     }
-    st = ExerciseState(rung: 0, startRung: 0, baseKg: roundStep(base, stepKg(s, ex)), secPerSet: seed);
+    st = ExerciseState(rung: 0, startRung: 0, baseKg: max(ex.platesAdded ? 0 : step, roundStep(base, step)), baseReps: home, baseStepKg: step, secPerSet: seed);
   } else {
     final start = ex.ladder!.start[exp].clamp(0, ex.ladder!.variants.length - 1);
     st = ExerciseState(rung: start, startRung: start, secPerSet: seed);
@@ -216,9 +253,12 @@ void setRung(AppState s, Exercise ex, int rung) {
   st.bestTotal = 0;
 }
 
-/// Convert a load for a rep band (today's by default) into a rung for a loaded exercise.
-int rungForLoad(AppState s, Exercise ex, ExerciseState st, double kg, [RepRange? range]) =>
-    ((kg / pctFor(range ?? todayRange(s, ex)) - st.baseKg!) / levelStepKg(s, ex)).round();
+/// Convert a load for a rep band (the home reps by default) into the nearest rung for a loaded exercise.
+int rungForLoad(AppState s, Exercise ex, ExerciseState st, double kg, [RepRange? range]) {
+  final g = levelGrid(s, ex, st), home = homeRange(s, ex);
+  final kgHome = range == null || range == home ? kg : carryLoad(kg, range, home);
+  return ((kgHome - g.base) / g.step).round();
+}
 
 /// Warm-up suggestion for a loaded exercise at cost 4 or 5: two lighter sets, never logged.
 List<Warmup> warmupsFor(AppState s, Exercise ex, double load) {

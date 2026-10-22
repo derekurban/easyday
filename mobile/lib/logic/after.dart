@@ -190,7 +190,7 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
           st.bestTotal = 0;
           downs.add('${ex.name} drops a level next time: ${cut ? 'cut short' : _reps(e.sets)}.');
         } else {
-          stays.add('${ex.name}: ${cut ? 'cut short, counts as a miss' : 'short of the floor (${_reps(e.sets)})'}. ${s.settings.stepDown - st.shortRun} more and it drops a level.');
+          stays.add('${ex.name}: ${cut ? 'cut short, counts as a miss' : 'short of the floor (${_reps(e.sets)})'}. ${switch (s.settings.stepDown - st.shortRun) { 1 => 'One', 2 => 'Two', 3 => 'Three', final n => '$n' }} more and it drops a level.');
         }
       case Verdict.hold:
         st.topRun = 0;

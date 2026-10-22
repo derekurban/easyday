@@ -143,14 +143,16 @@ Ranked by how directly each one causes quitting.
    the same muscle, edit today's level (or save it as the new level), move an exercise up or down, leave an
    exercise out today, pick the warm-up, leave out cardio or stretching today, and choose one at a time or
    circuit. Start starts the clock. There is no separate plan screen.
-5. **Do the workout.** A strip of the whole workout runs across the top, warm-up to stretching, and one thing
-   is asked at a time. A set is lifting from the moment the user says I'm ready (Start, for the first) until
-   the reps go in: one tap on the exercise's range, with one button for anything under it and one for
-   anything over. Then the guide says rest, with the planned rest as a guide only, and I'm ready starts the
-   next set, or after the last set the next item. Warm-up sets for loaded hard exercises are shown in the
-   rest before them and never logged. The last set can be corrected by tapping it. A later item on the strip
-   can be jumped to; anything passed over is skipped and not judged. Ending the workout early asks one tap
-   for the reason: out of energy, out of time, or something hurts, or none.
+5. **Do the workout.** A strip of the whole workout runs across the top, a thin block for every set and every
+   timed part, and one thing is asked at a time. A set is lifting from the moment the user says I'm ready
+   (Start, for the first) until the reps go in: scroll a wheel to the number and log it. Then it is rest, the
+   strip shows a dot in the gap after that set, and I'm ready starts the next set, or after the last set the
+   next item. Each step arrives before it can be pressed (the button after the reps fills with "Take a
+   breather"), so a quick second tap never skips what comes next. Warm-up sets for loaded hard exercises are
+   shown in the rest before them and never logged. The last set can be corrected by tapping it. A later item on
+   the strip can be jumped to; anything passed over is skipped and not judged. The workout can be paused: every
+   clock stops and nothing counts while it is. Ending the workout early asks one tap for the reason: out of
+   energy, out of time, or something hurts, or none.
 6. **Finish.** An optional one-tap rating: easy, right, or too much. Skipping is fine. Then the workout is
    logged: one line about what changed, the time it took against the plan, and where it went, lifting and
    rest.
@@ -324,7 +326,7 @@ three steps:
 - Bodyweight ceiling cleared for a few workouts in a row: difficulty in play goes down one step. The
   exercise that was the hard thing becomes the medium thing, and the next version is offered as the new
   hard thing.
-- Loaded exercises mostly move by level instead. Difficulty stays, the max climbs.
+- Loaded exercises mostly move by level instead. Difficulty stays, the weight climbs.
 
 **Spare minutes learn.** Two "too much" feel taps in the last four workouts flip "more exercises" to
 cardio; two "easy" taps flip cardio back. A tap after a plain stop does not count. No question is ever
@@ -350,8 +352,9 @@ minutes real, as in section 7, so it follows the user as they get faster or star
 
 Two words, used the same way everywhere. **Lifting** is a set, from I'm ready until the reps are in.
 **Rest** is everything between sets: catching your breath, moving to the next exercise and setting it up.
-During a workout the current exercise shows its set time and rest so far; afterwards the log shows them for
-the workout and for each exercise, in minutes or, by a setting, as a share of the time. Rest never gates
+During a workout no clock is shown but the workout's own, so nobody is hurried through a set or a rest;
+afterwards the log shows set time and rest for the workout and for each exercise, in minutes or, by a setting,
+as a share of the time. Rest never gates
 anything: it counts up, the planned rest (by the exercise's reps, or ninety seconds between rounds of a
 circuit) is only a guide, and the next set starts when the user says so. A setting can make the planned
 rest a timer that starts the next set by itself.
@@ -444,9 +447,10 @@ These cannot be changed by any setting.
 - A level never moves on an easy workout, or on a workout stopped for energy or time.
 - Energy and time change what is in the workout and how much, never the level.
 - A decayed level never falls below where the exercise started.
-- Rest never gates anything: it counts up, and the next set starts when the user says so. Only the warm-up,
-  cardio and stretching blocks count down, and the planned rest starts a set by itself only when the user
-  turns that on.
+- Rest never gates anything, and no clock hurries anyone: the next set starts when the user says so, the
+  warm-up and stretching show their minutes as a guide and end when the user moves on, and the planned rest
+  starts a set by itself only when the user turns that on. Cardio is the one exception: its time is the work, so
+  a stopwatch counts it up and its minutes are logged when the user moves on.
 - At most one reminder per person-state transition.
 - The app may refuse "more". It never refuses "less".
 
@@ -523,11 +527,13 @@ level. An energy or time they default to does not count as the user's choice.
 - **Words.** "Progression" and "level" are explained in plain words on first run, on every exercise card, and
   wherever a level can be edited: the progression is every step an exercise can get harder by, the level is the
   step you are on. No screen assumes the user knows the vocabulary.
-- **During.** The strip of the whole workout, the item under way marked lifting or resting; the current
-  exercise, its level and its sets; a guide that says what to do now ("Go give it your best!", or "Rest up
-  and let us know when you're ready" with the planned rest and what comes next); the set time and rest so
-  far. At the bottom one thing at a time: the reps while lifting, then I'm ready. A stop button that asks
-  one thing: energy, time, pain, or no reason.
+- **During.** The workout clock and a pause button at the top, End on the right. The strip of the whole
+  workout, with the exercise under way on its left and the next on its right. The current exercise: its name
+  and weight, or for a bodyweight exercise the version as its name; the rep target; its sets. A small looping
+  picture of the kind of work (strength, power, stability, cardio, stretching, the warm-up, rest) with a line
+  on how to do it, then the how-to as numbered steps. No set timer and no rest countdown. At the bottom one
+  thing at a time: the rep wheel while lifting, then I'm ready. End asks one thing: energy, time, pain, or no
+  reason.
 - **After.** The optional feel tap, then one line about what changed, such as "bench steps up next time",
   the time against the plan, and set time and rest for the workout and each item.
 - **Exercise card.** Level, average time per set, best total at this level, cost with override, and the

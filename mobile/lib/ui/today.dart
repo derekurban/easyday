@@ -580,6 +580,8 @@ class _TodayScreenState extends State<TodayScreen> {
       final t = Theme.of(context).textTheme;
       final du = context.du;
       final floor = ex.loaded ? floorRung(s, ex, st) : 0;
+      // a loaded level is a weight in its home reps, one plate step a level; a day with other reps shows its own weight too
+      final home = ex.loaded ? homeRange(s, ex) : e.range;
       Widget alt(Alternative x) {
         final a = x.exercise;
         final ast = s.ex[a.id];
@@ -630,7 +632,8 @@ class _TodayScreenState extends State<TodayScreen> {
                     duration: m(context, durBase),
                     transitionBuilder: (c, a) => FadeTransition(opacity: a, child: ScaleTransition(scale: Tween(begin: 0.95, end: 1.0).animate(a), child: c)),
                     child: Column(key: ValueKey(rung), children: [
-                      Text(rungLabel(s, ex, st, rung, e.range), style: t.titleMedium?.copyWith(color: rung == st.rung ? du.ink : du.accentText), textAlign: TextAlign.center),
+                      Text(rungLabel(s, ex, st, rung, home), style: t.titleMedium?.copyWith(color: rung == st.rung ? du.ink : du.accentText), textAlign: TextAlign.center),
+                      if (home != e.range) Text('${rungLabel(s, ex, st, rung, e.range)} today, for ${rangeText(e.range)}', style: t.bodySmall, textAlign: TextAlign.center),
                       Text(rungNote(ex, rung) ?? (rung == st.rung ? 'your level' : rung > st.rung ? '${rung - st.rung} up from your level' : '${st.rung - rung} down from your level'), style: t.bodySmall, textAlign: TextAlign.center),
                     ]),
                   )),

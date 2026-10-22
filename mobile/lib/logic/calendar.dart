@@ -120,7 +120,7 @@ String minutesOfDay(int m) => '${(m ~/ 60).toString().padLeft(2, '0')}:${(m % 60
       lines.add('${e.exercise.name} · ${levelOf(e)} · ${reps.isEmpty ? 'not started' : reps}');
     }
   } else {
-    lines.add(x.kind == 'cardio' ? 'Cardio, ${x.minutes} minutes' : 'Stretching: ${routines[x.routine]?.name ?? x.routine}');
+    lines.add(x.kind == 'cardio' ? 'Cardio, ${x.cardioDone ?? x.minutes} minutes' : 'Stretching: ${routines[x.routine]?.name ?? x.routine}');
   }
   if (x.note.isNotEmpty) lines.add(x.note);
   return (title: title, description: lines.join('\n'));

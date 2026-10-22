@@ -13,9 +13,10 @@ Every exercise has the same shape:
   light holds), **cardio** (kept going for time) or **stretching** (range of motion). Only strength exercises are
   picked for a workout's muscles; the types and their tests are in `EXERCISE_DATA.md`.
 - **How it gets harder.** One of two ways.
-  - *By weight.* The level is an estimated max; each level is one step stronger. The weight on the bar
-    follows the reps the goal likes: heavier and fewer, or lighter and more, are the same level. Barbells,
-    dumbbells, machines, kettlebells. The description stays the same; only the number moves.
+  - *By weight.* The level is the working weight in the exercise's home reps, and each level is one plate
+    step: 155 lb, 160, 165. A day with other reps carries it there, heavier and fewer or lighter and more,
+    the same level. Barbells, dumbbells, machines, kettlebells. The description stays the same; only the
+    number moves.
   - *By version.* A written list of levels, easiest first: wall push-ups, incline, knee, full, feet
     elevated, archer. Bodyweight and bands. Where loading gear exists (vest, dip belt, backpack), levels
     above the top version add weight to it.

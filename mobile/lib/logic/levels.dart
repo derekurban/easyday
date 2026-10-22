@@ -1,5 +1,7 @@
 // The level history of one exercise, so progress can be felt as weights and versions rather than counted as levels.
 // Pure functions over the state; nothing here changes a level.
+import 'dart:math';
+
 import '../data/library.dart';
 import '../data/model.dart';
 import 'ladder.dart';
@@ -29,7 +31,11 @@ List<LevelPoint> levelHistory(AppState s, Exercise ex) {
       if (e.nextLevel) rung -= 1;
       if (e.intent == 'light' && !ex.loaded) rung += 1;
       if (e.lightened) rung += 1;
-      out.add(LevelPoint(at: x.endedAt!, rung: rung, label: rungLabel(s, ex, st, rung, range), kg: ex.loaded ? loadFor(s, ex, st, rung, range) : null));
+      // a loaded level reads from the weight that day, carried to today's reps: rungs from before a grid was laid again
+      // (the goal, the unit, version 7) no longer name the same weight
+      final usual = e.usualLoadKg;
+      final kg = !ex.loaded ? null : usual == null ? loadFor(s, ex, st, rung, range) : max(ex.platesAdded ? 0.0 : stepKg(s, ex), roundStep(carryLoad(usual, e.range, range), stepKg(s, ex)));
+      out.add(LevelPoint(at: x.endedAt!, rung: rung, label: kg == null ? rungLabel(s, ex, st, rung, range) : fmtLoad(s, ex, kg), kg: kg));
     }
   }
   for (var i = 0; i < out.length - 1; i++) {

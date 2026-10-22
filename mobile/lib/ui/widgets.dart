@@ -86,6 +86,40 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
+/// A section's name in the body of a screen read at arm's length: an icon and a sentence-case label.
+class Subhead extends StatelessWidget {
+  const Subhead(this.text, {super.key, this.icon});
+  final String text;
+  final IconData? icon;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Row(children: [
+      if (icon != null) ...[Icon(icon, size: 16, color: du.inkSecondary), const SizedBox(width: 8)],
+      Expanded(child: Text(text, style: t.labelLarge?.copyWith(color: du.inkSecondary))),
+    ]);
+  }
+}
+
+/// A step's number in a small tinted circle.
+class StepNumber extends StatelessWidget {
+  const StepNumber(this.n, {super.key, this.size = 24});
+  final int n;
+  final double size;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Container(
+      width: size, height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: du.accentSubtle, shape: BoxShape.circle, border: Border.all(color: du.accentLine, width: 0.6)),
+      child: Text('$n', style: (size < 24 ? t.labelSmall : t.labelMedium)?.copyWith(color: du.accentText, letterSpacing: 0)),
+    );
+  }
+}
+
 /// A round tinted icon.
 class IconBadge extends StatelessWidget {
   const IconBadge(this.icon, {super.key, this.size = 40, this.accent = false});
