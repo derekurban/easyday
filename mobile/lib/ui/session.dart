@@ -327,8 +327,8 @@ class _SessionScreenState extends State<SessionScreen> {
     return curIdx + 1 < items.length ? _short(x, items[curIdx + 1]) : null;
   }
 
-  /// Where each block sits: sets of one exercise 2 px apart, different parts 7 px apart, and the gap being rested in
-  /// opened to 16 px for its dot.
+  /// Where each block sits: every block the same width, sets of one exercise 2 px apart, different parts 7 px apart,
+  /// and the gap being rested in opened to 16 px for its dot.
   static ({List<double> left, List<double> width, double gapLeft, double gapWidth}) _stripGeometry(StripView view, double w) {
     final bl = view.blocks;
     const restGap = 16.0;
@@ -338,14 +338,13 @@ class _SessionScreenState extends State<SessionScreen> {
     for (var i = 0; i < bl.length - 1; i++) { gaps += gapAfter(i); }
     final trail = view.between && view.at == bl.length - 1 ? restGap : 0.0;
     gaps += trail;
-    final total = bl.fold(0.0, (a, b) => a + max(1.0, b.weight));
-    final unit = max(0.0, w - gaps) / max(1.0, total);
+    final unit = max(0.0, w - gaps) / max(1, bl.length);
     final left = <double>[], width = <double>[];
     var x = lead;
     var gapLeft = 0.0, gapWidth = restGap;
     for (var i = 0; i < bl.length; i++) {
       left.add(x);
-      width.add(max(1.0, bl[i].weight) * unit);
+      width.add(unit);
       x += width.last;
       if (view.between && i == view.at) gapLeft = x;
       if (i < bl.length - 1) x += gapAfter(i);
@@ -456,22 +455,15 @@ class _SessionScreenState extends State<SessionScreen> {
     // every exercise with a set in, the most recent first
     DateTime lastAt(SessionExercise e) => e.sets.where((s) => s.attempted && s.at != null).fold(DateTime(0), (a, s) => s.at!.isAfter(a) ? s.at! : a);
     final worked = [for (final e in x.exercises) if (e.attempted.isNotEmpty) e]..sort((a, b) => lastAt(b).compareTo(lastAt(a)));
-    // the set just done, in the slot the target row has while lifting, so the picture stays put between the two
-    final last = lastLogged(x, cur);
-    final e = last == null ? null : x.exercises[last.ex];
-    final reps = last == null ? null : setOf(x, last).reps;
-    final weight = e == null ? null : _weightOf(e);
     return [
       Text('Rest', style: t.headlineLarge),
-      if (e != null) ...[
-        const SizedBox(height: 8),
-        Row(children: [
-          Icon(LucideIcons.check, size: 16, color: du.accentText),
-          const SizedBox(width: 8),
-          Expanded(child: Text('Set ${last!.set + 1} of ${e.sets.length} done · $reps ${e.exercise.repLabel == 'seconds' ? 'seconds' : reps == 1 ? 'rep' : 'reps'}', style: t.titleMedium?.copyWith(color: du.accentText))),
-          if (weight != null) Text(weight, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
-        ]),
-      ],
+      const SizedBox(height: 8),
+      // one calm line in the slot the target row has while lifting, so the picture stays put between the two
+      Row(children: [
+        Icon(LucideIcons.wind, size: 16, color: du.inkSecondary),
+        const SizedBox(width: 8),
+        Expanded(child: Text('Nothing counts down. Go when you are ready.', style: t.titleMedium?.copyWith(color: du.inkSecondary))),
+      ]),
       const SizedBox(height: 16),
       const StageArt(stage: Stage.rest),
       if (worked.isNotEmpty) ...[

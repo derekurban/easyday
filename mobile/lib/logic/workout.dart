@@ -250,14 +250,13 @@ void resumeWorkout(Session s, DateTime now) {
 
 enum BlockState { done, skipped, now, ahead }
 
-/// One block of the strip: a set, or a timed item (warm-up, cardio, stretching). Its weight is its share of the planned
-/// time, set and rest together.
+/// One block of the strip: a set, or a timed item (warm-up, cardio, stretching). Every block is one step and takes the
+/// same room: the strip shows how many steps, not how long each takes.
 class StripBlock {
-  const StripBlock(this.item, this.kind, this.weight, this.state, {this.set});
+  const StripBlock(this.item, this.kind, this.state, {this.set});
   final String item;
   final ItemKind kind;
   final SetRef? set;
-  final double weight;
   final BlockState state;
 }
 
@@ -282,7 +281,7 @@ StripView stripView(Session s) {
       final started = s.itemStarts[it.key] != null;
       final state = k == curIdx ? BlockState.now : k < curIdx ? (started ? BlockState.done : BlockState.skipped) : BlockState.ahead;
       if (k == curIdx) at = blocks.length;
-      blocks.add(StripBlock(it.key, it.kind, it.minutes * 60.0, state));
+      blocks.add(StripBlock(it.key, it.kind, state));
       continue;
     }
     final rounds = it.exercises.fold(0, (a, i) => max(a, s.exercises[i].sets.length));
@@ -291,7 +290,7 @@ StripView stripView(Session s) {
       final x = setOf(s, r);
       final state = x.lifting ? BlockState.now : x.attempted ? BlockState.done : k < curIdx || s.skipped.contains(r.ex) ? BlockState.skipped : BlockState.ahead;
       if (k == curIdx && x.lifting) at = blocks.length;
-      blocks.add(StripBlock(it.key, it.kind, s.exercises[r.ex].secPerSet, state, set: r));
+      blocks.add(StripBlock(it.key, it.kind, state, set: r));
     }
     if (k == curIdx && liftingSet(s, it) == null) {
       // resting: in the gap after the last set logged, or before the item's first block
