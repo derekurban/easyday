@@ -434,6 +434,12 @@ class _SessionScreenState extends State<SessionScreen> {
           Expanded(child: Text('$which · ${log.reps} ${seconds ? 'seconds' : log.reps == 1 ? 'rep' : 'reps'}', style: t.titleMedium?.copyWith(color: du.accentText))),
           if (weight != null) Text(weight, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
         ])
+      else if (b.state == BlockState.ahead && weight != null)
+        // still to come: the weight to load on the right, as it will be shown under way
+        Row(children: [
+          Expanded(child: otherwise),
+          Text(weight, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
+        ])
       else
         otherwise,
       const SizedBox(height: 16),
