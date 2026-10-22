@@ -68,7 +68,7 @@ class _SessionScreenState extends State<SessionScreen> {
     final store = context.store;
     final x = store.state.active;
     if (x == null || note != null || finishing || x.pausedAt != null) return;
-    if (x.type != 'lift') { if (x.kind == 'cardio') setState(() {}); return; } // the cardio stopwatch
+    if (x.type != 'lift') { setState(() {}); return; } // the clock, and cardio's stopwatch
     final cur = currentItem(x);
     final now = store.now;
     if (cur != null) {
@@ -90,8 +90,6 @@ class _SessionScreenState extends State<SessionScreen> {
     if (session.exercises.isEmpty) return _feel(context, session);
     final paused = session.pausedAt != null;
     final now = session.pausedAt ?? store.now;
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
     final items = workoutItems(session);
     final cur = currentItem(session) ?? items.first;
     final curIdx = items.indexWhere((x) => x.key == cur.key);
@@ -103,24 +101,7 @@ class _SessionScreenState extends State<SessionScreen> {
     final at = _view == null ? live : places.indexOf(_view!);
 
     return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        titleSpacing: 6,
-        // the clock and its pause button are one target: tap anywhere on them
-        title: Tooltip(message: paused ? 'Resume' : 'Pause', child: Material(color: Colors.transparent, child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => _pause(context, session, !paused),
-          child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 14, 8), child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(paused ? LucideIcons.play : LucideIcons.pause, size: 18, color: du.inkSecondary),
-            const SizedBox(width: 10),
-            Text(paused ? '${mmss(elapsed)} paused' : mmss(elapsed), style: t.titleMedium?.copyWith(color: du.inkSecondary, fontFeatures: const [FontFeature.tabularFigures()])),
-          ])),
-        ))),
-        actions: [
-          IconButton(tooltip: 'End workout', onPressed: () => _stop(context, session), icon: Icon(LucideIcons.x, size: 22, color: du.inkSecondary)),
-          const SizedBox(width: 4),
-        ],
-      ),
+      appBar: _bar(context, session, paused: paused, elapsed: elapsed, endTip: 'End workout', onEnd: () => _stop(context, session)),
       body: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 2, 16, 16), child: _strip(context, session, items, curIdx, now, view, places)),
         // swipe the body to look back at what is done or ahead at what is coming
@@ -193,6 +174,40 @@ class _SessionScreenState extends State<SessionScreen> {
     setState(() {});
   }
 
+
+  /// The app bar of a workout under way: the clock and its pause button are one target, tap anywhere on them; and an
+  /// X at the end.
+  PreferredSizeWidget _bar(BuildContext context, Session x, {required bool paused, required double elapsed, required String endTip, required VoidCallback onEnd}) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return AppBar(
+      automaticallyImplyLeading: false,
+      titleSpacing: 6,
+      title: Tooltip(message: paused ? 'Resume' : 'Pause', child: Material(color: Colors.transparent, child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _pause(context, x, !paused),
+        child: Padding(padding: const EdgeInsets.fromLTRB(10, 8, 14, 8), child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(paused ? LucideIcons.play : LucideIcons.pause, size: 18, color: du.inkSecondary),
+          const SizedBox(width: 10),
+          Text(paused ? '${mmss(elapsed)} paused' : mmss(elapsed), style: t.titleMedium?.copyWith(color: du.inkSecondary, fontFeatures: const [FontFeature.tabularFigures()])),
+        ])),
+      ))),
+      actions: [
+        IconButton(tooltip: endTip, onPressed: onEnd, icon: Icon(LucideIcons.x, size: 22, color: du.inkSecondary)),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
+  /// The dock's box: the band along the bottom that holds the one control.
+  Widget _dockBox(BuildContext context, Widget child) {
+    final du = context.du;
+    return Container(
+      padding: EdgeInsets.fromLTRB(16, 10, 16, 14 + MediaQuery.of(context).padding.bottom),
+      decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
+      child: child,
+    );
+  }
 
   // ---- the strip ----
 
@@ -636,10 +651,7 @@ class _SessionScreenState extends State<SessionScreen> {
             ]);
     }
     // the height glides from one control to the next while the old fades into the new
-    return Container(
-      padding: EdgeInsets.fromLTRB(16, 10, 16, 14 + MediaQuery.of(context).padding.bottom),
-      decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
-      child: AnimatedSize(
+    return _dockBox(context, AnimatedSize(
         duration: m(context, durSlow),
         curve: Curves.easeInOutCubic,
         alignment: Alignment.bottomCenter,
@@ -654,8 +666,7 @@ class _SessionScreenState extends State<SessionScreen> {
           transitionBuilder: (child, a) => FadeTransition(opacity: a, child: child),
           child: child,
         ),
-      ),
-    );
+      ));
   }
 
   /// The numbers a wheel offers for an exercise: every rep, or every five seconds for a long hold.
@@ -941,40 +952,49 @@ class _SessionScreenState extends State<SessionScreen> {
     return 'set time ${a(lifting)} · rest ${a(rest)}';
   }
 
+  /// A cardio or stretching day on its own: the same screen as a lift's timed part. The clock and its pause button,
+  /// an X that leaves without logging, the title with about how long, the stage picture, then the cardio's how-to with
+  /// a word on how hard it felt, or the moves in an accordion. The dock is the stopwatch, or Done.
   Widget _move(BuildContext context, Session session) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final store = context.store;
     final isCardio = session.kind == 'cardio';
     final r = isCardio ? null : routines[session.routine]!;
+    final c = isCardio ? cardio.firstWhere((c) => c.id == session.cardio, orElse: () => cardio.last) : null;
+    final paused = session.pausedAt != null;
+    final now = session.pausedAt ?? store.now;
+    final elapsed = session.startedAt == null ? 0.0 : now.difference(session.startedAt!).inSeconds.toDouble();
+    final minutes = isCardio ? session.minutes ?? 0 : (r!.seconds / 60).ceil();
+    final how = isCardio ? exerciseById[c!.id]?.how ?? '' : '';
     return Scaffold(
-      appBar: AppBar(title: Text(session.name), actions: [TextButton.icon(onPressed: () => store.update((s) => s.active = null), icon: const Icon(LucideIcons.x, size: 16), label: const Text('Cancel'))]),
+      appBar: _bar(context, session, paused: paused, elapsed: elapsed, endTip: 'Leave without logging', onEnd: () => store.update((s) => s.active = null)),
       body: Column(children: [
-        Expanded(child: ListView(padding: const EdgeInsets.all(20), children: [
-          Row(children: [IconBadge(moveIcon(session.kind), accent: true, size: 48), const SizedBox(width: 12), Expanded(child: Text(isCardio ? cardio.firstWhere((c) => c.id == session.cardio, orElse: () => cardio.last).name : r!.name, style: t.headlineLarge))]),
+        Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 20), children: [
+          Text(isCardio ? c!.name : r!.name, style: t.headlineLarge),
           const SizedBox(height: 8),
+          Row(children: [
+            Icon(LucideIcons.timer, size: 16, color: du.inkSecondary),
+            const SizedBox(width: 8),
+            Text('About $minutes minutes', style: t.titleMedium),
+          ]),
+          const SizedBox(height: 16),
+          StageArt(stage: isCardio ? Stage.cardio : Stage.stretching),
+          const SizedBox(height: 24),
           if (isCardio) ...[
-            Text('${session.minutes} minutes at a pace you could talk through. Nothing counts down.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
-            const SizedBox(height: 24),
-            const SectionHeader('How hard did it feel', icon: LucideIcons.gauge),
+            const Subhead('How hard did it feel', icon: LucideIcons.gauge),
             ChoiceRow<int>(value: effort ?? 2, options: const {1: 'Light', 2: 'Steady', 3: 'Hard'}, icons: const {1: LucideIcons.feather, 2: LucideIcons.activity, 3: LucideIcons.flame}, onChanged: (v) => setState(() => effort = v)),
-          ] else ...[
-            Text('About ${(r!.seconds / 60).ceil()} minutes, each move for its own time. Breathe.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
-            const SizedBox(height: 12),
-            for (var i = 0; i < r.moves.length; i++)
-              ListTile(contentPadding: EdgeInsets.zero, leading: const IconBadge(LucideIcons.stretchHorizontal, size: 36), title: Text(r.moves[i].n), subtitle: Text('${r.moves[i].seconds} seconds. ${r.moves[i].how}')),
-          ],
+            if (how.isNotEmpty) ...[const SizedBox(height: 16), HowToSteps(how)],
+          ] else
+            _MoveList([for (final mv in r!.moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)], icon: LucideIcons.stretchHorizontal),
         ])),
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-          decoration: BoxDecoration(color: du.bg, border: Border(top: BorderSide(color: du.line, width: 0.6))),
-          child: isCardio
-              ? _stopwatch(context, seconds: session.startedAt == null ? 0 : store.now.difference(session.startedAt!).inSeconds, label: 'Done', onDone: (minutes) {
-                  store.update((_) => session.cardioDone = minutes);
-                  _finish(context, session, null);
-                })
-              : SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(onPressed: () => _finish(context, session, null), icon: const Icon(LucideIcons.check, size: 20), label: const Text('Done'))),
-        ),
+        _dockBox(context, isCardio
+            ? _stopwatch(context, seconds: now.difference(session.startedAt ?? now).inSeconds, label: 'Done', enabled: !paused, onDone: (minutes) {
+                store.update((_) => session.cardioDone = minutes);
+                _finish(context, session, null);
+              })
+            : SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(
+                onPressed: paused ? null : () => _finish(context, session, null), icon: const Icon(LucideIcons.check, size: 18), label: Text(paused ? 'Paused' : 'Done')))),
       ]),
     );
   }
