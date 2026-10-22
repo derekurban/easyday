@@ -16,7 +16,8 @@ const equipmentGroups = [
   EquipmentGroup('Stations', {
     'squat_rack': 'Squat rack', 'bench_flat': 'Flat bench', 'bench_incline': 'Incline bench', 'pullup_bar': 'Pull-up bar',
     'dip_bars': 'Dip bars', 'box': 'Box or step', 'landmine': 'Landmine', 'bench_decline': 'Decline bench',
-    'preacher_bench': 'Preacher bench',
+    'preacher_bench': 'Preacher bench', 'bench_flat_rack': 'Flat bench with rack', 'bench_incline_rack': 'Incline bench with rack',
+    'bench_decline_rack': 'Decline bench with rack',
   }),
   EquipmentGroup('Machines', {
     'cable': 'Cable station', 'lat_pulldown': 'Lat pulldown', 'row_machine': 'Seated row machine',

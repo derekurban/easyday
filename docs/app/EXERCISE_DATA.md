@@ -177,6 +177,11 @@ loads in `altLoad.dumbbell`; the farmer's carry is the reverse, per hand in `sta
 The ids are `equipmentGroups` in `mobile/lib/data/library.dart`; `gen_library.py` rejects any other. The vocabulary is
 deliberately coarse for everyday gyms: one cable station, one calf machine, one chest press machine.
 
+A barbell bench press needs a way to rack the bar: a bench with the rack built in (`bench_flat_rack`,
+`bench_incline_rack`, `bench_decline_rack`) or a squat rack with a loose bench of that angle. Each bench press lists both
+setups, the built-in one first. They are separate ids per angle so a flat bench with a rack and a loose incline bench do
+not add up to an incline barbell press.
+
 ## Duplicates
 
 Two entries are the same exercise when they train the same thing with the same movement and the difference is a setup

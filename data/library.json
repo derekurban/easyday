@@ -17,6 +17,10 @@
    "needs": [
     [
      "barbell",
+     "bench_flat_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_flat"
     ]
@@ -28,7 +32,7 @@
     40.0
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Lie on the bench, feet flat, bar over your chest. Lower it to your mid-chest with elbows about 45 degrees from your body, then press it back up.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Lie on the bench, feet flat, bar over your chest. Lower it to your mid-chest with elbows about 45 degrees from your body, then press it back up.",
    "rank": 1
   },
   {
@@ -341,6 +345,10 @@
    "needs": [
     [
      "barbell",
+     "bench_incline_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_incline"
     ]
@@ -352,7 +360,7 @@
     40.0
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Bench at a low incline, bar over your upper chest. Lower it to just below the collarbones, then press back up.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Bench at a low incline, bar over your upper chest. Lower it to just below the collarbones, then press back up.",
    "rank": 14
   },
   {
@@ -682,6 +690,10 @@
    "needs": [
     [
      "barbell",
+     "bench_decline_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_decline"
     ]
@@ -693,7 +705,7 @@
     35
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Secure your legs on a decline bench and hold the bar above your lower chest. Lower it under control with your forearms upright, then press back up while keeping your shoulders on the bench.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Secure your legs on a decline bench and hold the bar above your lower chest. Lower it under control with your forearms upright, then press back up while keeping your shoulders on the bench.",
    "rank": 100
   },
   {
@@ -2420,6 +2432,10 @@
    "needs": [
     [
      "barbell",
+     "bench_flat_rack"
+    ],
+    [
+     "barbell",
      "squat_rack",
      "bench_flat"
     ]
@@ -2431,7 +2447,7 @@
     40.0
    ],
    "stepKg": 2.5,
-   "how": "Set the rack safeties just below where the bar touches your chest. Hands just inside shoulder width. Lower the bar to your lower chest with elbows tucked, then press up.",
+   "how": "Set the safeties just below where the bar touches your chest, or have a spotter if your bench has none. Hands just inside shoulder width. Lower the bar to your lower chest with elbows tucked, then press up.",
    "rank": 15
   },
   {
@@ -8784,7 +8800,8 @@
    "needs": [
     []
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Pick anything that gets you moving and breathing a little harder: a brisk walk, a bike, dancing or stairs. Keep it steady, at a pace where you can still talk in full sentences."
   },
   {
    "id": "backward_sled_drag",
@@ -8816,7 +8833,8 @@
      "bike"
     ]
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Set the saddle so your knee stays slightly bent at the bottom of each pedal stroke. Pick a resistance you can turn at a smooth, steady cadence while you could still hold a conversation."
   },
   {
    "id": "walk",
@@ -8826,7 +8844,8 @@
    "needs": [
     []
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Stand tall, swing your arms and take quick, comfortable steps. Go fast enough that your breathing picks up but you could still chat."
   },
   {
    "id": "run",
@@ -8836,7 +8855,8 @@
    "needs": [
     []
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Run slowly enough that you could talk in short sentences the whole way. Keep your steps short and light, landing under your hips, and walk for a minute whenever you need to."
   },
   {
    "id": "elliptical",
@@ -8848,7 +8868,8 @@
      "elliptical"
     ]
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Stand tall with light hands on the handles and push through your whole foot. Set a resistance that keeps your stride smooth and even at a pace you could talk at."
   },
   {
    "id": "forward_sled_drag",
@@ -8880,7 +8901,8 @@
      "jump_rope"
     ]
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Hold the handles at hip height and turn the rope with your wrists, not your arms. Jump just high enough to clear it and land softly on the balls of your feet; when you trip, take a breath and start again."
   },
   {
    "id": "kb_sumo_high_pull",
@@ -8981,7 +9003,8 @@
      "rower"
     ]
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Push with your legs first, then lean back a little and pull the handle to your lower ribs; come back in the reverse order, arms, body, then legs. Keep each stroke smooth at a pace you could still talk at."
   },
   {
    "id": "sled_push",
@@ -9013,7 +9036,8 @@
      "stairs"
     ]
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Stand tall and step with your whole foot, holding the rails lightly for balance rather than leaning on them. Choose a speed you can keep steady while still being able to talk."
   },
   {
    "id": "treadmill",
@@ -9025,7 +9049,8 @@
      "treadmill"
     ]
    ],
-   "rank": 100
+   "rank": 100,
+   "how": "Clip on the safety key and start the belt slowly before you step on. Walk or jog at a steady speed where you can still talk; an incline of 1 to 2 percent feels most like walking outside."
   },
   {
    "id": "chest_opening_arm_swings",

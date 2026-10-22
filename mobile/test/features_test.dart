@@ -652,9 +652,39 @@ void main() {
       final seen = loadFor(s, ex, st, st.rung);
       final j = jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>;
       j['version'] = 3;
-      (j['ex'] as Map)['bb_squat']['baseKg'] = seen; // old data: the base was the working weight itself
+      final old = (j['ex'] as Map)['bb_squat'] as Map;
+      old['baseKg'] = seen; // old data: the base was the working weight itself, with no grid of its own
+      old.remove('baseReps');
+      old.remove('baseStep');
       final back = AppState.fromJson(j);
       expect(loadFor(back, ex, back.ex['bb_squat']!, st.rung), closeTo(seen, stepKg(s, ex)));
+    });
+
+    test('a level saved before version 7, an estimated max, keeps its weight, then moves one plate step a level', () {
+      final s = fresh()..units = 'lb';
+      final ex = exerciseById['deadlift']!;
+      const oldMax = 100.0, rung = 4;
+      final j = jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>;
+      j['version'] = 6;
+      (j['ex'] as Map)['deadlift'] = ExerciseState(rung: rung, startRung: 0, baseKg: oldMax, secPerSet: 120).toJson();
+      final back = AppState.fromJson(j);
+      final st = back.ex['deadlift']!;
+      final step = stepKg(back, ex), home = homeRange(back, ex);
+      // the old maths: a level stepped the max by a plate step over the lightest share, and the reps took a share of it
+      final seen = max(step, roundStep((oldMax + rung * step / lightestShare) * pctFor(home), step));
+      expect(loadFor(back, ex, st, rung), closeTo(seen, 1e-9));
+      for (var r = rung; r < rung + 6; r++) {
+        expect(loadFor(back, ex, st, r + 1) - loadFor(back, ex, st, r), closeTo(step, 1e-9), reason: '5 lb a level, none skipped');
+      }
+      ensureState(back, ex);
+      expect(st.baseReps, home);
+      expect(st.baseStepKg, step);
+      expect(loadFor(back, ex, st, rung), closeTo(seen, 1e-9));
+      // a unit switch lays the grid again around the level: the weight holds to a step, and a level is 2.5 kg
+      back.units = 'kg';
+      expect(loadFor(back, ex, st, rung), closeTo(seen, stepKg(back, ex)));
+      expect(loadFor(back, ex, st, rung + 1) - loadFor(back, ex, st, rung), closeTo(2.5, 1e-9));
+      expect(st.rung, rung);
     });
 
     test('old goal data with a main and an accessory range migrates to three bands and a lift count', () {
