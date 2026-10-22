@@ -176,6 +176,17 @@ void main() {
     });
   });
 
+  test('a done set can be changed afterwards; a set not done is left alone', () {
+    final s = fresh();
+    final x = build(s, warmup: 0);
+    startWorkout(s, x, t0);
+    enterReps(x, 10, at(30));
+    fixSet(x, (ex: 0, set: 0), 7);
+    expect(x.exercises[0].sets[0].reps, 7);
+    fixSet(x, (ex: 0, set: 1), 9);
+    expect(x.exercises[0].sets[1].reps, isNull);
+  });
+
   test('the cardio minutes logged are kept', () {
     final s = fresh();
     final x = build(s);

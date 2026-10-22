@@ -88,3 +88,24 @@ class PageSwitcher extends StatelessWidget {
         child: KeyedSubtree(key: ValueKey(index), child: child),
       );
 }
+
+/// A full swipe between steps: going [forward] the new [step] comes in from the right as the old one goes out to the
+/// left, both moving together; going back, the other way. Clipped to its own box.
+class StepSwiper extends StatelessWidget {
+  const StepSwiper({super.key, required this.step, required this.child, this.forward = true});
+  final Object step;
+  final Widget child;
+  final bool forward;
+  @override
+  Widget build(BuildContext context) => ClipRect(child: AnimatedSwitcher(
+        duration: m(context, const Duration(milliseconds: 380)),
+        switchInCurve: Curves.easeInOutCubic,
+        switchOutCurve: Curves.easeInOutCubic,
+        layoutBuilder: (current, previous) => Stack(alignment: Alignment.topCenter, children: [...previous, ?current]),
+        transitionBuilder: (child, anim) => SlideTransition(
+          position: Tween(begin: Offset((child.key == ValueKey(step)) == forward ? 1 : -1, 0), end: Offset.zero).animate(anim),
+          child: child,
+        ),
+        child: KeyedSubtree(key: ValueKey(step), child: child),
+      ));
+}

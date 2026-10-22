@@ -135,6 +135,12 @@ void enterReps(Session s, int reps, DateTime now) {
   if (last != null) setOf(s, last).reps = reps;
 }
 
+/// Change a done set's reps afterwards, from looking back at it. A set not done is left alone.
+void fixSet(Session s, SetRef r, int reps) {
+  final x = setOf(s, r);
+  if (x.attempted) x.reps = reps;
+}
+
 /// Jump ahead to a later item. The items passed over are skipped: none of their exercises is judged.
 void jumpTo(Session s, String key, DateTime now) {
   final items = workoutItems(s);

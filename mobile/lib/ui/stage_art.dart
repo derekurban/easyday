@@ -46,6 +46,9 @@ const _periods = {
 /// The height every drawing has to fit in.
 const stageArtHeight = 116.0;
 
+/// The gap between a picture and the line of words under it; the workout strip uses it under its blocks too.
+const stageCaptionGap = 10.0;
+
 /// The stage's picture, and under it its word on the left and its tagline on the right.
 class StageArt extends StatefulWidget {
   const StageArt({super.key, required this.stage});
@@ -109,7 +112,7 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
                 _Ink(du.accentStrong, du.accentLine, du.accentSubtle, du.line, du.inkTertiary, du.ink))),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: stageCaptionGap),
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(word, style: t.labelLarge?.copyWith(color: du.inkSecondary)),
           const SizedBox(width: 16),
