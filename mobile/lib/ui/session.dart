@@ -459,7 +459,7 @@ class _SessionScreenState extends State<SessionScreen> {
       Text('Rest', style: t.headlineLarge),
       const SizedBox(height: 8),
       // one calm line in the slot the target row has while lifting, so the picture stays put between the two
-      Text("Take a breath and proceed when you're ready", style: t.titleMedium?.copyWith(color: du.inkSecondary)),
+      Text('Take a breath', style: t.titleMedium?.copyWith(color: du.inkSecondary)),
       const SizedBox(height: 16),
       const StageArt(stage: Stage.rest),
       if (worked.isNotEmpty) ...[
