@@ -16,7 +16,10 @@ val keyProps = Properties().apply {
 android {
     namespace = "app.easyday"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // CI names the NDK and CMake its runner image already ships (ciNdkVersion, ciCmakeVersion) instead of
+    // downloading Flutter's defaults on every build. The NDK only strips prebuilt libraries, so the APK is identical.
+    ndkVersion = providers.gradleProperty("ciNdkVersion").getOrElse(flutter.ndkVersion)
+    providers.gradleProperty("ciCmakeVersion").orNull?.let { externalNativeBuild { cmake { version = it } } }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
