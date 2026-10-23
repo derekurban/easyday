@@ -12,7 +12,6 @@ import '../integrations.dart';
 import '../logic/update.dart';
 import 'app.dart';
 import 'theme.dart';
-import 'widgets.dart';
 
 /// The newer release waiting to be installed, or null when the app is current or nothing has been checked yet. Set by
 /// the AutoUpdater on launch and resume and by the Updates panel; the tab dot, the banner and the section dot follow it.
@@ -111,8 +110,8 @@ class _UpdatePanelState extends State<UpdatePanel> {
     };
     return Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        const IconBadge(LucideIcons.download, size: 36),
-        const SizedBox(width: 16),
+        Icon(LucideIcons.download, size: 18, color: du.inkSecondary),
+        const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Version $version${info?.flavor == 'staging' ? ' · staging' : ''}', style: t.bodyLarge),
           Text(status, style: t.bodySmall),
