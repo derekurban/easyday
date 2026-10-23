@@ -1,5 +1,6 @@
-// Catalog: every exercise with levels (strength, power, stability) grouped by the chosen index, with its level and cost.
-// Search, a few filters, tap for the card. Stretches and cardio live in the stretching routines and the cardio choices.
+// Catalog: every exercise with levels (strength, power, stability) grouped by the chosen index. One line per
+// exercise: the name, its level when practised, the difficulty word at the right. Search, a few filters, tap for the
+// card. Stretches and cardio live in the stretching routines and the cardio choices.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -48,21 +49,23 @@ class _CatalogScreenState extends State<CatalogScreen> {
         });
     final rows = <Widget>[];
     for (final g in groups) {
-      rows.add(Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 2), child: Row(children: [
-        Text(g.key, style: t.labelLarge?.copyWith(color: du.accentText)),
+      rows.add(Padding(padding: const EdgeInsets.fromLTRB(16, 18, 16, 4), child: Row(children: [
+        Text(g.key, style: t.labelLarge?.copyWith(color: du.inkSecondary)),
         const SizedBox(width: 8),
         Text('${g.value.length}', style: t.labelSmall?.copyWith(color: du.inkTertiary)),
       ])));
       for (final e in g.value) {
         final st = s.ex[e.id];
-        rows.add(ListTile(
-          leading: IconBadge(exerciseIcon(e), size: 36, accent: st != null),
+        final practised = st != null && st.appearances > 0;
+        final type = e.isStrength || ix == ExerciseIndex.type ? null : typeLabel[e.type]!.toLowerCase();
+        rows.add(Row1(
+          icon: exerciseIcon(e),
           title: Text(e.name),
-          subtitle: Text('${e.isStrength || ix == ExerciseIndex.type ? '' : '${typeLabel[e.type]!.toLowerCase()} · '}${st == null ? (e.loaded ? 'by weight · not yet practised' : '${e.ladder!.variants.length} levels · not yet practised') : 'level: ${rungLabel(s, e, st, st.rung)}'}'),
-          trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
-            DifficultyTag(difficultyInPlay(e, st)),
-            if (st != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(mmss(st.secPerSet), style: t.labelSmall)),
-          ]),
+          subtitle: practised ? [rungLabel(s, e, st, st.rung), '${mmss(st.secPerSet)} a set', ?type].join(' · ') : type,
+          trailing: DifficultyTag(difficultyInPlay(e, st)),
+          chevron: false,
+          dense: true,
+          muted: !practised,
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseCardScreen(e.id))),
         ));
       }
@@ -102,7 +105,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 }
 
-/// "Grouped by muscle group" with a sheet to pick another index. Writes the setting.
+/// "By muscle group" with a sheet to pick another index. Writes the setting.
 class IndexButton extends StatelessWidget {
   const IndexButton({super.key, this.onChanged});
   final VoidCallback? onChanged;
@@ -111,6 +114,7 @@ class IndexButton extends StatelessWidget {
     final ix = context.store.state.settings.index;
     return TextButton.icon(
       onPressed: () async { await pickIndex(context); onChanged?.call(); },
+      style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
       icon: const Icon(LucideIcons.layers, size: 16),
       label: Text('By ${indexLabel[ix]!.toLowerCase()}'),
     );
@@ -120,14 +124,12 @@ class IndexButton extends StatelessWidget {
 Future<void> pickIndex(BuildContext context) async {
   final store = context.store;
   final picked = await showSheet<ExerciseIndex>(context, Builder(builder: (context) {
-    final t = Theme.of(context).textTheme;
     final current = store.state.settings.index;
     return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 4), child: Text('Group exercises by', style: t.titleMedium)),
-      Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 8), child: Text('Only the headings change. The workout is built the same way whichever you pick.', style: t.bodySmall)),
+      const SheetHeader('Group exercises by', subtitle: 'Only the headings change.', icon: LucideIcons.layers),
       for (final ix in ExerciseIndex.values)
         ListTile(
-          leading: Icon(ix == current ? LucideIcons.circleCheck : LucideIcons.circle, size: 20),
+          leading: Icon(ix == current ? LucideIcons.circleCheck : LucideIcons.circle, size: 20, color: ix == current ? context.du.accentStrong : context.du.line),
           title: Text(indexLabel[ix]!), subtitle: Text(indexBlurb[ix]!),
           selected: ix == current,
           onTap: () => Navigator.pop(context, ix),
