@@ -1,5 +1,5 @@
-// Exercise card (UI.md): the name, what it works and its difficulty, the stage picture, the level as facts, how to do
-// it as steps, the progression as a track, the reps it trains at, the difficulty with its override, and your word.
+// Exercise card (UI.md): the name, what it works and its difficulty, the stage picture, the muscles it works on the
+// figure (primary and secondary), the level as facts, how to do it as steps, the progression as a track, the reps it trains at, the difficulty with its override, and your word.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -9,6 +9,7 @@ import '../data/model.dart';
 import '../logic/ladder.dart';
 import '../logic/selection.dart';
 import 'app.dart';
+import 'exercise_muscles.dart';
 import 'stage_art.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -53,6 +54,11 @@ class ExerciseCardScreen extends StatelessWidget {
         const SizedBox(height: 16),
         StageArt(stage: stageOf(ex.type)),
         const SizedBox(height: 24),
+        if (ex.primary.isNotEmpty || ex.secondary.isNotEmpty) ...[
+          const SectionHeader('Muscles', icon: LucideIcons.personStanding),
+          Panel(child: ExerciseMuscles(ex)),
+          const SizedBox(height: 24),
+        ],
         const SectionHeader('Level', icon: LucideIcons.circleDot),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [

@@ -543,8 +543,8 @@ level. An energy or time they default to does not count as the user's choice.
   reason.
 - **After.** The optional feel tap, then one line about what changed, such as "bench steps up next time",
   the time against the plan, and set time and rest for the workout and each item.
-- **Exercise card.** The name, what it works and its difficulty, the stage picture, the level as facts
-  (average time per set, best total at this level, workouts, the max), the how-to as numbered steps, the
+- **Exercise card.** The name, what it works and its difficulty, the stage picture, the muscles on the body
+  figure (primary green, secondary paler, each list named beside it), the level as facts (average time per set, best total at this level, workouts, the max), the how-to as numbered steps, the
   progression as a track, the reps it trains at, the difficulty with its override, and your word.
 - **Exercises.** The library grouped by the chosen index, one line per exercise: the name, its level and set
   time when practised, the difficulty word at the right.
