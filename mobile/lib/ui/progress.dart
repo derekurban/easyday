@@ -1,5 +1,6 @@
-// Progress: workouts per month, the muscles worked lately and when, level growth per exercise with a page that shows
-// it as weights and versions over time. Nothing that resets to zero.
+// Progress (UI.md): workouts per month and days active as facts, the strain muscle map with a strip per muscle, each
+// muscle's rhythm, level growth per exercise with a page that shows it as weights and versions over time, and the
+// recent workouts. Nothing that resets to zero.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -42,6 +43,7 @@ class ProgressScreen extends StatelessWidget {
     const days = 14;
     final strip = muscleMap.strainPointsTimeline(now.subtract(const Duration(days: days - 1)), now);
     final g = s.goal!;
+    final active = daysActiveThisMonth(s, now);
     return Scaffold(
       appBar: AppBar(title: const Text('Progress')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
@@ -67,69 +69,64 @@ class ProgressScreen extends StatelessWidget {
               ])),
           ]),
         )),
-        const SizedBox(height: 12),
-        Panel(child: Row(children: [
-          Expanded(child: StatTile(label: 'Days active this month', value: '${daysActiveThisMonth(s, now)}', icon: LucideIcons.circleCheck)),
-          Expanded(child: StatTile(label: 'Workouts, all time', value: '${s.sessions.length}', icon: LucideIcons.history)),
+        const SizedBox(height: 10),
+        Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Facts([
+          Fact('$active day${active == 1 ? '' : 's'} active this month', icon: LucideIcons.circleCheck),
+          Fact('${s.sessions.length} workout${s.sessions.length == 1 ? '' : 's'} all time', icon: LucideIcons.history),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         SectionHeader('Muscle strain', icon: LucideIcons.personStanding, trailing: TextButton.icon(
           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StrainTimelineScreen())),
+          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
           icon: const Icon(LucideIcons.history, size: 16),
           label: const Text('Timeline'),
         )),
         Panel(padding: EdgeInsets.zero, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Row(children: [
-            MuscleFigure(highlight: current.byMuscle, height: 190, keyLabels: const ['high strain', 'medium', 'low'], expandable: true, title: 'Muscle strain',
+          Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 10), child: Row(children: [
+            MuscleFigure(highlight: current.byMuscle, height: 150, keyLabels: const ['high strain', 'medium', 'low'], expandable: true, title: 'Muscle strain',
                 detail: (h) => _muscleDetail(h, muscleMap, current, last, now)),
             const SizedBox(width: 16),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_muscleSummary(current, muscleMap, now), style: t.bodyMedium),
-              const SizedBox(height: 8),
-              Text('Strain points: each set gives its main muscles 0.20 and its helpers 0.10, up to 1.00 a workout. A third comes off each day, one shade at a time.', style: t.bodySmall),
-            ])),
+            Expanded(child: Text(_muscleSummary(current, muscleMap, now), style: t.bodyMedium)),
           ])),
           const Divider(),
           for (final g in trackedMuscles)
-            Padding(padding: const EdgeInsets.fromLTRB(16, 7, 16, 7), child: Row(children: [
-              SizedBox(width: 120, child: Text(muscleTitle(g), style: t.bodyMedium)),
-              Expanded(child: StrainStrip([for (final d in strip) d.points[g]])),
+            Padding(padding: const EdgeInsets.fromLTRB(16, 6, 16, 6), child: Row(children: [
+              SizedBox(width: 116, child: Text(muscleTitle(g), style: t.bodySmall?.copyWith(color: du.ink), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Expanded(child: StrainStrip([for (final d in strip) d.points[g]], height: 12)),
               const SizedBox(width: 10),
-              SizedBox(width: 78, child: Text(agoText(last[g], now), style: t.labelSmall?.copyWith(color: current.strainFree(g) ? null : du.ink), textAlign: TextAlign.right)),
+              SizedBox(width: 78, child: Text(agoText(last[g], now), style: t.labelSmall?.copyWith(letterSpacing: 0, color: current.strainFree(g) ? null : du.ink), textAlign: TextAlign.right)),
             ])),
           Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 12), child: Row(children: [
-            const SizedBox(width: 120),
+            const SizedBox(width: 116),
             Expanded(child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Text('$days days ago', style: t.labelSmall), Text('today', style: t.labelSmall)])),
             const SizedBox(width: 88),
           ])),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Rhythm', icon: LucideIcons.layers),
-        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Whose turn it is: active muscles come round in turn, most overdue first, and the forecast says about how often. Tap a muscle to change its tag or how often.', style: t.bodySmall),
-          const SizedBox(height: 6),
-          MuscleTags(goal: g, onChanged: () => store.update((_) {}), figure: false),
-        ])),
-        const SizedBox(height: 20),
+        Panel(padding: const EdgeInsets.symmetric(vertical: 4), child: MuscleTags(goal: g, onChanged: () => store.update((_) {}), figure: false)),
+        const SizedBox(height: 24),
         SectionHeader('Levels, last 30 days', icon: LucideIcons.trendingUp, trailing: trendGroups.isEmpty ? null : const IndexButton()),
-        Panel(padding: EdgeInsets.zero, child: Column(children: [
-          if (trendGroups.isEmpty) const ListTile(leading: IconBadge(LucideIcons.hourglass, size: 36), title: Text('Nothing yet'), subtitle: Text('Levels move after normal and hard workouts.')),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          if (trendGroups.isEmpty) const Row1(icon: LucideIcons.hourglass, title: Text('Nothing yet'), subtitle: 'Levels move after normal and hard workouts.'),
           for (final g in trendGroups) ...[
-            Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 0), child: Align(alignment: Alignment.centerLeft, child: Text(g.key, style: t.labelLarge?.copyWith(color: du.accentText)))),
+            Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 2), child: Align(alignment: Alignment.centerLeft, child: Text(g.key, style: t.labelMedium))),
             for (final e in g.value) _levelRow(context, s, e, trend[e.id]!, now),
           ],
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Recent workouts', icon: LucideIcons.history),
-        Panel(padding: EdgeInsets.zero, child: Column(children: [
-          if (recent.isEmpty) const ListTile(leading: IconBadge(LucideIcons.calendarDays, size: 36), title: Text('No workouts yet')),
-          for (final x in recent)
-            ListTile(
-              leading: IconBadge(x.type == 'lift' ? LucideIcons.dumbbell : moveIcon(x.kind), size: 36),
-              title: Text('${x.name} · ${energyLabel[x.energy]!.toLowerCase()} · ${x.timeMinutes} min${x.circuit ? ' · circuit' : ''}'),
-              subtitle: Text('${_date(x.endedAt)} · ${x.note}'),
-              isThreeLine: x.note.length > 40,
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          if (recent.isEmpty) const Row1(icon: LucideIcons.calendarDays, title: Text('No workouts yet')),
+          for (var i = 0; i < recent.length; i++) ...[
+            if (i > 0) const Divider(height: 1),
+            Row1(
+              icon: recent[i].type == 'lift' ? LucideIcons.dumbbell : moveIcon(recent[i].kind),
+              title: Text(recent[i].name, overflow: TextOverflow.ellipsis),
+              subtitle: '${_date(recent[i].endedAt)} · ${energyLabel[recent[i].energy]!.toLowerCase()} · ${recent[i].timeMinutes} min${recent[i].circuit ? ' · circuit' : ''}${recent[i].note.isEmpty ? '' : '\n${recent[i].note}'}',
+              dense: true,
             ),
+          ],
         ])),
       ]),
     );
@@ -142,19 +139,18 @@ class ProgressScreen extends StatelessWidget {
     final since = now.subtract(const Duration(days: 30));
     final from = h.where((p) => !p.at.isBefore(since)).firstOrNull ?? (h.isEmpty ? null : h.first);
     final to = h.isEmpty ? null : h.last;
-    final change = from == null || to == null ? '' : from.rung == to.rung ? to.label : '${from.label} → ${to.label}';
-    return ListTile(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseProgressScreen(e.id))),
-      leading: IconBadge(exerciseIcon(e), size: 36, accent: delta > 0),
-      title: Text(e.name),
-      subtitle: Text(change),
+    final change = from == null || to == null ? null : from.rung == to.rung ? to.label : '${from.label} → ${to.label}';
+    return Row1(
+      icon: exerciseIcon(e),
+      title: Text(e.name, overflow: TextOverflow.ellipsis),
+      subtitle: change,
+      dense: true,
       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(delta > 0 ? LucideIcons.arrowUpRight : delta < 0 ? LucideIcons.trendingDown : LucideIcons.minus, size: 16, color: delta > 0 ? du.accentText : du.inkSecondary),
         const SizedBox(width: 4),
         Text(delta > 0 ? '+$delta' : delta == 0 ? 'holding' : '$delta', style: t.labelLarge?.copyWith(color: delta > 0 ? du.accentText : du.inkSecondary)),
-        const SizedBox(width: 6),
-        Icon(LucideIcons.chevronRight, size: 16, color: du.inkTertiary),
       ]),
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseProgressScreen(e.id))),
     );
   }
 
@@ -182,7 +178,6 @@ class ProgressScreen extends StatelessWidget {
   String _date(DateTime? d) => d == null ? '' : '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
 }
 
-/// A row of days: a square per day, filled by how much that group was worked.
 /// Strain points over days, one cell a day, oldest first, each in its shade as the key draws it. [selected] outlines one.
 class StrainStrip extends StatelessWidget {
   const StrainStrip(this.values, {super.key, this.height = 14, this.selected, this.marks = const {}});
@@ -237,34 +232,36 @@ class ExerciseProgressScreen extends StatelessWidget {
     final ups = h.where((p) => p.stepped).length;
     final workouts = h.length - 1;
     return Scaffold(
-      appBar: AppBar(title: Text(ex.name), actions: [
+      appBar: AppBar(actions: [
         TextButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseCardScreen(ex.id))), icon: const Icon(LucideIcons.bookOpen, size: 18), label: const Text('Card')),
       ]),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), children: [
-        if (first == null || nowP == null)
-          const Panel(child: Text('Not practised yet. The first workout sets the starting level.'))
-        else ...[
-          Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(growthText(ex, first, nowP).replaceRange(0, 1, growthText(ex, first, nowP)[0].toUpperCase()), style: t.titleLarge),
-            const SizedBox(height: 4),
-            Text('Since ${_long(first.at)} · $workouts workout${workouts == 1 ? '' : 's'} · $ups step${ups == 1 ? '' : 's'} up', style: t.bodySmall),
-            const SizedBox(height: 16),
-            SizedBox(height: 170, child: _LevelChart(h, du: du, text: t, loaded: ex.loaded)),
-          ])),
-          const SizedBox(height: 12),
-          Panel(child: Row(children: [
-            Expanded(child: StatTile(label: 'Started at', value: first.label, hint: _long(first.at), icon: LucideIcons.flag)),
-            Expanded(child: StatTile(label: 'Now', value: nowP.label, hint: ex.loaded ? 'for ${todayRangeText(s, ex)}' : null, icon: LucideIcons.circleDot)),
-          ])),
-          const SizedBox(height: 20),
+        Text(ex.name, style: t.headlineLarge),
+        const SizedBox(height: 8),
+        if (first == null || nowP == null) ...[
+          const FactLine('Not practised yet', icon: LucideIcons.hourglass),
+          const SizedBox(height: 8),
+          const QuietLine('The first workout sets the starting level.', icon: LucideIcons.info),
+        ] else ...[
+          FactLine(growthText(ex, first, nowP).replaceRange(0, 1, growthText(ex, first, nowP)[0].toUpperCase()), icon: ups > 0 ? LucideIcons.trendingUp : LucideIcons.minus, good: ups > 0),
+          const SizedBox(height: 8),
+          Facts([
+            Fact('Since ${_long(first.at)}', icon: LucideIcons.flag),
+            Fact('$workouts workout${workouts == 1 ? '' : 's'}', icon: LucideIcons.history),
+            Fact('$ups step${ups == 1 ? '' : 's'} up', icon: LucideIcons.arrowUpRight, accent: ups > 0),
+            if (ex.loaded) Fact('Now for ${todayRangeText(s, ex)}', icon: LucideIcons.repeat),
+          ]),
+          const SizedBox(height: 16),
+          Panel(child: SizedBox(height: 170, child: _LevelChart(h, du: du, text: t, loaded: ex.loaded))),
+          const SizedBox(height: 24),
           const SectionHeader('Every workout', icon: LucideIcons.history),
-          Panel(padding: EdgeInsets.zero, child: Column(children: [
+          Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
             for (var i = h.length - 2; i >= 0; i--)
-              ListTile(
+              Row1(
+                icon: h[i].stepped ? LucideIcons.arrowUpRight : LucideIcons.minus,
+                title: Text(h[i].label, style: TextStyle(color: h[i].stepped ? du.accentText : du.ink)),
+                subtitle: _long(h[i].at),
                 dense: true,
-                leading: Icon(h[i].stepped ? LucideIcons.arrowUpRight : LucideIcons.minus, size: 18, color: h[i].stepped ? du.accentText : du.inkTertiary),
-                title: Text(h[i].label, style: t.bodyMedium?.copyWith(color: h[i].stepped ? du.accentText : du.ink)),
-                subtitle: Text(_long(h[i].at)),
                 trailing: h[i].stepped ? Text('stepped up', style: t.labelSmall?.copyWith(color: du.accentText)) : null,
               ),
           ])),
