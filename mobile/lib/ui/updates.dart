@@ -12,7 +12,6 @@ import '../integrations.dart';
 import '../logic/update.dart';
 import 'app.dart';
 import 'theme.dart';
-import 'widgets.dart';
 
 /// The newer release waiting to be installed, or null when the app is current or nothing has been checked yet. Set by
 /// the AutoUpdater on launch and resume and by the Updates panel; the tab dot, the banner and the section dot follow it.
