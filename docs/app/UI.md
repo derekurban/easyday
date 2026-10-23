@@ -41,8 +41,8 @@ goes.
   when today differs from the usual. Under the plan the strip as the workout will show it and one line: about
   how long and when it ends. A text link to walk or stretch instead. The dock: energy, time, and one button,
   Start workout. On a movement day: the same skeleton with the stage picture and the how-to or the moves.
-- **The exercise sheet.** The exercise, its facts, a line on why it is here. Up, Down and Skip. The level as the
-  progression, tap a level for today, a link to make it yours. Swap for: the alternatives in recommended order.
+- **The exercise sheet.** The exercise, its facts, a line on why it is here. Up, Down and Skip. The muscles, as
+  on the card. The level as the progression, tap a level for today, a link to make it yours. Swap for: the alternatives in recommended order.
   Then the how-to at that level.
 - **Done for today.** The check, the one line, the workout as a row of facts, one quiet line, and two ways on.
 - **Progress.** Workouts per month, then days active and workouts all time as facts. Muscle strain: the figure
@@ -51,6 +51,7 @@ goes.
 - **Exercises.** Search, filters, the index. One line per exercise: the name, its level when practised, the
   difficulty word at the right.
 - **Exercise card.** Title: the name. Fact row: the muscles it works and the difficulty. The stage picture.
+  Muscles: the figure with the primary muscles green and the secondary ones paler, each list named beside it.
   The level as facts: the weight or version, about how long a set, the best total, workouts. How to do it as
   steps. The progression as a track. Reps as a row of ranges. Difficulty with its override. Your word.
 - **Settings.** Sections with sentence-case headers. One line per tile; details behind the tap. The goal as a

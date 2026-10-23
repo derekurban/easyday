@@ -24,6 +24,7 @@ import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'exercise_card.dart';
+import 'exercise_muscles.dart';
 import 'motion.dart';
 import 'muscle_figure.dart';
 import 'muscle_picker.dart';
@@ -504,7 +505,8 @@ class _TodayScreenState extends State<TodayScreen> {
     if (v != null) store.update((x) => x.settings.circuit = v);
   }
 
-  /// The exercise sheet: the exercise and its facts, why it is here, Up, Down and Skip, the level as the progression
+  /// The exercise sheet: the exercise and its facts, why it is here, Up, Down and Skip, the muscles it works on the
+  /// figure, the level as the progression
   /// (tap a level for today, a link to make it yours), the swaps in recommended order, then the how-to at that level.
   Future<void> _exerciseSheet(BuildContext context, Session session, int i) async {
     final store = context.store;
@@ -568,6 +570,12 @@ class _TodayScreenState extends State<TodayScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (ex.primary.isNotEmpty || ex.secondary.isNotEmpty) ...[
+              const Subhead('Muscles', icon: LucideIcons.personStanding),
+              const SizedBox(height: 8),
+              Panel(child: ExerciseMuscles(ex, height: 130)),
+              const SizedBox(height: 16),
+            ],
             const Subhead('Level today', icon: LucideIcons.circleDot),
             const SizedBox(height: 8),
             Panel(
