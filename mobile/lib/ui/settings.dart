@@ -1,5 +1,7 @@
-// Settings: the goal and units, locations and position, exercises, the reminder, the calendar, the progression
-// settings, breaks, updates, feedback, your data (copy and restore), and (staging only) prototype tools.
+// Settings (UI.md): sections with sentence-case headers, one line per tile, details behind the tap. The goal as a row
+// that opens the goal sheet, days a week and units; the body figure; locations and position; exercises; the reminder;
+// the calendar; the workout; the progression settings; breaks; updates; feedback; your data; and (staging only) the
+// prototype tools.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -51,6 +53,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final du = context.du;
     const counts = {1: '1', 2: '2', 3: '3', 4: '4', 5: '5'};
     final g = s.goal!;
+    final goalLine = [
+      g.program == null ? 'your own reps' : '${programLabel[g.program]!} reps',
+      '${g.exercises.ideal} exercises',
+      '${g.sets.ideal} sets',
+      g.moveEvery == 0 ? 'no movement days' : 'a movement day every ${g.moveEvery}',
+    ].join(' · ');
     return Scaffold(
       appBar: AppBar(title: const Text('Settings'), actions: [
         TextButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HowItWorks())), icon: const Icon(LucideIcons.circleHelp, size: 18), label: const Text('How it works')),
@@ -59,70 +67,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: SingleChildScrollView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 32), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         UpdateBanner(onGo: _goToUpdate),
         const SectionHeader('Goal', icon: LucideIcons.target),
-        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            IconBadge(goalIcon(g.template), accent: true),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(g.name, style: t.titleMedium),
-              Text('${g.program == null ? 'your own reps' : '${programLabel[g.program]!} reps'} · hard exercises ${g.rowFor(3).map(rangeText).join(', then ')} · spare minutes: ${spareLabel[g.spare]!.toLowerCase()}', style: t.bodySmall),
-              Text('${g.exercises.min} to ${g.exercises.max} exercises, ideally ${g.exercises.ideal} · ${g.sets.ideal} working sets · ${g.moveEvery == 0 ? 'no movement days' : 'a movement day after every ${g.moveEvery} workouts'}', style: t.bodySmall),
-            ])),
-            IconButton.outlined(onPressed: () => _editGoal(context), icon: const Icon(LucideIcons.pencil, size: 18), tooltip: 'Change the goal'),
-          ]),
-          const Divider(height: 24),
-          ChoiceRow<int>(label: 'Days a week', value: s.profile!.daysPerWeek, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, hint: 'There are no fixed days. This only sets the pace the forecast in your goal assumes.', onChanged: (v) => store.update((x) => x.profile!.daysPerWeek = v)),
-          const SizedBox(height: 14),
-          Text('Units', style: t.labelMedium),
-          const SizedBox(height: 6),
-          Segmented<String>(value: s.units, options: const {'kg': 'Kilograms', 'lb': 'Pounds'}, icons: const {'kg': LucideIcons.weight, 'lb': LucideIcons.scale}, onChanged: (v) => store.update((x) => x.units = v)),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row1(icon: goalIcon(g.template), title: Text(g.name), subtitle: goalLine, onTap: () => _editGoal(context)),
+          const Divider(height: 1),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 6, 16, 0), child: ChoiceRow<int>(label: 'Days a week', value: s.profile!.daysPerWeek, options: const {1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'}, onChanged: (v) => store.update((x) => x.profile!.daysPerWeek = v))),
+          Padding(padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Units', style: t.bodyLarge),
+            const SizedBox(height: 8),
+            Segmented<String>(value: s.units, options: const {'kg': 'Kilograms', 'lb': 'Pounds'}, icons: const {'kg': LucideIcons.weight, 'lb': LucideIcons.scale}, onChanged: (v) => store.update((x) => x.units = v)),
+          ])),
         ])),
-        const SizedBox(height: 20),
-        const SectionHeader('Personalization', icon: LucideIcons.userRound),
-        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Body figure', style: t.labelMedium),
-          Text('The figure that shows which muscles a workout works, on Today and in Progress.', style: t.bodySmall),
-          const SizedBox(height: 10),
-          Row(children: [
-            for (final f in const ['male', 'female']) ...[
-              if (f != 'male') const SizedBox(width: 12),
-              Expanded(child: _FigureChoice(figure: f, selected: st.figure == f, onTap: () => store.update((_) => st.figure = f))),
-            ],
-          ]),
+        const SizedBox(height: 24),
+        const SectionHeader('Body figure', icon: LucideIcons.userRound),
+        Panel(child: Row(children: [
+          for (final f in const ['male', 'female']) ...[
+            if (f != 'male') const SizedBox(width: 12),
+            Expanded(child: _FigureChoice(figure: f, selected: st.figure == f, onTap: () => store.update((_) => st.figure = f))),
+          ],
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         SectionHeader('Locations', icon: LucideIcons.mapPin, trailing: st.location
             ? TextButton.icon(onPressed: locating ? null : _refreshDistances, icon: Icon(locating ? LucideIcons.loader : LucideIcons.refreshCw, size: 14), label: Text(here == null ? 'Distances' : 'Refresh'), style: TextButton.styleFrom(visualDensity: VisualDensity.compact))
             : null),
-        Panel(padding: EdgeInsets.zero, child: Column(children: [
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
           for (final l in s.locations)
-            ListTile(
-              leading: IconBadge(locationIcon(l.template), size: 36), title: Text(l.name),
-              subtitle: Text('${l.equipment.isEmpty ? 'bodyweight only' : '${l.equipment.length} items'} · ${l.hasPosition ? (here != null ? LocationBridge.distanceText(LocationBridge.distance(l, here!)!) : 'position saved') : 'anywhere'}'),
-              trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary), onTap: () => _editLocation(context, l),
+            Row1(
+              icon: locationIcon(l.template), title: Text(l.name),
+              subtitle: '${l.equipment.isEmpty ? 'bodyweight only' : '${l.equipment.length} items'} · ${l.hasPosition ? (here != null ? LocationBridge.distanceText(LocationBridge.distance(l, here!)!) : 'position saved') : 'anywhere'}',
+              onTap: () => _editLocation(context, l),
             ),
-          ListTile(leading: const IconBadge(LucideIcons.plus, size: 36), title: const Text('Add a location'), onTap: () => _addLocation(context)),
-          const Divider(height: 8),
+          Row1(icon: LucideIcons.plus, title: const Text('Add a location'), chevron: false, onTap: () => _addLocation(context)),
+          const Divider(height: 1),
           SwitchListTile(
-            secondary: const IconBadge(LucideIcons.locate, size: 36),
-            title: const Text('Position'), subtitle: Text(st.location ? 'Read once when the app opens and when you ask. Picks the nearest saved place within ${LocationBridge.nearbyMetres.round()} m.' : 'Picks the nearest saved place for you. Read once when the app opens, never in the background. Save a position on each location to use it.'),
+            secondary: Icon(LucideIcons.locate, size: 18, color: du.inkSecondary),
+            title: const Text('Position'), subtitle: Text(st.location ? 'Picks the nearest saved place within ${LocationBridge.nearbyMetres.round()} m when the app opens.' : 'Picks the nearest saved place when the app opens.'),
             value: st.location, onChanged: (v) => _toggleLocation(context, v),
           ),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Exercises', icon: LucideIcons.layers),
-        Panel(padding: EdgeInsets.zero, child: Column(children: [
-          ListTile(leading: const IconBadge(LucideIcons.layers, size: 36), title: const Text('Group by'), subtitle: Text('${indexLabel[st.index]}. ${indexBlurb[st.index]}'), trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-              onTap: () => pickIndex(context)),
-          ListTile(leading: const IconBadge(LucideIcons.bookOpen, size: 36), title: Text('${browsable.length} exercises'), subtitle: const Text('Built in: strength, power and stability. Weighted ones go up by weight, bodyweight ones by version.'), trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogScreen()))),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          Row1(icon: LucideIcons.layers, title: const Text('Group by'), subtitle: indexLabel[st.index], onTap: () => pickIndex(context)),
+          const Divider(height: 1),
+          Row1(icon: LucideIcons.bookOpen, title: Text('${browsable.length} exercises'), subtitle: 'Strength, power and stability', onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogScreen()))),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Reminder', icon: LucideIcons.bell),
         Panel(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: [
           SwitchListTile(
-            secondary: const IconBadge(LucideIcons.sunrise, size: 36),
-            title: const Text('One a day'), subtitle: Text(st.notify ? 'At ${_hour(st.notifyHour)}. The same calm line every time, never more.' : 'One notification a day, at an hour you pick. Nothing else, ever.'),
+            secondary: Icon(LucideIcons.sunrise, size: 18, color: du.inkSecondary),
+            title: const Text('One a day'), subtitle: Text(st.notify ? 'At ${_hour(st.notifyHour)}, the same calm line every time.' : 'At an hour you pick. Nothing else, ever.'),
             value: st.notify, onChanged: (v) => _toggleNotify(context, v),
           ),
           if (st.notify) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: Column(children: [
@@ -130,12 +124,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => Notifications.showNow('Your workout is ready', 'Two questions and a start button. Easy counts.'), icon: const Icon(LucideIcons.play, size: 16), label: const Text('Send a test'))),
           ])),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Calendar', icon: LucideIcons.calendarDays),
         Panel(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SwitchListTile(
-            secondary: const IconBadge(LucideIcons.calendarDays, size: 36),
-            title: const Text('Read my day'), subtitle: Text(st.calendar ? 'Reads today\'s events when the app opens and when you ask. Never in the background, never sent anywhere.' : 'A busy day makes a lighter default, and a free slot is suggested. Reads only today, only when the app is open.'),
+            secondary: Icon(LucideIcons.calendarDays, size: 18, color: du.inkSecondary),
+            title: const Text('Read my day'), subtitle: Text(st.calendar ? 'Read when the app opens, never in the background.' : 'A busy day makes a lighter default and suggests a free slot.'),
             value: st.calendar, onChanged: (v) => _toggleCalendar(context, v),
           ),
           if (st.calendar) Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -143,25 +137,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const Divider(height: 20),
             RangeBand(
               label: 'Awake hours', value: RepRange(st.awakeStart ~/ 60, st.awakeEnd ~/ 60), min: 0, max: 24, unit: '',
-              hint: 'The hours you count as your day. Every calendar calculation happens inside them.',
               onChanged: (v) { final end = v.hi < v.lo + 6 ? v.lo + 6 : v.hi; store.update((_) { st.awakeStart = v.lo * 60; st.awakeEnd = end.clamp(0, 24) * 60; }); _reshape(); },
             ),
             const Divider(height: 20),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('A busy day makes a lighter day'), subtitle: const Text('Sets the two daily defaults; one tap overrides them, and a default is never your choice.'),
+              title: const Text('A busy day makes a lighter day'),
               value: st.busyAdjust, onChanged: (v) => store.update((_) => st.busyAdjust = v),
             ),
             if (st.busyAdjust) ...[
-              ValueSlider(label: 'Busy share that shortens the default to $busyDayMinutes minutes', value: st.busyShort, min: 30, max: 90, step: 5, unit: ' %', icon: LucideIcons.clock,
+              ValueSlider(label: 'Busy share for $busyDayMinutes minutes', value: st.busyShort, min: 30, max: 90, step: 5, unit: ' %', icon: LucideIcons.clock,
                   onChanged: (v) => store.update((_) { st.busyShort = v; if (st.busyEasy < v) st.busyEasy = v; })),
-              ValueSlider(label: 'Busy share that also makes the default easy', value: st.busyEasy, min: st.busyShort, max: 100, step: 5, unit: ' %', icon: LucideIcons.batteryLow,
+              ValueSlider(label: 'Busy share for easy', value: st.busyEasy, min: st.busyShort, max: 100, step: 5, unit: ' %', icon: LucideIcons.batteryLow,
                   onChanged: (v) => store.update((_) => st.busyEasy = v)),
             ],
             const Divider(height: 20),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Auto-track'), subtitle: Text(st.autoTrack ? 'Every finished workout is written from start to end, with what actually happened.' : 'Write finished workouts to the calendar, start to end, with what actually happened. Nothing for a workout that never started.'),
+              title: const Text('Auto-track'), subtitle: const Text('Finished workouts are written to the calendar, start to end.'),
               value: st.autoTrack, onChanged: (v) => _toggleAutoTrack(context, v),
             ),
             if (st.autoTrack)
@@ -172,53 +165,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 hint: CalendarSync.calendars.isEmpty ? 'No writable calendars found yet. Tap sync to look again.' : null,
                 onChanged: (v) => store.update((_) => st.calendarId = v),
               ),
-            const SizedBox(height: 4),
-            Text('Planning a slot ahead of time, with a declinable event, is not built yet.', style: t.bodySmall),
           ])),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Workout', icon: LucideIcons.timer),
-        const Explain('Set time is a set, from I\'m ready until your reps are in. Rest is everything between sets: catching your breath, moving to the next exercise and setting it up.'),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          ChoiceRow<bool>(label: 'When the planned rest runs out', value: st.restAuto, options: const {false: 'Keep resting', true: 'Start the next set'},
-              hint: st.restAuto ? 'The planned rest is a timer: when it ends, the next set or round starts as if you had tapped I\'m ready.' : 'Rest counts up for as long as you like. The planned time is only a guide.',
-              onChanged: (v) => store.update((_) => st.restAuto = v)),
-          ChoiceRow<bool>(label: 'Show set time and rest as', value: st.timeAsShare, options: const {false: 'Minutes', true: 'Share of time'},
-              onChanged: (v) => store.update((_) => st.timeAsShare = v)),
+          ChoiceRow<bool>(label: 'When the planned rest runs out', value: st.restAuto, options: const {false: 'Keep resting', true: 'Start the next set'}, onChanged: (v) => store.update((_) => st.restAuto = v)),
+          ChoiceRow<bool>(label: 'Show set time and rest as', value: st.timeAsShare, options: const {false: 'Minutes', true: 'Share of time'}, onChanged: (v) => store.update((_) => st.timeAsShare = v)),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Progressions', icon: LucideIcons.listOrdered),
-        const Explain(progressionExplainer),
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           ChoiceRow<int>(label: 'Workouts at the top before a level goes up', value: st.stepUp, options: counts, icons: const {1: LucideIcons.zap}, onChanged: (v) => store.update((_) => st.stepUp = v)),
-          ChoiceRow<int>(label: 'Workouts below the bottom before a level comes down', value: st.stepDown, options: counts, onChanged: (v) => store.update((_) => st.stepDown = v)),
-          ChoiceRow<int>(label: 'Weeks before an unused level eases down', value: st.decayWeeks, options: const {0: 'off', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8'},
-              hint: 'One level per period, never below where it started. One good workout climbs straight back.', onChanged: (v) => store.update((_) => st.decayWeeks = v)),
+          ChoiceRow<int>(label: 'Workouts below the bottom before it comes down', value: st.stepDown, options: counts, onChanged: (v) => store.update((_) => st.stepDown = v)),
+          ValueSlider(
+            label: 'Weeks unused before a level eases down', value: st.decayWeeks == 0 ? 1 : st.decayWeeks, min: 1, max: 8, icon: LucideIcons.hourglass,
+            display: (v) => v < 2 ? 'off' : '$v weeks', onChanged: (v) => store.update((_) => st.decayWeeks = v < 2 ? 0 : v),
+          ),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Breaks', icon: LucideIcons.bedDouble),
         Panel(child: Column(children: [
           ValueSlider(label: 'Days away before easy is the default', value: st.daysAway, min: 5, max: 21, unit: ' days', icon: LucideIcons.sunrise, onChanged: (v) => store.update((_) => st.daysAway = v)),
           const Divider(height: 20),
           ValueSlider(label: 'Days an exercise rests after pain', value: st.painRestDays, min: 3, max: 28, unit: ' days', icon: LucideIcons.bandage, onChanged: (v) => store.update((_) => st.painRestDays = v)),
         ])),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         ValueListenableBuilder(valueListenable: updateAvailable, builder: (_, r, _) =>
             SectionHeader('Updates', key: _updates, icon: LucideIcons.download, marker: r == null ? null : const UpdateDot())),
         const UpdatePanel(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Feedback', icon: LucideIcons.messageSquareText),
         const FeedbackPanel(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
         const SectionHeader('Your data', icon: LucideIcons.hardDrive),
-        Panel(padding: EdgeInsets.zero, child: Column(children: [
-          ListTile(leading: const IconBadge(LucideIcons.copy, size: 36), title: const Text('Copy your data'),
-              subtitle: const Text('Profile, locations, levels and history, as text. Paste it into another install to move everything there.'), onTap: () => _copyData(context)),
-          ListTile(leading: const IconBadge(LucideIcons.clipboardPaste, size: 36), title: const Text('Restore copied data'),
-              subtitle: const Text('Replaces everything on this phone with data copied from this app.'), onTap: () => _restoreData(context)),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          Row1(icon: LucideIcons.copy, title: const Text('Copy your data'), subtitle: 'Everything, as text, to paste into another install.', chevron: false, onTap: () => _copyData(context)),
+          const Divider(height: 1),
+          Row1(icon: LucideIcons.clipboardPaste, title: const Text('Restore copied data'), subtitle: 'Replaces everything on this phone.', chevron: false, onTap: () => _restoreData(context)),
         ])),
         if (prototypeTools) ...[
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
           const SectionHeader('Prototype tools', icon: LucideIcons.wrench),
           Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -262,12 +249,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Row(children: [
       Expanded(child: d == null
           ? Text(syncing ? 'Reading today…' : 'Today not read yet.', style: t.bodySmall)
-          : Row(children: [
-              StatTile(label: 'free', value: _hm(d.free), icon: LucideIcons.coffee),
-              const SizedBox(width: 18),
-              StatTile(label: 'busy', value: _hm(d.busy), icon: LucideIcons.briefcase, hint: '${d.busyPct} %'),
-              const SizedBox(width: 18),
-              StatTile(label: 'workout', value: _hm(d.workout), icon: LucideIcons.dumbbell),
+          : Facts([
+              Fact('${_hm(d.free)} free', icon: LucideIcons.coffee),
+              Fact('${_hm(d.busy)} busy · ${d.busyPct} %', icon: LucideIcons.briefcase),
+              Fact('${_hm(d.workout)} workout', icon: LucideIcons.dumbbell),
             ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         TextButton.icon(onPressed: syncing ? null : _sync, icon: Icon(syncing ? LucideIcons.loader : LucideIcons.refreshCw, size: 14), label: const Text('Sync now'), style: TextButton.styleFrom(visualDensity: VisualDensity.compact)),
@@ -346,9 +331,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showSheet<void>(context, SizedBox(
       height: MediaQuery.of(context).size.height * 0.88,
       child: ListView(padding: const EdgeInsets.fromLTRB(0, 0, 0, 24), children: [
-        const SheetHeader('Goal', subtitle: 'Your own, in plain words. Levels stay where they are.', icon: LucideIcons.target),
+        const SheetHeader('Goal', subtitle: 'Levels stay where they are.', icon: LucideIcons.target),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: GoalEditor(goal: store.state.goal!, daysPerWeek: store.state.profile!.daysPerWeek, onChanged: (_) => store.update((_) {})),
         ),
       ]),
@@ -411,9 +396,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await showSheet<void>(context, SizedBox(
       height: MediaQuery.of(context).size.height * 0.88,
       child: ListView(padding: const EdgeInsets.fromLTRB(0, 0, 0, 24), children: [
-        SheetHeader(isNew ? 'New location' : 'Location', subtitle: 'Name it, place it, tick what is there. Levels belong to the exercise, not the place.', icon: locationIcon(l.template)),
+        SheetHeader(isNew ? 'New location' : 'Location', subtitle: 'Levels belong to the exercise, not the place.', icon: locationIcon(l.template)),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             LocationEditor(location: l, onChanged: () => store.update((_) {}), say: (m) { if (context.mounted) _say(context, m); }),
             const SizedBox(height: 20),

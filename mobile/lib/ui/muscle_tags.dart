@@ -16,6 +16,7 @@ import 'motion.dart';
 import 'muscle_figure.dart';
 import 'muscle_picker.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 IconData muscleTagIcon(MuscleTag t) => switch (t) { MuscleTag.active => LucideIcons.pin, MuscleTag.passive => LucideIcons.circleDashed, MuscleTag.ignored => LucideIcons.ban };
 
@@ -95,9 +96,9 @@ class _MuscleTagsState extends State<MuscleTags> {
             ]),
             const SizedBox(height: 12),
           ],
-          if (fc != null) Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(
-            'Next 12 workouts · ${s.profile!.daysPerWeek} days a week · ${s.location(s.lastLocationId)?.name ?? 'usual location'} · every set completed.', style: t.bodySmall)),
           for (final mus in trackedMuscles) _row(context, mus, rhythm, f, fc != null),
+          if (fc != null) Padding(padding: const EdgeInsets.fromLTRB(16, 8, 16, 6), child: Fact(
+            'The next 12 workouts · ${s.profile!.daysPerWeek} days a week · ${s.location(s.lastLocationId)?.name ?? 'usual location'}', icon: LucideIcons.telescope)),
         ]);
       },
     );
@@ -119,7 +120,7 @@ class _MuscleTagsState extends State<MuscleTags> {
     switch (g.tagOf(mus)) {
       case MuscleTag.active:
         final often = g.oftenOf(mus) == 0 ? '' : '${oftenLabel[g.oftenOf(mus)]!.toLowerCase()} often · ';
-        final ahead = f != null ? f.everyText(mus) : forecasting ? 'working it out…' : 'in turn';
+        final ahead = f != null ? f.everyText(mus) : forecasting ? '…' : 'in turn';
         final recovery = g.oftenOf(mus) > 0 && (f?.recovering[mus] ?? 0) > 0 ? ' · recovery limits extra turns' : '';
         final missed = r != null && r.workouts >= forgottenAfterWorkouts && r.sinceOf(mus) >= forgottenAfterWorkouts
             ? ' · no direct work in the last $forgottenAfterWorkouts workouts' : '';
@@ -135,13 +136,13 @@ class _MuscleTagsState extends State<MuscleTags> {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final tag = widget.goal.tagOf(mus);
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
+    return Row1(
+      icon: muscleTagIcon(tag),
+      muted: tag == MuscleTag.ignored,
+      title: Text(muscleTitle(mus)),
+      subtitle: _line(mus, r, f, forecasting),
       dense: true,
-      leading: Icon(muscleTagIcon(tag), size: 18, color: tag == MuscleTag.active ? du.accentText : du.inkTertiary),
-      title: Text(muscleTitle(mus), style: t.bodyMedium?.copyWith(color: tag == MuscleTag.ignored ? du.inkTertiary : du.ink)),
-      subtitle: Text('${muscleTagLabel[tag]} · ${_line(mus, r, f, forecasting)}', style: t.bodySmall),
-      trailing: Icon(LucideIcons.chevronRight, size: 16, color: du.inkTertiary),
+      trailing: Text(muscleTagLabel[tag]!.toLowerCase(), style: t.labelSmall?.copyWith(color: tag == MuscleTag.active ? du.accentText : du.inkTertiary)),
       onTap: () => _sheet(context, mus, r, f),
     );
   }

@@ -6,12 +6,12 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/library.dart';
 import 'motion.dart';
 import 'theme.dart';
-import 'widgets.dart';
+
+export 'widgets.dart' show HowToSteps;
 
 enum Stage { strength, power, stability, cardio, stretching, warmup, rest }
 
@@ -573,29 +573,3 @@ class _StagePainter extends CustomPainter {
 }
 
 /// The how-to as numbered steps, one sentence each.
-class HowToSteps extends StatelessWidget {
-  const HowToSteps(this.text, {super.key});
-  final String text;
-
-  static List<String> split(String text) =>
-      text.trim().split(RegExp(r'(?<=[.!?])\s+(?=[A-Z])')).map((x) => x.trim()).where((x) => x.isNotEmpty).toList();
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final steps = split(text);
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Subhead('How to do it', icon: LucideIcons.bookOpen),
-      const SizedBox(height: 12),
-      for (var i = 0; i < steps.length; i++)
-        Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            StepNumber(i + 1),
-            const SizedBox(width: 12),
-            Expanded(child: Padding(padding: const EdgeInsets.only(top: 2), child: Text(steps[i], style: t.bodyMedium))),
-          ]),
-        ),
-    ]);
-  }
-}
