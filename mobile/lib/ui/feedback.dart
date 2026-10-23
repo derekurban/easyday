@@ -33,14 +33,13 @@ class _FeedbackPanelState extends State<FeedbackPanel> {
   @override
   Widget build(BuildContext context) {
     final du = context.du;
-    final next = Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary);
-    return Panel(padding: EdgeInsets.zero, child: Column(children: [
-      ListTile(leading: const IconBadge(LucideIcons.bug, size: 36), title: const Text('Report a problem'), subtitle: const Text('Something broke or looks wrong.'),
-          trailing: next, onTap: () => _write(context, Report.problem)),
-      ListTile(leading: const IconBadge(LucideIcons.lightbulb, size: 36), title: const Text('Suggest a feature'), subtitle: const Text('An idea to make training easier.'),
-          trailing: next, onTap: () => _write(context, Report.idea)),
-      ListTile(leading: const IconBadge(LucideIcons.listTodo, size: 36), title: const Text('See what is reported'), subtitle: const Text('Open problems and ideas, on GitHub.'),
-          trailing: Icon(LucideIcons.externalLink, size: 16, color: du.inkTertiary), onTap: () => _open(context, reportsUrl)),
+    return Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+      Row1(icon: LucideIcons.bug, title: const Text('Report a problem'), subtitle: 'Something broke or looks wrong.', onTap: () => _write(context, Report.problem)),
+      const Divider(height: 1),
+      Row1(icon: LucideIcons.lightbulb, title: const Text('Suggest a feature'), subtitle: 'An idea to make training easier.', onTap: () => _write(context, Report.idea)),
+      const Divider(height: 1),
+      Row1(icon: LucideIcons.listTodo, title: const Text('See what is reported'), subtitle: 'Open problems and ideas, on GitHub.',
+          chevron: false, trailing: Icon(LucideIcons.externalLink, size: 16, color: du.inkTertiary), onTap: () => _open(context, reportsUrl)),
     ]));
   }
 

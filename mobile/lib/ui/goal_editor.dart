@@ -1,13 +1,12 @@
-// Goal editor: the user's own goal in plain words. Templates and programs are suggestions that fill it. Rep bands are a
-// list, each tagged with the difficulties it applies to; the exercises, sets and hard-day pushes are three-point
-// calibrations (the fewest, the ideal, the most); then spare minutes, cardio and stretching, movement days.
+// Goal editor (UI.md): the user's own goal in plain words. A name, a template to fill from, the rep ranges (a list,
+// each tagged with the difficulties it applies to), three bands (exercises, sets, hard-day pushes), spare minutes,
+// cardio and stretching shares, movement days, and the muscles.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/library.dart';
 import '../data/model.dart';
 import 'app.dart';
-import 'motion.dart';
 import 'muscle_tags.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -41,10 +40,10 @@ class _GoalEditorState extends State<GoalEditor> {
     final tags = editing ? {...g.bands[i].difficulties} : <int>{3};
     final result = await showSheet<Band?>(context, StatefulBuilder(builder: (context, setSheet) {
       final t = Theme.of(context).textTheme;
-      return Padding(padding: const EdgeInsets.fromLTRB(20, 16, 20, 20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(editing ? 'Rep range' : 'Add a rep range', style: t.titleMedium),
+      return Padding(padding: const EdgeInsets.fromLTRB(16, 16, 16, 20), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(editing ? 'Rep range' : 'Add a rep range', style: t.titleLarge),
         const SizedBox(height: 4),
-        Text('Under the floor says lower the weight; the top or more says go up. The weight follows the band, so the level never changes with this.', style: t.bodySmall),
+        const QuietLine('Under the floor says lower the weight; the top or more says go up.', icon: LucideIcons.info),
         const SizedBox(height: 12),
         RangeBand(label: rangeText(r), value: r, min: 1, max: 30, onChanged: (v) => setSheet(() => r = v)),
         const SizedBox(height: 4),
@@ -60,7 +59,7 @@ class _GoalEditorState extends State<GoalEditor> {
             FilterChip(label: Text('${difficultyName[d]} exercises'), selected: tags.contains(d), onSelected: (v) => setSheet(() => v ? tags.add(d) : tags.remove(d))),
         ]),
         const SizedBox(height: 4),
-        Text('A difficulty with several ranges cycles through them by workout.', style: t.bodySmall),
+        const QuietLine('A difficulty with several ranges cycles through them by workout.', icon: LucideIcons.info),
         const SizedBox(height: 14),
         Row(children: [
           if (editing)
@@ -90,46 +89,38 @@ class _GoalEditorState extends State<GoalEditor> {
   Widget build(BuildContext context) {
     final g = widget.goal;
     final t = Theme.of(context).textTheme;
-    final du = context.du;
-    final program = g.program;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       TextField(
         controller: nameCtl,
         decoration: const InputDecoration(labelText: 'Name', prefixIcon: Icon(LucideIcons.pencil, size: 18)),
         onChanged: (v) => _set((x) => x.name = v.trim().isEmpty ? 'My goal' : v.trim()),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 14),
       Text('Fill from a template', style: t.labelMedium),
       const SizedBox(height: 6),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final tpl in goals.values)
           Tooltip(message: tpl.explain.join(' · '), child: ActionChip(avatar: Icon(goalIcon(tpl.id), size: 16), label: Text(tpl.name), onPressed: () => _fill(tpl))),
       ]),
-      const SizedBox(height: 4),
-      Text('A template sets everything below. Change what you like after.', style: t.bodySmall),
-      const SizedBox(height: 16),
+      const SizedBox(height: 20),
       const SectionHeader('Rep ranges', icon: LucideIcons.repeat),
-      Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        for (var i = 0; i < g.bands.length; i++)
-          Pressable(
+      Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+        for (var i = 0; i < g.bands.length; i++) ...[
+          if (i > 0) const Divider(height: 1),
+          Row1(
+            icon: LucideIcons.repeat,
+            title: Text('${rangeText(g.bands[i].range)} reps'),
+            subtitle: '${[3, 2, 1].where(g.bands[i].difficulties.contains).map((d) => difficultyName[d]!.toLowerCase()).join(', ')} exercises${_cycles(g, i)}',
             onTap: () => _editBand(context, i),
-            child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [
-              const IconBadge(LucideIcons.repeat, size: 32),
-              const SizedBox(width: 10),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${rangeText(g.bands[i].range)} reps', style: t.bodyLarge),
-                Text('${[3, 2, 1].where(g.bands[i].difficulties.contains).map((d) => difficultyName[d]!.toLowerCase()).join(', ')} exercises${_cycles(g, i)}', style: t.bodySmall),
-              ])),
-              Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-            ])),
           ),
-        if (g.bands.length < maxBands)
-          Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => _editBand(context, g.bands.length), icon: const Icon(LucideIcons.plus, size: 16), label: const Text('Add a rep range'))),
-        const SizedBox(height: 4),
-        Text('${program != null ? '${programLabel[program]!}, from the template. ' : ''}Tap a range to change its reps or which exercises it applies to. Same strength either way: the weight follows the reps.', style: t.bodySmall),
+        ],
+        if (g.bands.length < maxBands) ...[
+          const Divider(height: 1),
+          Row1(icon: LucideIcons.plus, title: const Text('Add a rep range'), chevron: false, onTap: () => _editBand(context, g.bands.length)),
+        ],
       ])),
-      const SizedBox(height: 16),
-      const SectionHeader('A workout plans', icon: LucideIcons.layers),
+      const SizedBox(height: 24),
+      const SectionHeader('Each workout', icon: LucideIcons.layers),
       Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         TriBand(
           label: 'Different exercises', icon: LucideIcons.layers, value: g.exercises, min: exercisesMin, max: exercisesMax,
@@ -148,38 +139,29 @@ class _GoalEditorState extends State<GoalEditor> {
           hints: (min: 'on a tight day', ideal: 'on a usual hard day, hardest exercises first', max: 'on a long hard day'),
           onChanged: (v) => _set((x) => x.pushes = v),
         ),
-        Text('Reach the floor of the range on every set at the next level and it is your level that day.', style: t.bodySmall),
-        const SizedBox(height: 6),
-        ChoiceRow<Spare>(label: 'Spare minutes go to', value: g.spare, options: {for (final v in Spare.values) v: spareLabel[v]!}, hint: 'Once the planned exercises fit. Growth to the most needs this on more exercises. The feel tap after a workout can flip this for you.', onChanged: (v) => _set((x) => x.spare = v)),
+        const Divider(height: 16),
+        ChoiceRow<Spare>(label: 'Spare minutes go to', value: g.spare, options: {for (final v in Spare.values) v: spareLabel[v]!}, onChanged: (v) => _set((x) => x.spare = v)),
       ])),
-      const SizedBox(height: 16),
+      const SizedBox(height: 24),
       const SectionHeader('Cardio and stretching', icon: LucideIcons.footprints),
       Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ValueSlider(label: 'Cardio', value: g.cardioPct, min: 0, max: 50, step: 5, icon: LucideIcons.footprints, display: (v) => v == 0 ? 'none' : '$v % of every workout', onChanged: (v) => _set((x) => x.cardioPct = v)),
         ValueSlider(label: 'Stretching', value: g.stretchPct, min: 0, max: 30, step: 5, icon: LucideIcons.stretchHorizontal, display: (v) => v == 0 ? 'none' : '$v % of every workout', onChanged: (v) => _set((x) => x.stretchPct = v)),
-        Text('Reserved at the end of every workout, stretching last. Cardio also takes any minutes the strength exercises leave.', style: t.bodySmall),
-        const SizedBox(height: 10),
-        ChoiceRow<int>(
-          label: 'A cardio or stretching day after every',
-          value: g.moveEvery, options: const {0: 'never', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6'},
-          hint: 'strength workouts', onChanged: (v) => _set((x) => x.moveEvery = v),
+        const Divider(height: 16),
+        ValueSlider(
+          label: 'A movement day after every', value: g.moveEvery, min: 0, max: 6, icon: LucideIcons.calendarDays,
+          display: (v) => v == 0 ? 'never' : v == 1 ? 'workout' : '$v workouts', onChanged: (v) => _set((x) => x.moveEvery = v),
         ),
       ])),
-      const SizedBox(height: 16),
+      const SizedBox(height: 24),
       const SectionHeader('Muscles', icon: LucideIcons.personStanding),
       Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Active muscles get exercises of their own, each in turn: the more of them, the longer each waits. Passive ones are helped along the way and steer the choice of exercise. Ignored ones are not considered. The template set these; change any.', style: t.bodySmall),
-        const SizedBox(height: 12),
         MuscleTags(goal: g, onChanged: () => _set((_) {})),
         const Divider(height: 20),
-        ChoiceRow<Explore>(label: 'Try new exercises', value: g.explore, options: {for (final v in Explore.values) v: exploreLabel[v]!}, hint: 'How often an exercise you have not rated takes a turn from a practised one: one in ${exploreRun[g.explore]} appearances, in the last place, never on a hard day.', onChanged: (v) => _set((x) => x.explore = v)),
+        ChoiceRow<Explore>(label: 'Try new exercises', value: g.explore, options: {for (final v in Explore.values) v: exploreLabel[v]!}, onChanged: (v) => _set((x) => x.explore = v)),
       ])),
-      const SizedBox(height: 8),
-      Row(children: [
-        Icon(LucideIcons.shield, size: 14, color: du.inkTertiary),
-        const SizedBox(width: 6),
-        Expanded(child: Text('Exercises keep their levels whatever you change here. Changes apply from the next workout.', style: t.bodySmall)),
-      ]),
+      const SizedBox(height: 12),
+      const QuietLine('Levels stay where they are. Changes apply from the next workout.', icon: LucideIcons.shield),
     ]);
   }
 }
