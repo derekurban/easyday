@@ -20,7 +20,7 @@ void main() {
     await tester.pumpWidget(StoreScope(store: store, child: MaterialApp(
       theme: buildTheme(Brightness.light), home: const TodayScreen())));
     await tester.pumpAndSettle();
-    expect(find.text('Start'), findsOneWidget);
+    expect(find.text('Start workout'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byTooltip('Shuffle'));
@@ -46,7 +46,7 @@ void main() {
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
     expect(find.text('Nothing to work'), findsOneWidget);
-    final start = tester.widget<FilledButton>(find.ancestor(of: find.text('Start'), matching: find.byType(FilledButton)));
+    final start = tester.widget<FilledButton>(find.ancestor(of: find.text('Start workout'), matching: find.byType(FilledButton)));
     expect(start.onPressed, isNull);
     expect(tester.takeException(), isNull);
     expect(s.active, isNull);

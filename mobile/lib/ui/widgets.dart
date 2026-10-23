@@ -1,5 +1,7 @@
 // Shared controls. Each one matches the shape of the data it edits: a band for a range, chips for a handful of
-// discrete values, a slider for a continuous one, cards for a pick, a track for a ladder.
+// discrete values, a slider for a continuous one, cards for a pick, a track for a ladder. The small pieces every
+// screen is built from (UI.md): a sentence-case section header, a fact line under a title, numbered steps, an
+// accordion of moves, the plan strip.
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -60,7 +62,8 @@ IconData moveIcon(String? kind) => kind == 'cardio' ? LucideIcons.footprints : L
 
 // ---------- small building blocks
 
-/// Eyebrow with an icon.
+/// A section's name: an icon and a sentence-case label in secondary ink, with room below it. The one header style
+/// every screen uses.
 class SectionHeader extends StatelessWidget {
   const SectionHeader(this.text, {super.key, this.icon, this.trailing, this.marker});
   final String text;
@@ -73,11 +76,11 @@ class SectionHeader extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8, top: 4),
+      padding: const EdgeInsets.only(bottom: 10, top: 4),
       child: Row(children: [
-        if (icon != null) Padding(padding: const EdgeInsets.only(right: 6), child: Icon(icon, size: 14, color: du.inkTertiary)),
+        if (icon != null) ...[Icon(icon, size: 16, color: du.inkSecondary), const SizedBox(width: 8)],
         Expanded(child: Row(children: [
-          Flexible(child: Text(text.toUpperCase(), style: t.labelSmall)),
+          Flexible(child: Text(text, style: t.labelLarge?.copyWith(color: du.inkSecondary))),
           if (marker != null) ...[const SizedBox(width: 6), marker!],
         ])),
         ?trailing,
@@ -86,7 +89,7 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-/// A section's name in the body of a screen read at arm's length: an icon and a sentence-case label.
+/// The same header without the room around it, for inside a card or a list.
 class Subhead extends StatelessWidget {
   const Subhead(this.text, {super.key, this.icon});
   final String text;
@@ -98,6 +101,72 @@ class Subhead extends StatelessWidget {
     return Row(children: [
       if (icon != null) ...[Icon(icon, size: 16, color: du.inkSecondary), const SizedBox(width: 8)],
       Expanded(child: Text(text, style: t.labelLarge?.copyWith(color: du.inkSecondary))),
+    ]);
+  }
+}
+
+/// The fact line under a title: an icon, a sentence in the title's second size, and at the right the number that
+/// matters most, in accent.
+class FactLine extends StatelessWidget {
+  const FactLine(this.text, {super.key, this.icon, this.trailing, this.good = false});
+  final String text;
+  final IconData? icon;
+  final String? trailing;
+  /// The line itself in accent: something done, something earned.
+  final bool good;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Row(children: [
+      if (icon != null) ...[Icon(icon, size: 16, color: good ? du.accentText : du.inkSecondary), const SizedBox(width: 8)],
+      Expanded(child: Text(text, style: t.titleMedium?.copyWith(color: good ? du.accentText : null))),
+      if (trailing != null) ...[
+        const SizedBox(width: 12),
+        Text(trailing!, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
+      ],
+    ]);
+  }
+}
+
+/// A small fact: an icon and a few words. A row of them sits under a tile's title.
+class Fact extends StatelessWidget {
+  const Fact(this.text, {super.key, this.icon, this.accent = false});
+  final String text;
+  final IconData? icon;
+  final bool accent;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      if (icon != null) ...[Icon(icon, size: 13, color: accent ? du.accentText : du.inkTertiary), const SizedBox(width: 5)],
+      Flexible(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelSmall?.copyWith(letterSpacing: 0, color: accent ? du.accentText : du.inkSecondary))),
+    ]);
+  }
+}
+
+/// A row of facts that wraps.
+class Facts extends StatelessWidget {
+  const Facts(this.facts, {super.key});
+  final List<Widget> facts;
+  @override
+  Widget build(BuildContext context) => Wrap(spacing: 14, runSpacing: 4, children: facts);
+}
+
+/// The one quiet line worth saying under a section: a small icon and a sentence in secondary ink.
+class QuietLine extends StatelessWidget {
+  const QuietLine(this.text, {super.key, this.icon, this.accent = false});
+  final String text;
+  final IconData? icon;
+  final bool accent;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (icon != null) ...[Padding(padding: const EdgeInsets.only(top: 2), child: Icon(icon, size: 14, color: accent ? du.accentText : du.inkTertiary)), const SizedBox(width: 6)],
+      Expanded(child: Text(text, style: t.bodySmall?.copyWith(color: accent ? du.accentText : null))),
     ]);
   }
 }
@@ -117,6 +186,127 @@ class StepNumber extends StatelessWidget {
       decoration: BoxDecoration(color: du.accentSubtle, shape: BoxShape.circle, border: Border.all(color: du.accentLine, width: 0.6)),
       child: Text('$n', style: (size < 24 ? t.labelSmall : t.labelMedium)?.copyWith(color: du.accentText, letterSpacing: 0)),
     );
+  }
+}
+
+/// A how-to as numbered steps: the text split at its sentences, one step each, under a "How to do it" header.
+class HowToSteps extends StatelessWidget {
+  const HowToSteps(this.text, {super.key, this.header = 'How to do it'});
+  final String text;
+  final String? header;
+
+  static List<String> split(String text) =>
+      text.trim().split(RegExp(r'(?<=[.!?])\s+(?=[A-Z])')).map((x) => x.trim()).where((x) => x.isNotEmpty).toList();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final steps = split(text);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (header != null) ...[Subhead(header!, icon: LucideIcons.bookOpen), const SizedBox(height: 12)],
+      for (var i = 0; i < steps.length; i++)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            StepNumber(i + 1),
+            const SizedBox(width: 12),
+            Expanded(child: Padding(padding: const EdgeInsets.only(top: 2), child: Text(steps[i], style: t.bodyMedium))),
+          ]),
+        ),
+    ]);
+  }
+}
+
+/// An accordion of things to do: the moves of a warm-up or a stretch with their times, or the cardio a place offers
+/// with what it needs. Tapping a row opens how to do it, as short numbered steps, and closes whichever was open.
+class MoveList extends StatefulWidget {
+  const MoveList(this.rows, {super.key, required this.icon});
+  final List<({String name, String detail, String how})> rows;
+  final IconData icon;
+  @override
+  State<MoveList> createState() => _MoveListState();
+}
+
+class _MoveListState extends State<MoveList> {
+  int? _open;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Panel(padding: EdgeInsets.zero, child: Column(children: [
+      for (var i = 0; i < widget.rows.length; i++) ...[
+        if (i > 0) const Divider(height: 1),
+        InkWell(
+          onTap: widget.rows[i].how.isEmpty ? null : () { HapticFeedback.selectionClick(); setState(() => _open = _open == i ? null : i); },
+          child: Padding(padding: const EdgeInsets.fromLTRB(16, 12, 12, 12), child: Row(children: [
+            Icon(widget.icon, size: 18, color: _open == i ? du.accentText : du.inkTertiary),
+            const SizedBox(width: 14),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(widget.rows[i].name, style: t.bodyLarge),
+              Text(widget.rows[i].detail, style: t.bodySmall),
+            ])),
+            if (widget.rows[i].how.isNotEmpty)
+              AnimatedRotation(
+                turns: _open == i ? 0.5 : 0,
+                duration: m(context, durBase),
+                child: Icon(LucideIcons.chevronDown, size: 18, color: du.inkSecondary),
+              ),
+          ])),
+        ),
+        AnimatedSize(
+          duration: m(context, durSlow),
+          curve: Curves.easeInOutCubic,
+          alignment: Alignment.topCenter,
+          child: _open != i
+              ? const SizedBox(width: double.infinity)
+              : Padding(padding: const EdgeInsets.fromLTRB(15, 0, 16, 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  for (final (k, step) in HowToSteps.split(widget.rows[i].how).indexed)
+                    Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      StepNumber(k + 1, size: 20),
+                      const SizedBox(width: 13),
+                      Expanded(child: Text(step, style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
+                    ])),
+                ])),
+        ),
+      ],
+    ]));
+  }
+}
+
+/// What a cardio option needs, in words: "No equipment", or "Needs a rower".
+String cardioNeeds(Cardio c) {
+  if (c.needs == null) return 'No equipment';
+  final thing = (equipment[c.needs] ?? c.needs!).toLowerCase();
+  return 'Needs ${'aeiou'.contains(thing[0]) ? 'an' : 'a'} $thing';
+}
+
+/// A routine's moves as rows for a [MoveList].
+List<({String name, String detail, String how})> routineRows(Routine r) => [for (final mv in r.moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)];
+
+/// The workout as the strip will show it: a thin block for every set and every timed part, all the same width, sets
+/// of one exercise 2 px apart and parts 7 px apart. Sets in the accent line, timed parts in the plain one.
+class PlanStrip extends StatelessWidget {
+  const PlanStrip(this.blocks, {super.key, this.height = 8});
+  /// Each block's item key and whether it is a set.
+  final List<({String item, bool set})> blocks;
+  final double height;
+  @override
+  Widget build(BuildContext context) {
+    final du = context.du;
+    if (blocks.isEmpty) return SizedBox(height: height);
+    return LayoutBuilder(builder: (context, c) {
+      double gapAfter(int i) => i == blocks.length - 1 ? 0 : blocks[i].item == blocks[i + 1].item ? 2 : 7;
+      var gaps = 0.0;
+      for (var i = 0; i < blocks.length; i++) { gaps += gapAfter(i); }
+      final unit = ((c.maxWidth - gaps) / blocks.length).clamp(1.0, c.maxWidth);
+      return SizedBox(height: height, child: Row(children: [
+        for (var i = 0; i < blocks.length; i++) ...[
+          Container(width: unit, height: height, decoration: BoxDecoration(color: blocks[i].set ? du.accentLine : du.line, borderRadius: BorderRadius.circular(height / 2))),
+          if (gapAfter(i) > 0) SizedBox(width: gapAfter(i)),
+        ],
+      ]));
+    });
   }
 }
 
@@ -204,7 +394,7 @@ class ChoiceRow<T> extends StatelessWidget {
           for (final e in options.entries)
             Pressable(
               borderRadius: 999,
-              onTap: () => onChanged(e.key),
+              onTap: () { HapticFeedback.selectionClick(); onChanged(e.key); },
               child: AnimatedContainer(
                 duration: m(context, durBase),
                 curve: easeOut,
@@ -330,7 +520,7 @@ class RangeBand extends StatelessWidget {
   }
 }
 
-/// Label above a value, with an icon. Four of these make a card.
+/// A number with its name over it, in sentence case. A few of these make a row.
 class StatTile extends StatelessWidget {
   const StatTile({super.key, required this.label, required this.value, this.icon, this.hint});
   final String label;
@@ -344,7 +534,7 @@ class StatTile extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         if (icon != null) Padding(padding: const EdgeInsets.only(right: 5), child: Icon(icon, size: 13, color: du.inkTertiary)),
-        Text(label.toUpperCase(), style: t.labelSmall),
+        Flexible(child: Text(label, style: t.labelMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
       ]),
       const SizedBox(height: 4),
       Text(value, style: t.titleLarge),
@@ -389,11 +579,15 @@ class EnergyPicker extends StatelessWidget {
   }
 }
 
-/// A vertical ladder: every rung as a dot on a track, reached ones filled, the current one ringed.
+/// A vertical ladder: every rung as a dot on a track, reached ones filled, the current one ringed. [marked] is a second
+/// rung to point out, with [markedWord] beside it: today's level while the saved one stays "you".
 class LadderTrack extends StatelessWidget {
-  const LadderTrack({super.key, required this.rungs, this.onUse});
+  const LadderTrack({super.key, required this.rungs, this.onUse, this.marked, this.markedWord = 'today', this.currentWord = 'you'});
   final List<({int rung, String label, String? note, bool current, bool reached})> rungs;
   final void Function(int rung)? onUse;
+  final int? marked;
+  final String markedWord;
+  final String currentWord;
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
@@ -403,31 +597,33 @@ class LadderTrack extends StatelessWidget {
         Builder(builder: (context) {
           final r = rungs[i];
           final top = i == rungs.length - 1, bottom = i == 0;
+          final isMarked = marked != null && r.rung == marked;
+          final word = isMarked && !r.current ? markedWord : r.current ? (marked == null || isMarked ? currentWord : currentWord) : null;
           return Pressable(
-            onTap: r.current || onUse == null ? null : () => onUse!(r.rung),
+            onTap: onUse == null || (isMarked || (marked == null && r.current)) ? null : () { HapticFeedback.selectionClick(); onUse!(r.rung); },
             child: IntrinsicHeight(child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               SizedBox(width: 36, child: Column(children: [
                 Expanded(child: Container(width: 2, color: top ? Colors.transparent : (r.reached ? du.accentLine : du.line))),
                 AnimatedContainer(
                   duration: m(context, durBase),
-                  width: r.current ? 18 : 12, height: r.current ? 18 : 12,
+                  width: r.current || isMarked ? 18 : 12, height: r.current || isMarked ? 18 : 12,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: r.current ? du.accentStrong : r.reached ? du.accentLine : du.surface,
-                    border: Border.all(color: r.current ? du.accentStrong : r.reached ? du.accentLine : du.line, width: r.current ? 3 : 1),
+                    color: r.current ? du.accentStrong : isMarked ? du.surface : r.reached ? du.accentLine : du.surface,
+                    border: Border.all(color: r.current || isMarked ? du.accentStrong : r.reached ? du.accentLine : du.line, width: r.current || isMarked ? 3 : 1),
                   ),
                 ),
-                Expanded(child: Container(width: 2, color: bottom ? Colors.transparent : (r.reached && !r.current ? du.accentLine : (r.reached ? du.accentLine : du.line)))),
+                Expanded(child: Container(width: 2, color: bottom ? Colors.transparent : (r.reached ? du.accentLine : du.line))),
               ])),
               Expanded(child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(r.label, style: r.current ? t.titleMedium?.copyWith(color: du.accentText) : t.bodyMedium?.copyWith(color: r.reached ? du.ink : du.inkSecondary)),
+                  Text(r.label, style: r.current || isMarked ? t.titleMedium?.copyWith(color: du.accentText) : t.bodyMedium?.copyWith(color: r.reached ? du.ink : du.inkSecondary)),
                   if (r.note != null) Text(r.note!, style: t.bodySmall),
                 ]),
               )),
-              if (r.current)
-                Padding(padding: const EdgeInsets.only(right: 12), child: Center(child: Text('you', style: t.labelSmall?.copyWith(color: du.accentText))))
+              if (word != null)
+                Padding(padding: const EdgeInsets.only(right: 12), child: Center(child: Text(word, style: t.labelSmall?.copyWith(color: du.accentText))))
               else if (onUse != null)
                 Padding(padding: const EdgeInsets.only(right: 4), child: Center(child: Icon(LucideIcons.chevronRight, size: 16, color: du.inkTertiary))),
             ])),
@@ -495,6 +691,62 @@ class UsualMeter extends StatelessWidget {
         Container(width: size * 1.6, height: size * (0.6 + 0.4 * i), margin: EdgeInsets.only(right: size * 0.4),
             decoration: BoxDecoration(borderRadius: BorderRadius.circular(2), color: i <= filled ? du.accentStrong : du.line)),
     ]);
+  }
+}
+
+/// A small word in a pill beside a title: "next level", "new", "forced". Accent when it is good news.
+class Tag extends StatelessWidget {
+  const Tag(this.text, {super.key, this.accent = false});
+  final String text;
+  final bool accent;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: accent ? du.accentSubtle : du.sunk, borderRadius: BorderRadius.circular(999), border: Border.all(color: accent ? du.accentLine : du.line, width: 0.6)),
+      child: Text(text, style: t.labelSmall?.copyWith(color: accent ? du.accentText : du.inkSecondary, letterSpacing: 0)),
+    );
+  }
+}
+
+/// A row in a list panel: a small icon, a title, one line under it, and at the right a value and a chevron. The one
+/// row shape the plan, the settings and the catalog share.
+class Row1 extends StatelessWidget {
+  const Row1({super.key, this.icon, required this.title, this.subtitle, this.value, this.tags = const [], this.onTap, this.chevron = true, this.trailing, this.dense = false, this.muted = false});
+  final IconData? icon;
+  final Widget title;
+  final String? subtitle;
+  final String? value;
+  final List<Widget> tags;
+  final VoidCallback? onTap;
+  final bool chevron;
+  final Widget? trailing;
+  final bool dense;
+  final bool muted;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final body = Padding(
+      padding: EdgeInsets.fromLTRB(16, dense ? 10 : 13, 12, dense ? 10 : 13),
+      child: Row(children: [
+        if (icon != null) ...[Icon(icon, size: 18, color: muted ? du.inkTertiary : du.inkSecondary), const SizedBox(width: 14)],
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Flexible(child: DefaultTextStyle(style: t.bodyLarge!.copyWith(color: muted ? du.inkSecondary : du.ink), child: title)),
+            for (final tag in tags) ...[const SizedBox(width: 6), tag],
+          ]),
+          if (subtitle != null) Text(subtitle!, style: t.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ])),
+        if (value != null) ...[const SizedBox(width: 12), Text(value!, style: t.bodySmall?.copyWith(color: du.inkSecondary))],
+        if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+        if (chevron && onTap != null) ...[const SizedBox(width: 4), Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary)],
+      ]),
+    );
+    if (onTap == null) return body;
+    return InkWell(onTap: () { HapticFeedback.selectionClick(); onTap!(); }, child: body);
   }
 }
 

@@ -543,21 +543,14 @@ class _SessionScreenState extends State<SessionScreen> {
       StageArt(stage: stage),
       const SizedBox(height: 24),
       if (moves.isNotEmpty)
-        _MoveList([for (final mv in moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)], icon: LucideIcons.stretchHorizontal, key: ValueKey('moves ${cur.key}')),
+        MoveList([for (final mv in moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)], icon: LucideIcons.stretchHorizontal, key: ValueKey('moves ${cur.key}')),
       // cardio: what this place offers, each opening to how to do it at a pace you can talk at
       if (cur.kind == ItemKind.cardio)
-        _MoveList([
+        MoveList([
           for (final c in cardioFor(x.locationId == null ? const [] : context.store.state.location(x.locationId)?.equipment ?? const []))
-            (name: c.name, detail: _needs(c), how: exerciseById[c.id]?.how ?? ''),
+            (name: c.name, detail: cardioNeeds(c), how: exerciseById[c.id]?.how ?? ''),
         ], icon: LucideIcons.heartPulse, key: ValueKey('cardio ${cur.key}')),
     ];
-  }
-
-  /// What a cardio option needs, in words: "No equipment", or "Needs a rower".
-  static String _needs(Cardio c) {
-    if (c.needs == null) return 'No equipment';
-    final thing = (equipment[c.needs] ?? c.needs!).toLowerCase();
-    return 'Needs ${'aeiou'.contains(thing[0]) ? 'an' : 'a'} $thing';
   }
 
   bool _lowerDay(Session x) => x.exercises.any((e) => e.exercise.primary.any((m) => const {'quads', 'glutes', 'hamstrings', 'calves'}.contains(m)));
@@ -980,7 +973,7 @@ class _SessionScreenState extends State<SessionScreen> {
             ChoiceRow<int>(value: effort ?? 2, options: const {1: 'Light', 2: 'Steady', 3: 'Hard'}, icons: const {1: LucideIcons.feather, 2: LucideIcons.activity, 3: LucideIcons.flame}, onChanged: (v) => setState(() => effort = v)),
             if (how.isNotEmpty) ...[const SizedBox(height: 16), HowToSteps(how)],
           ] else
-            _MoveList([for (final mv in r!.moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)], icon: LucideIcons.stretchHorizontal),
+            MoveList([for (final mv in r!.moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)], icon: LucideIcons.stretchHorizontal),
         ])),
         _dockBox(context, isCardio
             ? _stopwatch(context, seconds: now.difference(session.startedAt ?? now).inSeconds, label: 'Done', enabled: !paused, onDone: (minutes) {
@@ -1151,61 +1144,5 @@ class _RepWheelState extends State<_RepWheel> {
         )),
       ]),
     ]);
-  }
-}
-
-/// An accordion of things to do: the moves of a warm-up or a stretch with their times, or the cardio a place offers
-/// with what it needs. Tapping a row opens how to do it, as short numbered steps, and closes whichever was open.
-class _MoveList extends StatefulWidget {
-  const _MoveList(this.rows, {super.key, required this.icon});
-  final List<({String name, String detail, String how})> rows;
-  final IconData icon;
-  @override
-  State<_MoveList> createState() => _MoveListState();
-}
-
-class _MoveListState extends State<_MoveList> {
-  int? _open;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
-    return Panel(padding: EdgeInsets.zero, child: Column(children: [
-      for (var i = 0; i < widget.rows.length; i++) ...[
-        if (i > 0) const Divider(height: 1),
-        InkWell(
-          onTap: () { HapticFeedback.selectionClick(); setState(() => _open = _open == i ? null : i); },
-          child: Padding(padding: const EdgeInsets.fromLTRB(16, 12, 12, 12), child: Row(children: [
-            Icon(widget.icon, size: 18, color: _open == i ? du.accentText : du.inkTertiary),
-            const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(widget.rows[i].name, style: t.bodyLarge),
-              Text(widget.rows[i].detail, style: t.bodySmall),
-            ])),
-            AnimatedRotation(
-              turns: _open == i ? 0.5 : 0,
-              duration: m(context, durBase),
-              child: Icon(LucideIcons.chevronDown, size: 18, color: du.inkSecondary),
-            ),
-          ])),
-        ),
-        AnimatedSize(
-          duration: m(context, durSlow),
-          curve: Curves.easeInOutCubic,
-          alignment: Alignment.topCenter,
-          child: _open != i
-              ? const SizedBox(width: double.infinity)
-              : Padding(padding: const EdgeInsets.fromLTRB(15, 0, 16, 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  for (final (k, step) in HowToSteps.split(widget.rows[i].how).indexed)
-                    Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      StepNumber(k + 1, size: 20),
-                      const SizedBox(width: 13),
-                      Expanded(child: Text(step, style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
-                    ])),
-                ])),
-        ),
-      ],
-    ]));
   }
 }
