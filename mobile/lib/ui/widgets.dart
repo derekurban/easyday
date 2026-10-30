@@ -60,6 +60,15 @@ IconData equipmentGroupIcon(String name) => switch (name) {
 IconData energyIcon(Energy e) => switch (e) { Energy.easy => LucideIcons.batteryLow, Energy.normal => LucideIcons.batteryMedium, Energy.hard => LucideIcons.batteryFull };
 IconData moveIcon(String? kind) => kind == 'cardio' ? LucideIcons.footprints : LucideIcons.stretchHorizontal;
 
+/// The three ways through a workout's exercises, named and drawn the same on the plan and in the workout.
+const orderName = {WorkoutOrder.sequence: 'One at a time', WorkoutOrder.circuit: 'Circuit', WorkoutOrder.free: 'Free form'};
+const orderBlurb = {
+  WorkoutOrder.sequence: 'Every set of one exercise, then the next.',
+  WorkoutOrder.circuit: 'One set of each, round and round, with a rest between rounds.',
+  WorkoutOrder.free: 'Pick the exercise before every set, from the ones with sets left.',
+};
+const orderIcon = {WorkoutOrder.sequence: LucideIcons.listOrdered, WorkoutOrder.circuit: LucideIcons.repeat, WorkoutOrder.free: LucideIcons.shuffle};
+
 // ---------- small building blocks
 
 /// A section's name: an icon and a sentence-case label in secondary ink, with room below it. The one header style

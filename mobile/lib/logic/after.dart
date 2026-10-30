@@ -102,15 +102,21 @@ Verdict verdictFor(SessionExercise e, StopReason? stop, int stopAt, int idx) {
     // the working sets were cut short
     return stop == StopReason.energy && stopAt == idx ? Verdict.miss : Verdict.neutral;
   }
+  // a version changed mid-workout: sets at another version than the plan's say nothing about the plan's
+  if (!e.exercise.loaded && working.any((x) => (x.rung ?? e.asPlanned) != e.asPlanned)) return Verdict.neutral;
+  // a set at least as heavy as the plan asked: the weight it was done at, written with its reps
+  final planKg = e.plannedKg ?? e.loadKg;
+  bool asHeavy(SetLog x) => planKg == null || (x.kg ?? planKg) >= planKg;
   if (e.nextLevel) {
     // a hard day: the floor on every set at the next level means it is yours. Otherwise a version attempt is neutral,
     // and a loaded attempt is read below by what each set was worth at the usual weight.
-    if (working.every((x) => x.reps! >= e.lo)) return Verdict.stepNow;
+    if (working.every((x) => x.reps! >= e.lo && asHeavy(x))) return Verdict.stepNow;
     if (!e.exercise.loaded) return Verdict.neutral;
   }
-  double worth(SetLog x) => e.loadKg != null && e.usualLoadKg != null && e.usualLoadKg! > 0 && e.loadKg != e.usualLoadKg
-      ? repsEquivalent(x.reps!, e.loadKg!, e.usualLoadKg!)
-      : x.reps!.toDouble();
+  double worth(SetLog x) {
+    final kg = x.kg ?? planKg;
+    return kg != null && e.usualLoadKg != null && e.usualLoadKg! > 0 && kg != e.usualLoadKg ? repsEquivalent(x.reps!, kg, e.usualLoadKg!) : x.reps!.toDouble();
+  }
   if (working.any((x) => worth(x) < e.lo)) return Verdict.miss;
   if (working.every((x) => worth(x) >= e.hi)) return Verdict.hit;
   return Verdict.hold;
@@ -131,7 +137,7 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
     st.swappedOut = 0;
     if (session.skipped.contains(idx)) continue;
     if (session.stopReason == StopReason.pain && session.stopAt == idx) continue;
-    if (e.edited && e.rung != st.rung) continue; // today's rung was edited but not saved: nothing to judge against
+    if (e.edited && e.asPlanned != st.rung) continue; // today's rung was edited but not saved: nothing to judge against
     if (e.atWorkingLevel) { st.lastWorkingAt = now; anyWorking = true; }
     final total = attempted.fold(0, (a, x) => a + x.reps!);
 
@@ -173,7 +179,7 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
           st.costUp = 0;
           if (v == Verdict.stepNow) {
             // a level earned today leads the note
-            ups.insert(0, '${ex.name} levels up now: ${e.rungLabel} is yours, ${_reps(e.sets)}.');
+            ups.insert(0, '${ex.name} levels up now: ${e.asPlanned == e.rung ? e.rungLabel : 'the next level'} is yours, ${_reps(e.sets)}.');
           } else {
             ups.add('${ex.name} levels up next time: ${e.hi} or more on every set.');
           }
@@ -341,7 +347,7 @@ Map<String, int> levelTrend(AppState s, DateTime now) {
     for (final e in x.exercises) {
       final st = s.ex[e.exId];
       if (st == null || e.edited || e.attempted.isEmpty) continue;
-      out.putIfAbsent(e.exId, () => st.rung - e.rung);
+      out.putIfAbsent(e.exId, () => st.rung - e.asPlanned);
     }
   }
   return out;

@@ -103,7 +103,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final manualCount = max(1, min(p.forced.length, g.exercises.max));
     return BuildOptions(
       energy: energy ?? defaults.energy, minutes: minutes ?? defaults.minutes, locationId: loc?.id, moveKind: moveKind, routine: routine, cardio: cardioId,
-      energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, circuit: s.settings.circuit,
+      energyChosen: energy != null && energy != defaults.energy, timeChosen: minutes != null && minutes != defaults.minutes, workoutOrder: s.settings.order,
       exerciseCount: limit ? null : p.manual ? manualCount : n, warmupMinutes: warmup ?? s.settings.warmup, skipCardio: skipCardio, skipStretch: skipStretch,
       muscles: p.forced, excluded: p.excluded, muscleSeed: p.muscleDraw, exerciseSeed: p.exerciseDraw, manual: p.manual, liftInstead: liftInstead, requirements: p.requirements,
       picks: asBuilt ? const {} : picks, rungOverrides: asBuilt ? const {} : rungOverrides, order: asBuilt ? const [] : order, leftOut: asBuilt ? const {} : leftOut,
@@ -387,7 +387,6 @@ class _TodayScreenState extends State<TodayScreen> {
     final store = context.store;
     final g = s.goal!;
     final items = workoutItems(session);
-    final circuit = s.settings.circuit && session.exercises.length > 1;
     // the strip as the workout will show it: a block per set and per timed part
     final blocks = <({String item, bool set})>[
       for (final it in items)
@@ -411,7 +410,7 @@ class _TodayScreenState extends State<TodayScreen> {
           const Divider(height: 1),
         ],
         if (session.exercises.length > 1)
-          Row1(icon: circuit ? LucideIcons.repeat : LucideIcons.listOrdered, title: Text(circuit ? 'Circuit' : 'One at a time'), onTap: () => _orderSheet(context, s)),
+          Row1(icon: orderIcon[s.settings.order], title: Text(orderName[s.settings.order]!), onTap: () => _orderSheet(context, s)),
       ])),
       const SizedBox(height: 12),
       PlanStrip(blocks),
@@ -495,14 +494,8 @@ class _TodayScreenState extends State<TodayScreen> {
 
   Future<void> _orderSheet(BuildContext context, AppState s) async {
     final store = context.store;
-    final v = await showSheet<bool>(context, ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
-      const SheetHeader('Order', icon: LucideIcons.repeat),
-      ListTile(leading: const IconBadge(LucideIcons.listOrdered, size: 36), title: const Text('One at a time'), subtitle: const Text('Every set of one exercise, then the next.'),
-          trailing: !s.settings.circuit ? Icon(LucideIcons.check, color: context.du.accentStrong) : null, onTap: () => Navigator.pop(context, false)),
-      ListTile(leading: const IconBadge(LucideIcons.repeat, size: 36), title: const Text('Circuit'), subtitle: const Text('One set of each, round and round, with a rest between rounds.'),
-          trailing: s.settings.circuit ? Icon(LucideIcons.check, color: context.du.accentStrong) : null, onTap: () => Navigator.pop(context, true)),
-    ]));
-    if (v != null) store.update((x) => x.settings.circuit = v);
+    final v = await pickOrder(context, s.settings.order, subtitle: 'You can change it during the workout too.');
+    if (v != null) store.update((x) => x.settings.order = v);
   }
 
   /// The exercise sheet: the exercise and its facts, why it is here, Up, Down and Skip, the muscles it works on the
