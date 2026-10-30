@@ -505,14 +505,14 @@ int _tier(String intent) => switch (intent) { intentExtra => 0, intentWorking =>
 class BuildOptions {
   BuildOptions({
     required this.energy, required this.minutes, this.locationId, this.picks = const {}, this.rungOverrides = const {},
-    this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.circuit = false,
+    this.moveKind, this.routine, this.cardio, this.energyChosen = false, this.timeChosen = false, this.workoutOrder = WorkoutOrder.sequence,
     this.exerciseCount, this.warmupMinutes = 0, this.skipCardio = false, this.skipStretch = false, this.order = const [],
     this.muscles = const [], this.excluded = const {}, this.leftOut = const {}, this.liftInstead = false, this.muscleSeed, this.exerciseSeed, this.manual = false, this.requirements,
   });
 
   BuildOptions copyWith({int? muscleSeed, int? exerciseSeed, bool clearSeeds = false, bool baseline = false}) => BuildOptions(
         energy: energy, minutes: minutes, locationId: locationId, picks: baseline ? const {} : picks, rungOverrides: rungOverrides, moveKind: moveKind, routine: routine,
-        cardio: cardio, energyChosen: energyChosen, timeChosen: timeChosen, circuit: circuit, exerciseCount: exerciseCount, warmupMinutes: warmupMinutes,
+        cardio: cardio, energyChosen: energyChosen, timeChosen: timeChosen, workoutOrder: workoutOrder, exerciseCount: exerciseCount, warmupMinutes: warmupMinutes,
         skipCardio: skipCardio, skipStretch: skipStretch, order: order, muscles: muscles, excluded: excluded, leftOut: leftOut, liftInstead: liftInstead,
         muscleSeed: clearSeeds ? null : muscleSeed ?? this.muscleSeed, exerciseSeed: clearSeeds || baseline ? null : exerciseSeed ?? this.exerciseSeed, manual: manual,
         requirements: baseline || muscleSeed != null ? null : requirements,
@@ -541,7 +541,7 @@ class BuildOptions {
   final String? cardio;
   final bool energyChosen;
   final bool timeChosen;
-  final bool circuit;
+  final WorkoutOrder workoutOrder;  // one at a time, circuit or free form
 }
 
 Session buildSession(AppState s, BuildOptions o, DateTime now) {
@@ -755,7 +755,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
     id: id, type: 'lift', name: workoutName(out), locationId: loc?.id, energy: o.energy, timeMinutes: minutes,
     energyChosen: o.energyChosen, timeChosen: o.timeChosen, stateAtStart: ps.state, exercises: out,
     estMinutes: (usedSeconds / 60).round() + (out.isEmpty ? 0 : cardioMin + stretchMin + warmup), cardioMinutes: out.isEmpty ? 0 : cardioMin,
-    stretchMinutes: out.isEmpty ? 0 : stretchMin, spareMinutes: spareMin, circuit: o.circuit, warmupMinutes: out.isEmpty ? 0 : warmup,
+    stretchMinutes: out.isEmpty ? 0 : stretchMin, spareMinutes: spareMin, order: o.workoutOrder, warmupMinutes: out.isEmpty ? 0 : warmup,
   )..relative = relative..pushes = out.where((e) => e.nextLevel).length..uncovered = uncovered
    ..requirements = [for (final m in promised) if (!outMuscles.contains(m)) m];
 }

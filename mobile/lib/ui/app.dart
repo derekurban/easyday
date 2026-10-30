@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../data/model.dart';
 import '../data/store.dart';
 import 'catalog.dart';
 import 'onboarding.dart';
@@ -11,6 +12,7 @@ import 'settings.dart';
 import 'theme.dart';
 import 'today.dart';
 import 'updates.dart';
+import 'widgets.dart';
 
 class StoreScope extends InheritedNotifier<Store> {
   const StoreScope({super.key, required Store store, required super.child}) : super(notifier: store);
@@ -125,3 +127,19 @@ class SheetHeader extends StatelessWidget {
     );
   }
 }
+
+/// The order sheet: one at a time, circuit or free form, the one in use ticked. The plan's Order row and the workout's
+/// top bar both open it.
+Future<WorkoutOrder?> pickOrder(BuildContext context, WorkoutOrder current, {String? subtitle}) => showSheet<WorkoutOrder>(context, ListView(
+      shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
+        SheetHeader('Order', subtitle: subtitle, icon: orderIcon[current]),
+        for (final o in WorkoutOrder.values)
+          ListTile(
+            leading: IconBadge(orderIcon[o]!, size: 36, accent: o == current),
+            title: Text(orderName[o]!),
+            subtitle: Text(orderBlurb[o]!),
+            trailing: o == current ? Icon(LucideIcons.check, color: context.du.accentStrong) : null,
+            onTap: () => Navigator.pop(context, o),
+          ),
+      ],
+    ));

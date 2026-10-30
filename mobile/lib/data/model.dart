@@ -8,6 +8,9 @@ enum Energy { easy, normal, hard }
 enum StopReason { energy, time, pain, none }
 enum Feel { easy, right, tooMuch }
 enum PersonState { active, atRisk, away }
+/// How the exercises of a workout are gone through: every set of one, then the next; one set of each, round and
+/// round; or free form, where the user picks the exercise before every set from the ones with sets left.
+enum WorkoutOrder { sequence, circuit, free }
 
 String _e(Enum e) => e.name;
 T _p<T extends Enum>(List<T> values, Object? v, T def) => values.firstWhere((x) => x.name == v, orElse: () => def);
@@ -44,7 +47,7 @@ class Settings {
   bool autoTrack = false;    // write finished workouts to the calendar
   String? calendarId;        // the calendar to write to; null is the phone's primary
   bool location = false;
-  bool circuit = false;  // last chosen workout mode
+  WorkoutOrder order = WorkoutOrder.sequence;  // last chosen workout order
   bool timeLimit = true; // last chosen on Today: fit the workout to the minutes, or pick a number of exercises
   int warmup = 5;        // last chosen warm-up block, minutes (0 = none)
   bool restAuto = false; // when the planned rest runs out, start the next set as if I'm ready was tapped
@@ -56,7 +59,7 @@ class Settings {
         'stepUp': stepUp, 'stepDown': stepDown, 'decayWeeks': decayWeeks, 'daysAway': daysAway, 'painRestDays': painRestDays,
         'notify': notify, 'notifyHour': notifyHour, 'calendar': calendar, 'awakeStart': awakeStart, 'awakeEnd': awakeEnd,
         'busyAdjust': busyAdjust, 'busyShort': busyShort, 'busyEasy': busyEasy, 'autoTrack': autoTrack, 'calendarId': calendarId,
-        'location': location, 'circuit': circuit, 'timeLimit': timeLimit, 'warmup': warmup, 'restAuto': restAuto, 'timeAsShare': timeAsShare,
+        'location': location, 'order': _e(order), 'timeLimit': timeLimit, 'warmup': warmup, 'restAuto': restAuto, 'timeAsShare': timeAsShare,
         'index': _e(index), 'figure': figure,
       };
   static Settings fromJson(Map<String, dynamic> j) => Settings()
@@ -76,7 +79,7 @@ class Settings {
     ..autoTrack = j['autoTrack'] ?? false
     ..calendarId = j['calendarId']
     ..location = j['location'] ?? false
-    ..circuit = j['circuit'] ?? false
+    ..order = _p(WorkoutOrder.values, j['order'], j['circuit'] == true ? WorkoutOrder.circuit : WorkoutOrder.sequence)
     ..timeLimit = j['timeLimit'] ?? true
     ..warmup = j['warmup'] ?? 5
     ..restAuto = j['restAuto'] ?? false
@@ -361,15 +364,17 @@ class ExerciseState {
 /// One logged set. reps == null means never attempted. [start] is when the set began (I'm ready), [at] when the reps
 /// went in; lifting is the time between them, rest everything else.
 class SetLog {
-  SetLog({this.reps, this.at, this.start});
+  SetLog({this.reps, this.at, this.start, this.rung, this.kg});
   int? reps;
   DateTime? at;
   DateTime? start;
+  int? rung;     // the level the set was done at, written with the reps; null in older workouts: the exercise's rung
+  double? kg;    // loaded exercises: the weight the set was done at, written with the reps
   bool get attempted => reps != null;
   /// Under way: started, reps not in yet.
   bool get lifting => start != null && reps == null;
-  Map<String, dynamic> toJson() => {'reps': reps, 'at': _ms(at), 'start': _ms(start)};
-  static SetLog fromJson(Map<String, dynamic> j) => SetLog(reps: j['reps'], at: _d(j['at']), start: _d(j['start']));
+  Map<String, dynamic> toJson() => {'reps': reps, 'at': _ms(at), 'start': _ms(start), if (rung != null) 'rung': rung, if (kg != null) 'kg': kg};
+  static SetLog fromJson(Map<String, dynamic> j) => SetLog(reps: j['reps'], at: _d(j['at']), start: _d(j['start']), rung: j['rung'], kg: (j['kg'] as num?)?.toDouble());
 }
 
 class Warmup {
@@ -395,7 +400,8 @@ class SessionExercise {
   bool asked;         // the user asked for this muscle by hand today
   String intent;      // light | working | extra: what today asks of this exercise. Never a judgement.
   int workingSets;    // the working set count at the time, so judging knows what the working level was
-  int rung;           // the rung used today (after easy or comeback adjustments)
+  int rung;           // the rung used today (after easy or comeback adjustments); changed mid-workout, the one now
+  int? plannedRung;   // the rung the plan asked for, kept when the weight or version is changed mid-workout
   String rungLabel;
   int target;         // reps (or seconds) to aim for in every set
   int lo;             // the range used for judgement
@@ -403,8 +409,11 @@ class SessionExercise {
   bool atCeiling;
   int bestTotal;
   int difficulty;     // 1 to 3, in play
-  double? loadKg;     // loaded exercises: the weight today
+  double? loadKg;     // loaded exercises: the weight today; changed mid-workout, the one now
+  double? plannedKg;  // the weight the plan asked for, kept when it is changed mid-workout
   RepRange get range => RepRange(lo, hi);
+  /// The rung the plan asked for, before any change mid-workout. Judging and history read this one.
+  int get asPlanned => plannedRung ?? rung;
   double relative = 1; // today's work against the user's usual (the working level): 0.6 lighter, 1 usual, 1.1 the next level
   bool nextLevel = false; // a hard day: every set at the next level. Reach the floor on every working set and it is yours today.
   double? usualLoadKg; // loaded exercises: the weight at the user's level in today's reps, so a set can be read by its worth
@@ -427,7 +436,7 @@ class SessionExercise {
         'atCeiling': atCeiling, 'bestTotal': bestTotal, 'difficulty': difficulty, 'loadKg': loadKg, 'relative': relative,
         'nextLevel': nextLevel, 'usualLoadKg': usualLoadKg, 'secPerSet': secPerSet, 'sets': sets.map((s) => s.toJson()).toList(),
         'warmups': warmups.map((w) => w.toJson()).toList(), 'edited': edited, 'lightened': lightened,
-        'why': why, 'fresh': fresh, 'asked': asked,
+        'why': why, 'fresh': fresh, 'asked': asked, if (plannedRung != null) 'plannedRung': plannedRung, if (plannedKg != null) 'plannedKg': plannedKg,
       };
   static SessionExercise fromJson(Map<String, dynamic> j) => SessionExercise(
         slot: j['slot'], exId: exerciseRenames[j['exId']] ?? j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
@@ -440,7 +449,9 @@ class SessionExercise {
         warmups: ((j['warmups'] ?? []) as List).map((w) => Warmup.fromJson(w)).toList(), edited: j['edited'] ?? false, lightened: j['lightened'] ?? false,
       )..relative = (j['relative'] as num?)?.toDouble() ?? 1
         ..nextLevel = j['nextLevel'] ?? false
-        ..usualLoadKg = (j['usualLoadKg'] as num?)?.toDouble();
+        ..usualLoadKg = (j['usualLoadKg'] as num?)?.toDouble()
+        ..plannedRung = j['plannedRung']
+        ..plannedKg = (j['plannedKg'] as num?)?.toDouble();
 }
 
 /// The muscle an exercise is filed under: its first primary muscle. For older sessions that carried no muscle.
@@ -470,7 +481,7 @@ class Session {
     required this.id, required this.type, required this.name, this.itemIndex = 0, required this.locationId,
     required this.energy, required this.timeMinutes, required this.energyChosen, required this.timeChosen, required this.stateAtStart,
     this.kind, this.exercises = const [], this.minutes, this.routine, this.cardio, this.estMinutes = 0, this.cardioMinutes = 0, this.stretchMinutes = 0,
-    this.spareMinutes = 0, this.circuit = false, this.warmupMinutes = 0,
+    this.spareMinutes = 0, this.order = WorkoutOrder.sequence, this.warmupMinutes = 0,
   });
   String id;
   String type;           // lift | move
@@ -494,7 +505,8 @@ class Session {
   int spareMinutes;      // minutes left as rest when spare minutes are for rest
   double relative = 1;   // the whole workout against the user's usual: below 1 lighter, 1 usual, above 1 more
   int pushes = 0;        // exercises trained at the next level today
-  bool circuit;          // one set of each exercise per round, instead of all sets of one exercise
+  WorkoutOrder order;    // how the exercises are gone through; can change mid-workout
+  bool get circuit => order == WorkoutOrder.circuit;
   int warmupMinutes;     // the warm-up block before the lifting
   /// When each item of the workout started (warm-up, each exercise or the circuit, cardio, stretching), by its key. An
   /// item runs until the next one starts, so its time includes the rest inside it. The latest is the current item.
@@ -524,7 +536,7 @@ class Session {
         'minutes': minutes, 'routine': routine, 'cardio': cardio, 'effort': effort, 'estMinutes': estMinutes, 'cardioMinutes': cardioMinutes,
         'stretchMinutes': stretchMinutes, 'spareMinutes': spareMinutes, 'relative': relative, 'pushes': pushes,
         'startedAt': _ms(startedAt), 'endedAt': _ms(endedAt), 'pausedAt': _ms(pausedAt), 'pausedSeconds': pausedSeconds, 'cardioDone': cardioDone, 'stopReason': stopReason == null ? null : _e(stopReason!), 'stopAt': stopAt,
-        'feel': feel == null ? null : _e(feel!), 'note': note, 'swappedToMove': swappedToMove, 'circuit': circuit, 'skipped': skipped,
+        'feel': feel == null ? null : _e(feel!), 'note': note, 'swappedToMove': swappedToMove, 'order': _e(order), 'skipped': skipped,
         'calendarEventId': calendarEventId, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
       };
   static Session fromJson(Map<String, dynamic> j) => Session(
@@ -535,7 +547,7 @@ class Session {
         exercises: ((j['exercises'] ?? []) as List).map((e) => SessionExercise.fromJson(e)).toList(),
         minutes: j['minutes'], routine: j['routine'], cardio: j['cardio'], estMinutes: j['estMinutes'] ?? 0, cardioMinutes: j['cardioMinutes'] ?? j['bonusCardioMinutes'] ?? 0, stretchMinutes: j['stretchMinutes'] ?? 0,
         spareMinutes: j['spareMinutes'] ?? 0,
-        circuit: j['circuit'] ?? false, warmupMinutes: j['warmupMinutes'] ?? 0,
+        order: _p(WorkoutOrder.values, j['order'], j['circuit'] == true ? WorkoutOrder.circuit : WorkoutOrder.sequence), warmupMinutes: j['warmupMinutes'] ?? 0,
       )
       ..itemStarts = (j['items'] as Map? ?? {}).map((k, v) => MapEntry(k as String, _d(v)!))
       ..relative = (j['relative'] as num?)?.toDouble() ?? 1

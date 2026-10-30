@@ -1,13 +1,14 @@
-// The workout as items on a strip (warm-up, each exercise or one circuit, cardio, stretching) and the two taps that
-// move through it: the reps, which end a set, and I'm ready, which starts the next one. Lifting is the time from I'm
+// The workout as items on a strip (warm-up, each exercise, or one circuit or free-form block, cardio, stretching) and
+// the two taps that move through it: the reps, which end a set, and I'm ready, which starts the next one. Lifting is the time from I'm
 // ready to the reps; rest is everything else, setting up the next exercise included. An item runs from when it
 // starts until the next one does. Section 5 of APPLICATION.md.
 import 'dart:math';
 
 import '../data/model.dart';
 import 'after.dart';
+import 'ladder.dart';
 
-enum ItemKind { warmup, exercise, circuit, cardio, stretch }
+enum ItemKind { warmup, exercise, circuit, free, cardio, stretch }
 
 class WorkoutItem {
   const WorkoutItem(this.key, this.kind, {this.exercises = const [], this.minutes = 0});
@@ -15,7 +16,7 @@ class WorkoutItem {
   final ItemKind kind;
   final List<int> exercises;   // indexes into the session's exercises
   final int minutes;           // timed blocks: their length
-  bool get lifting => kind == ItemKind.exercise || kind == ItemKind.circuit;
+  bool get lifting => kind == ItemKind.exercise || kind == ItemKind.circuit || kind == ItemKind.free;
 }
 
 typedef SetRef = ({int ex, int set});
@@ -27,8 +28,9 @@ const roundRestSeconds = 90;
 List<WorkoutItem> workoutItems(Session s) {
   final out = <WorkoutItem>[];
   if (s.warmupMinutes > 0) out.add(WorkoutItem('warmup', ItemKind.warmup, minutes: s.warmupMinutes));
-  if (s.circuit && s.exercises.length > 1) {
-    out.add(WorkoutItem('circuit', ItemKind.circuit, exercises: [for (var i = 0; i < s.exercises.length; i++) i]));
+  if (s.order != WorkoutOrder.sequence && s.exercises.length > 1) {
+    final free = s.order == WorkoutOrder.free;
+    out.add(WorkoutItem(free ? 'free' : 'circuit', free ? ItemKind.free : ItemKind.circuit, exercises: [for (var i = 0; i < s.exercises.length; i++) i]));
   } else {
     for (var i = 0; i < s.exercises.length; i++) { out.add(WorkoutItem('ex$i', ItemKind.exercise, exercises: [i])); }
   }
@@ -39,16 +41,34 @@ List<WorkoutItem> workoutItems(Session s) {
 
 SetLog setOf(Session s, SetRef r) => s.exercises[r.ex].sets[r.set];
 
-/// The sets of a lifting item in the order they are done: all of one exercise, or round by round in a circuit.
-List<SetRef> setOrder(Session s, WorkoutItem item) {
+/// The sets of a lifting item in the order they are done: the ones started so far in the order they were started, then
+/// the rest as the order has them: all of one exercise and then the next (free form lists them so too), or round by
+/// round in a circuit. Without a change of order or a free-form pick this is just the plan's order.
+List<SetRef> setOrder(Session s, WorkoutItem item) => _order(s, item, item.exercises.where((i) => !s.skipped.contains(i)).toList());
+
+List<SetRef> _order(Session s, WorkoutItem item, List<int> exercises) {
   if (!item.lifting) return const [];
-  final live = item.exercises.where((i) => !s.skipped.contains(i)).toList();
-  final rounds = live.fold(0, (a, i) => max(a, s.exercises[i].sets.length));
-  return [
-    for (var r = 0; r < rounds; r++)
-      for (final i in live) if (r < s.exercises[i].sets.length) (ex: i, set: r),
-  ];
+  final rounds = exercises.fold(0, (a, i) => max(a, s.exercises[i].sets.length));
+  final plan = item.kind == ItemKind.circuit
+      ? [for (var r = 0; r < rounds; r++) for (final i in exercises) if (r < s.exercises[i].sets.length) (ex: i, set: r)]
+      : [for (final i in exercises) for (var r = 0; r < s.exercises[i].sets.length; r++) (ex: i, set: r)];
+  final pos = {for (var k = 0; k < plan.length; k++) plan[k]: k};
+  DateTime? when(SetRef r) { final x = setOf(s, r); return x.start ?? x.at ?? (x.attempted ? DateTime(0) : null); }
+  final started = [for (final r in plan) if (when(r) != null) r]
+    ..sort((a, b) { final c = when(a)!.compareTo(when(b)!); return c != 0 ? c : pos[a]!.compareTo(pos[b]!); });
+  final begun = started.toSet();
+  return [...started, for (final r in plan) if (!begun.contains(r)) r];
 }
+
+/// The next set of one exercise: its first not yet done. Null when every set is in.
+SetRef? nextSetOf(Session s, int ex) {
+  final i = s.exercises[ex].sets.indexWhere((x) => !x.attempted);
+  return i < 0 ? null : (ex: ex, set: i);
+}
+
+/// Free form: the exercises the user can pick from next, the ones with a set still to do, in the plan's order. One
+/// skipped comes back if picked.
+List<int> freeChoices(Session s, WorkoutItem item) => [for (final i in item.exercises) if (nextSetOf(s, i) != null) i];
 
 SetRef? nextSet(Session s, WorkoutItem item) => setOrder(s, item).where((r) => !setOf(s, r).attempted).firstOrNull;
 SetRef? liftingSet(Session s, WorkoutItem item) => setOrder(s, item).where((r) => setOf(s, r).lifting).firstOrNull;
@@ -75,12 +95,18 @@ DateTime itemEnd(Session s, WorkoutItem item, DateTime now) {
   return next ?? s.endedAt ?? now;
 }
 
-void _enter(Session s, WorkoutItem item, DateTime now) {
+/// Entering an item: a lifting one starts its next set at once, except free form, which waits for the user's pick.
+void _enter(Session s, WorkoutItem item, DateTime now, {int? pick}) {
   s.itemStarts[item.key] = now;
   if (item.lifting) {
-    final n = nextSet(s, item);
-    if (n != null) setOf(s, n).start = now;
+    final n = item.kind == ItemKind.free ? (pick == null ? null : nextSetOf(s, pick)) : nextSet(s, item);
+    if (n != null) _startSet(s, n, now);
   }
+}
+
+void _startSet(Session s, SetRef r, DateTime now) {
+  s.skipped.remove(r.ex);
+  setOf(s, r).start = now;
 }
 
 /// Start: the workout's clock and its first item. A lifting item starts lifting at once: Start, like I'm ready,
@@ -91,23 +117,26 @@ void startWorkout(AppState state, Session s, DateTime now) {
   if (items.isNotEmpty) _enter(s, items.first, now);
 }
 
-/// I'm ready: the next set of this item, or the next item. False when nothing is left, so the workout can finish.
-bool ready(Session s, DateTime now) {
+/// I'm ready: the next set of this item, or the next item. False when nothing is left, so the workout can finish. In
+/// free form [pick] is the exercise the user chose; without one the first with sets left comes next.
+bool ready(Session s, DateTime now, {int? pick}) {
   final items = workoutItems(s);
   final cur = currentItem(s);
   if (cur == null) {
     if (items.isEmpty) return false;
-    _enter(s, items.first, now);
+    _enter(s, items.first, now, pick: pick);
     return true;
   }
   if (cur.lifting && liftingSet(s, cur) == null) {
-    final n = nextSet(s, cur);
-    if (n != null) { setOf(s, n).start = now; return true; }
+    final free = cur.kind == ItemKind.free;
+    final chosen = free && pick != null && cur.exercises.contains(pick) ? nextSetOf(s, pick) : null;
+    final n = chosen ?? (free ? freeChoices(s, cur).map((i) => nextSetOf(s, i)!).firstOrNull : nextSet(s, cur));
+    if (n != null) { _startSet(s, n, now); return true; }
   }
   final i = items.indexWhere((x) => x.key == cur.key);
   if (i + 1 >= items.length) return false;
   _leave(s, cur);
-  _enter(s, items[i + 1], now);
+  _enter(s, items[i + 1], now, pick: pick);
   return true;
 }
 
@@ -120,15 +149,18 @@ void _leave(Session s, WorkoutItem item) {
   }
 }
 
-/// The reps: they finish the set under way. With none under way they correct the last set of this item.
+/// The reps: they finish the set under way, at the weight or version the exercise is at now. With none under way they
+/// correct the last set of this item.
 void enterReps(Session s, int reps, DateTime now) {
   final cur = currentItem(s);
   if (cur == null || !cur.lifting) return;
   final r = liftingSet(s, cur);
   if (r != null) {
-    final x = setOf(s, r);
+    final x = setOf(s, r), e = s.exercises[r.ex];
     x.reps = reps;
     x.at = now;
+    x.rung = e.rung;
+    x.kg = e.loadKg;
     return;
   }
   final last = lastLogged(s, cur);
@@ -139,6 +171,113 @@ void enterReps(Session s, int reps, DateTime now) {
 void fixSet(Session s, SetRef r, int reps) {
   final x = setOf(s, r);
   if (x.attempted) x.reps = reps;
+}
+
+/// Change the weight (a loaded exercise) or the version (a bodyweight one) mid-workout. The set under way and the sets
+/// still to come are done at it; the sets done keep their own. The plan's level is kept, for judging.
+void changeLevel(AppState state, Session s, int i, {double? kg, int? rung}) {
+  final e = s.exercises[i];
+  final ex = e.exercise;
+  final st = ensureState(state, ex);
+  final eq = state.location(s.locationId)?.equipment ?? const <String>[];
+  e.plannedRung ??= e.rung;
+  e.plannedKg ??= e.loadKg;
+  if (ex.loaded && kg != null) {
+    e.loadKg = kg;
+    e.rung = rungForLoad(state, ex, st, kg, e.range);
+    e.rungLabel = fmtLoad(state, ex, kg, equipment: eq);
+  } else if (!ex.loaded && rung != null) {
+    e.rung = rung;
+    e.rungLabel = rungLabel(state, ex, st, rung, e.range, eq);
+  }
+}
+
+typedef LevelChoice = ({double? kg, int? rung, String short, String label});
+
+/// What an exercise can change to mid-workout, for the wheel: a loaded one by plate steps around the planned weight, a
+/// bodyweight one every version this place can do. [short] is what the wheel shows, [label] the weight as it is
+/// written everywhere else ('60 kg per hand').
+List<LevelChoice> levelChoices(AppState state, Session s, int i) {
+  final e = s.exercises[i];
+  final ex = e.exercise;
+  final st = ensureState(state, ex);
+  final eq = state.location(s.locationId)?.equipment ?? const <String>[];
+  if (ex.loaded) {
+    final step = stepKg(state, ex), floor = ex.platesAdded ? 0.0 : step;
+    final center = e.plannedKg ?? e.loadKg ?? floor;
+    final kgs = [for (var k = -15; k <= 15; k++) if (center + k * step >= floor - 1e-6) center + k * step];
+    // the weight on now, when it is off this grid (a weight from before the unit changed): in its place
+    final now = e.loadKg;
+    if (now != null && !kgs.any((kg) => (kg - now).abs() < 1e-6)) kgs..add(now)..sort();
+    return [
+      for (final kg in kgs)
+        (kg: kg, rung: null, short: _number(fmtLoad(state, ex, kg, equipment: eq)), label: fmtLoad(state, ex, kg, equipment: eq)),
+    ];
+  }
+  final l = ex.ladder;
+  if (l == null) return const [];
+  final top = ceilingFor(ex, eq) ?? max(l.variants.length + 1, max(e.rung, st.rung) + 2);
+  return [
+    for (var r = 0; r <= top; r++)
+      (kg: null, rung: r, short: rungLabel(state, ex, st, r, e.range, eq), label: rungLabel(state, ex, st, r, e.range, eq)),
+  ];
+}
+
+/// A weight as the wheel shows it: the number alone ('62.5', '+10'), the bar when it is empty.
+String _number(String label) {
+  final n = RegExp(r'\+?\d+(\.\d+)?').firstMatch(label)?.group(0);
+  return n ?? (label == 'empty bar' ? 'Bar' : '0');
+}
+
+/// Change how the exercises are gone through, mid-workout. Nothing done is lost and a set under way carries on. Into a
+/// circuit or free form, the exercises become one block that began when the first of them did. Back to one at a time,
+/// they line up in the order they were started, with the one under way (or just rested from) last of those, then the
+/// rest in the plan's order, and each began when its first set did.
+void changeOrder(Session s, WorkoutOrder to, DateTime now) {
+  if (s.order == to) return;
+  final inLifts = currentItem(s)?.lifting ?? false;
+  final lifts = [for (final it in workoutItems(s)) if (it.lifting) it];
+  final starts = [for (final it in lifts) ?s.itemStarts[it.key]];
+  for (final it in lifts) { s.itemStarts.remove(it.key); }
+  s.order = to;
+  if (starts.isEmpty) return; // not reached yet: nothing to carry over
+  final first = starts.reduce((a, b) => a.isBefore(b) ? a : b);
+  if (to != WorkoutOrder.sequence || s.exercises.length < 2) {
+    s.itemStarts[workoutItems(s).firstWhere((it) => it.lifting).key] = first;
+    return;
+  }
+  final n = s.exercises.length, old = s.exercises;
+  Iterable<DateTime> times(int i) => old[i].sets.map((x) => x.start ?? x.at).nonNulls;
+  DateTime began(int i) => times(i).reduce((a, b) => a.isBefore(b) ? a : b);
+  DateTime latest(int i) => times(i).reduce((a, b) => a.isAfter(b) ? a : b);
+  final touched = [for (var i = 0; i < n; i++) if (times(i).isNotEmpty) i]..sort((a, b) => began(a).compareTo(began(b)));
+  final under = [for (var i = 0; i < n; i++) if (old[i].sets.any((x) => x.lifting)) i].firstOrNull
+      ?? (touched.isEmpty ? null : touched.reduce((a, b) => latest(a).isAfter(latest(b)) ? a : b));
+  final perm = [
+    for (var i = 0; i < n; i++) if (!touched.contains(i) && s.skipped.contains(i)) i, // passed over: behind, as skipped
+    for (final i in touched) if (i != under && nextSetOf(s, i) == null) i,           // finished
+    ?under,
+    for (final i in touched) if (i != under && nextSetOf(s, i) != null) i,           // begun, still to finish: ahead
+    for (var i = 0; i < n; i++) if (!touched.contains(i) && !s.skipped.contains(i)) i,
+  ];
+  s.exercises = [for (final i in perm) old[i]];
+  s.skipped = [for (final i in s.skipped) perm.indexOf(i)];
+  final upTo = under == null ? -1 : perm.indexOf(under);
+  DateTime? last;
+  for (var k = 0; k <= upTo; k++) {
+    if (!touched.contains(perm[k])) continue;
+    var t = began(perm[k]);
+    if (last == null && first.isBefore(t)) t = first; // the first one keeps the block's start, rest before it included
+    if (last != null && t.isBefore(last)) t = last;   // never before the one ahead of it, so the one under way is current
+    s.itemStarts['ex$k'] = t;
+    last = t;
+  }
+  if (inLifts && upTo < 0) {
+    // free form still waiting for its first pick: one at a time starts the first exercise
+    s.itemStarts['ex0'] = first;
+    final r = nextSetOf(s, 0);
+    if (r != null) _startSet(s, r, now);
+  }
 }
 
 /// Jump ahead to a later item. The items passed over are skipped: none of their exercises is judged.
@@ -158,6 +297,7 @@ void jumpTo(Session s, String key, DateTime now) {
 /// The planned rest before the next set of a lifting item: the exercise's rest when it comes again, a round's rest when
 /// a circuit goes round again. Null when the next set is a different exercise (time to set it up) or there is none.
 int? plannedRest(Session s, WorkoutItem item) {
+  if (item.kind == ItemKind.free) return null; // the user picks what comes next
   final n = nextSet(s, item), last = lastLogged(s, item);
   if (n == null || last == null) return null;
   if (n.ex == last.ex) return restFor(s.exercises[n.ex].range);
@@ -284,8 +424,7 @@ StripView stripView(Session s) {
       blocks.add(StripBlock(it.key, it.kind, state));
       continue;
     }
-    final rounds = it.exercises.fold(0, (a, i) => max(a, s.exercises[i].sets.length));
-    final order = [for (var r = 0; r < rounds; r++) for (final i in it.exercises) if (r < s.exercises[i].sets.length) (ex: i, set: r)];
+    final order = _order(s, it, it.exercises);
     for (final r in order) {
       final x = setOf(s, r);
       final state = x.lifting ? BlockState.now : x.attempted ? BlockState.done : k < curIdx || s.skipped.contains(r.ex) ? BlockState.skipped : BlockState.ahead;

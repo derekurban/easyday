@@ -91,7 +91,7 @@ void main() {
   group('circuit', () {
     test('timing credits each gap to the exercise whose set ended it', () {
       final s = fresh();
-      final session = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 60, circuit: true), t0);
+      final session = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 60, workoutOrder: WorkoutOrder.circuit), t0);
       startSession(s, session, t0);
       expect(session.circuit, isTrue);
       final a = session.exercises[0], b = session.exercises[1];

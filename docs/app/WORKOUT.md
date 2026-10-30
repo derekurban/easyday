@@ -85,6 +85,7 @@ Each set is work plus rest plus transition, rounded up to the next 15 seconds.
 | Warm-up sets | two, 60 s each, on loaded hard exercises; never logged |
 | Warm-up block | 5 minutes before the first exercise, inside the minutes; none, 3, 5 or 8 on the plan |
 | Circuit mode | moving between exercises is rest; 90 s planned between rounds |
+| Free form | moving between exercises is rest; no planned rest |
 
 An exercise's time is learned whole: from the moment its first set starts to the start of the next item, so
 the rest between sets, the rest after the last one and setting up the next are all in it. A set is lifting
@@ -230,6 +231,8 @@ Each exercise is judged against its working level and nothing else.
 | At the working level | any set short of the floor | miss: miss streak plus one |
 | At the working level | cut short by an energy stop | miss |
 | At the working level | cut short by time, pain, or no reason | neutral |
+| A version changed mid-workout, bodyweight | anything | neutral: no streak moves |
+| A weight changed mid-workout, loaded | anything | read by worth, each set at the weight it was done at; a hard day steps up now only if every set was at least the planned weight |
 
 **Read by worth.** A loaded set is worth what it would be at the usual weight, by the same percent-of-max
 table that defines the expressions (max is weight times one plus reps over thirty). So on a hard day a set
@@ -246,10 +249,20 @@ The feel tap tunes spare minutes and nothing else. The one line after the workou
 
 ## Modes
 
-Straight sets or circuit, chosen on the plan; it changes the order and the time pricing, nothing else.
-Straight sets put each exercise on the strip as its own item. A circuit is one item: one set of each
+One at a time, circuit or free form, chosen on the plan (the default is a setting) and changeable from the
+chip at the top of the workout; it changes the order and the time pricing, nothing else.
+One at a time puts each exercise on the strip as its own item. A circuit is one item: one set of each
 exercise, round by round, with moving between them counted as rest and a planned ninety seconds between
-rounds. Its time is shared out among its exercises by sets.
+rounds. Its time is shared out among its exercises by sets. Free form is one item too: after each rest,
+I'm ready lists the exercises with a set left and the user taps the one to do next; an exercise whose sets
+are all done drops off the list. Free form has no planned rest.
+
+Changing the order mid-workout keeps what is done: the sets already logged stay where they were, and the rest
+follow the new order. Back to one at a time, the finished exercises come first, then the one under way.
+
+The level of the exercise under way can change mid-set from its target row: the weight (in plate steps) or
+the version, in a drawer. It holds for that set and the ones after it, each set records the level it was
+done at, and the planned level is kept for judging.
 
 ## What it never does
 
