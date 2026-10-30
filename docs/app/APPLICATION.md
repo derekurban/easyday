@@ -115,8 +115,9 @@ Ranked by how directly each one causes quitting.
 - **Movement workout.** The alternative to a strength workout: a cardio duration or a short stretching
   routine. Requires no decisions beyond picking it.
 - **Set outcome.** Hit the top, a rep count below it, or not attempted. See section 8.
-- **Mode.** Straight sets (all sets of one exercise, then the next) or circuit (one set of each exercise per
-  round). Chosen before starting; it changes the order, nothing else.
+- **Mode.** One at a time (all sets of one exercise, then the next), circuit (one set of each exercise per
+  round) or free form (the user picks the next exercise after each rest, from those with a set left). Chosen
+  on the plan and changeable during the workout; it changes the order, nothing else.
 - **Index.** A way of grouping the library for browsing: by muscle group (the default), body region,
   equipment, progression type, or difficulty. The user picks one; it never changes what gets built.
 - **Stop reason.** Why a workout ended early: out of energy, out of time, something hurts, or no reason.
@@ -141,13 +142,15 @@ Ranked by how directly each one causes quitting.
 4. **The plan is on Today.** Under the name, the workout in order: the warm-up, each exercise with its level,
    sets and minutes, then cardio and stretching. One tap each to reshuffle, swap an exercise for another for
    the same muscle, edit today's level (or save it as the new level), move an exercise up or down, leave an
-   exercise out today, pick the warm-up, leave out cardio or stretching today, and choose one at a time or
-   circuit. Start starts the clock. There is no separate plan screen.
+   exercise out today, pick the warm-up, leave out cardio or stretching today, and choose one at a time,
+   circuit or free form. Start starts the clock. There is no separate plan screen.
 5. **Do the workout.** A strip of the whole workout runs across the top, a thin block for every set and every
    timed part, and one thing is asked at a time. A set is lifting from the moment the user says I'm ready
    (Start, for the first) until the reps go in: scroll a wheel to the number and log it. Then it is rest, the
    strip shows a dot in the gap after that set, and I'm ready starts the next set, or after the last set the
-   next item. Each step arrives before it can be pressed (the button after the reps fills with "Take a
+   next item. In free form I'm ready lists the exercises with a set left and a tap starts one; the order can
+   be changed from the chip at the top, and what is done stays done. The weight or version of the exercise
+   under way can be changed from its target row, for that set and the ones after it. Each step arrives before it can be pressed (the button after the reps fills with "Take a
    breather"), so a quick second tap never skips what comes next. Warm-up sets for loaded hard exercises are
    shown in the rest before them and never logged. The last set can be corrected by tapping it. A later item on
    the strip can be jumped to; anything passed over is skipped and not judged. The workout can be paused: every
@@ -358,8 +361,8 @@ Two words, used the same way everywhere. **Lifting** is a set, from I'm ready un
 During a workout no clock is shown but the workout's own, so nobody is hurried through a set or a rest;
 afterwards the log shows set time and rest for the workout and for each exercise, in minutes or, by a setting,
 as a share of the time. Rest never gates
-anything: it counts up, the planned rest (by the exercise's reps, or ninety seconds between rounds of a
-circuit) is only a guide, and the next set starts when the user says so. A setting can make the planned
+anything: it counts up, the planned rest (by the exercise's reps, ninety seconds between rounds of a
+circuit, none in free form) is only a guide, and the next set starts when the user says so. A setting can make the planned
 rest a timer that starts the next set by itself.
 
 ### 8.5 Decay and breaks: per person
@@ -534,9 +537,11 @@ level. An energy or time they default to does not count as the user's choice.
   progression is every step an exercise can get harder by, the level is the step you are on. Wherever a level
   can be edited, the progression is drawn as a track with the level marked, so the words explain themselves
   there. No screen assumes the user knows the vocabulary, and no screen explains the engine beside its controls.
-- **During.** The workout clock and a pause button at the top, End on the right. The strip of the whole
-  workout, with the exercise under way on its left and the next on its right. The current exercise: its name
-  and weight, or for a bodyweight exercise the version as its name; the rep target; its sets. A small looping
+- **During.** The workout clock and a pause button at the top, the order chip (one at a time, circuit or free
+  form) and End on the right. The strip of the whole workout, with the exercise under way on its left and the
+  next on its right. The current exercise: its name; the rep target with the weight, or for a bodyweight
+  exercise the version, right-aligned beside it with a chevron that opens a drawer to change it; its sets. In
+  free form, after I'm ready, a list of the exercises left with their sets, and the finished ones under Done. A small looping
   picture of the kind of work (strength, power, stability, cardio, stretching, the warm-up, rest) with a line
   on how to do it, then the how-to as numbered steps. No set timer and no rest countdown. At the bottom one
   thing at a time: the rep wheel while lifting, then I'm ready. End asks one thing: energy, time, pain, or no

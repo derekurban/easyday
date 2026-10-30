@@ -2,6 +2,7 @@ import 'package:easyday/data/library.dart';
 import 'package:easyday/data/model.dart';
 import 'package:easyday/logic/after.dart';
 import 'package:easyday/logic/builder.dart';
+import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/workout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,8 +19,8 @@ AppState fresh({String template = 'home_full'}) {
   return s;
 }
 
-Session build(AppState s, {int minutes = 45, int warmup = 5, bool circuit = false, int? count}) =>
-    buildSession(s, BuildOptions(energy: Energy.normal, minutes: minutes, warmupMinutes: warmup, circuit: circuit, exerciseCount: count), t0);
+Session build(AppState s, {int minutes = 45, int warmup = 5, bool circuit = false, WorkoutOrder? order, int? count}) =>
+    buildSession(s, BuildOptions(energy: Energy.normal, minutes: minutes, warmupMinutes: warmup, workoutOrder: order ?? (circuit ? WorkoutOrder.circuit : WorkoutOrder.sequence), exerciseCount: count), t0);
 
 DateTime at(int seconds) => t0.add(Duration(seconds: seconds));
 
@@ -234,6 +235,216 @@ void main() {
       v = stripView(x);
       expect(v.between, isTrue);
       expect(v.at, 1, reason: 'in the gap after the set just logged');
+    });
+  });
+
+  group('free form', () {
+    test('one block that waits for a pick; the pick starts that exercise; a finished one is no longer offered', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0, order: WorkoutOrder.free);
+      startWorkout(s, x, t0);
+      final item = currentItem(x)!;
+      expect(item.kind, ItemKind.free);
+      expect(workoutItems(x).where((i) => i.lifting).length, 1);
+      expect(liftingSet(x, item), isNull, reason: 'nothing starts before the pick');
+      expect(freeChoices(x, item), [for (var i = 0; i < x.exercises.length; i++) i]);
+      final last = x.exercises.length - 1;
+      var clock = 0;
+      for (var k = 0; k < x.exercises[last].sets.length; k++) {
+        clock += 20; ready(x, at(clock), pick: last);
+        expect(liftingSet(x, item), (ex: last, set: k));
+        clock += 30; enterReps(x, 10, at(clock));
+      }
+      expect(freeChoices(x, item), isNot(contains(last)));
+      expect(plannedRest(x, item), isNull, reason: 'the rest timer never picks for the user');
+      // the strip shows what was done first, in the order it was done
+      final v = stripView(x);
+      final n = x.exercises[last].sets.length;
+      expect(v.blocks.take(n).every((b) => b.set!.ex == last && b.state == BlockState.done), isTrue);
+      expect(v.between, isTrue);
+      expect(v.at, n - 1);
+    });
+
+    test('exercises can be mixed set by set, and Ready without a pick takes the first left', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0, order: WorkoutOrder.free);
+      startWorkout(s, x, t0);
+      final item = currentItem(x)!;
+      ready(x, at(10), pick: 1); enterReps(x, 9, at(40));
+      ready(x, at(100), pick: 0); enterReps(x, 9, at(130));
+      ready(x, at(200), pick: 1); enterReps(x, 9, at(230));
+      expect(x.exercises[1].attempted.length, 2);
+      expect(x.exercises[0].attempted.length, 1);
+      expect(setOrder(x, item).take(3).toList(), [(ex: 1, set: 0), (ex: 0, set: 0), (ex: 1, set: 1)]);
+      expect(lastLogged(x, item), (ex: 1, set: 1));
+      ready(x, at(300));
+      expect(liftingSet(x, item), (ex: 0, set: 1));
+    });
+
+    test('moving on leaves the untouched ones skipped, so they are not judged', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0, order: WorkoutOrder.free);
+      startWorkout(s, x, t0);
+      ready(x, at(10), pick: 2); enterReps(x, 9, at(40));
+      final next = workoutItems(x).firstWhere((i) => !i.lifting && i.kind != ItemKind.warmup, orElse: () => workoutItems(x).last);
+      if (next.lifting) return; // no cardio or stretching on this plan
+      jumpTo(x, next.key, at(60));
+      expect(x.skipped, containsAll([for (var i = 0; i < x.exercises.length; i++) if (i != 2) i]));
+      expect(x.skipped, isNot(contains(2)));
+    });
+
+    test('the order is kept with the workout, and a saved circuit reads as one', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, order: WorkoutOrder.free);
+      expect(Session.fromJson(x.toJson()).order, WorkoutOrder.free);
+      final old = x.toJson()..remove('order')..['circuit'] = true;
+      expect(Session.fromJson(old).order, WorkoutOrder.circuit);
+      final st = Settings()..order = WorkoutOrder.free;
+      expect(Settings.fromJson(st.toJson()).order, WorkoutOrder.free);
+      expect(Settings.fromJson({'circuit': true}).order, WorkoutOrder.circuit);
+    });
+  });
+
+  group('changing the order mid-workout', () {
+    test('one at a time to free form: the set under way carries on and the block began with the first exercise', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0);
+      startWorkout(s, x, t0);
+      for (var k = 0; k < x.exercises[0].sets.length; k++) { enterReps(x, 9, at(30 + 100 * k)); ready(x, at(90 + 100 * k)); }
+      expect(currentItem(x)!.key, 'ex1');
+      expect(liftingSet(x, currentItem(x)!), (ex: 1, set: 0));
+      changeOrder(x, WorkoutOrder.free, at(500));
+      final item = currentItem(x)!;
+      expect(item.kind, ItemKind.free);
+      expect(x.itemStarts[item.key], t0);
+      expect(liftingSet(x, item), (ex: 1, set: 0));
+      expect(freeChoices(x, item), isNot(contains(0)));
+    });
+
+    test('free form back to one at a time: the exercises line up as they were started, the one under way current', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0, order: WorkoutOrder.free);
+      startWorkout(s, x, t0);
+      final names = x.exercises.map((e) => e.exId).toList();
+      final b = x.exercises.length - 1;
+      for (var k = 0; k < x.exercises[b].sets.length; k++) { ready(x, at(10 + 100 * k), pick: b); enterReps(x, 9, at(40 + 100 * k)); }
+      ready(x, at(1000), pick: 1); // under way
+      changeOrder(x, WorkoutOrder.sequence, at(1010));
+      expect(x.exercises[0].exId, names[b], reason: 'the finished one first');
+      expect(x.exercises[1].exId, names[1], reason: 'then the one under way');
+      final cur = currentItem(x)!;
+      expect(cur.key, 'ex1');
+      expect(liftingSet(x, cur), (ex: 1, set: 0));
+      expect(x.itemStarts['ex0'], t0);
+      enterReps(x, 9, at(1040));
+      for (var k = 1; k < x.exercises[1].sets.length; k++) { ready(x, at(1100 * k)); enterReps(x, 9, at(1100 * k + 30)); }
+      ready(x, at(9000));
+      expect(currentItem(x)!.key, 'ex2', reason: 'then the rest in the plan order');
+      expect(x.skipped, isEmpty);
+    });
+
+    test('a circuit and back again keeps every set', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0);
+      startWorkout(s, x, t0);
+      enterReps(x, 9, at(30));
+      changeOrder(x, WorkoutOrder.circuit, at(60));
+      ready(x, at(90));
+      expect(liftingSet(x, currentItem(x)!), (ex: 1, set: 0), reason: 'a circuit goes on to the next exercise');
+      enterReps(x, 9, at(120));
+      final second = x.exercises[1].exId;
+      changeOrder(x, WorkoutOrder.sequence, at(130));
+      expect(x.exercises.fold(0, (a, e) => a + e.attempted.length), 2);
+      expect(x.exercises[0].exId, second, reason: 'the one just rested from is current, the first one waits ahead to finish');
+      expect(currentItem(x)!.key, 'ex0');
+      ready(x, at(200));
+      expect(currentItem(x)!.key, 'ex0');
+      expect(liftingSet(x, currentItem(x)!), (ex: 0, set: 1));
+    });
+  });
+
+  group('changing the weight mid-workout', () {
+    (AppState, Session, int) loaded() {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0);
+      final i = x.exercises.indexWhere((e) => e.exercise.loaded);
+      expect(i, greaterThanOrEqualTo(0));
+      return (s, x, i);
+    }
+
+    test('the set under way and those after it are done at the new weight; the plan is kept', () {
+      final (s, x, i) = loaded();
+      final e = x.exercises[i];
+      final plan = e.loadKg!;
+      final choices = levelChoices(s, x, i);
+      final at0 = choices.indexWhere((c) => (c.kg! - plan).abs() < 1e-6);
+      expect(at0, greaterThan(0));
+      expect(choices.map((c) => c.kg).toSet().length, choices.length, reason: 'no weight twice');
+      changeLevel(s, x, i, kg: choices[at0 + 2].kg);
+      expect(e.loadKg, choices[at0 + 2].kg);
+      expect(e.plannedKg, plan);
+      expect(e.rungLabel, choices[at0 + 2].label);
+      expect(levelChoices(s, x, i).map((c) => c.kg).toList(), choices.map((c) => c.kg).toList(), reason: 'the wheel stays put');
+      final back = Session.fromJson(x.toJson()).exercises[i];
+      expect(back.plannedKg, plan);
+      expect(back.loadKg, choices[at0 + 2].kg);
+    });
+
+    test('each set keeps the weight it was done at', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0);
+      expect(x.exercises[0].exercise.loaded, isTrue);
+      startWorkout(s, x, t0);
+      final plan = x.exercises[0].loadKg!;
+      enterReps(x, 9, at(30));
+      changeLevel(s, x, 0, kg: plan + stepKg(s, x.exercises[0].exercise));
+      ready(x, at(120)); enterReps(x, 8, at(150));
+      expect(x.exercises[0].sets[0].kg, plan);
+      expect(x.exercises[0].sets[1].kg, closeTo(plan + stepKg(s, x.exercises[0].exercise), 1e-6));
+      expect(SetLog.fromJson(x.exercises[0].sets[1].toJson()).kg, x.exercises[0].sets[1].kg);
+    });
+
+    test('judging reads every set at the weight it was done at', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0);
+      final e = x.exercises[0]..intent = 'working'..lightened = false;
+      final w = e.workingSets;
+      // the usual reps at a heavier weight: worth more than the top of the range at the usual weight
+      for (var k = 0; k < w; k++) { e.sets[k].reps = e.hi; e.sets[k].kg = e.loadKg! * 1.15; }
+      e.plannedKg = e.loadKg;
+      expect(verdictFor(e, null, -1, 0), Verdict.hit);
+      // the same reps far lighter fall short
+      for (var k = 0; k < w; k++) { e.sets[k].kg = e.loadKg! * 0.6; }
+      expect(verdictFor(e, null, -1, 0), Verdict.miss);
+    });
+
+    test('a hard day turned lighter does not level up on the floor alone', () {
+      final s = fresh(template: 'gym');
+      final x = build(s, warmup: 0);
+      final e = x.exercises[0]..nextLevel = true..intent = 'working'..lightened = false;
+      for (var k = 0; k < e.workingSets; k++) { e.sets[k].reps = e.lo; e.sets[k].kg = e.loadKg! - 10; }
+      e.plannedKg = e.loadKg;
+      expect(verdictFor(e, null, -1, 0), isNot(Verdict.stepNow));
+      for (var k = 0; k < e.workingSets; k++) { e.sets[k].kg = e.loadKg; }
+      expect(verdictFor(e, null, -1, 0), Verdict.stepNow);
+    });
+
+    test('a bodyweight exercise changes version; sets at another version say nothing', () {
+      final s = fresh(template: 'none'); // no equipment: bodyweight versions
+      final x = build(s, warmup: 0);
+      final i = x.exercises.indexWhere((e) => !e.exercise.loaded && e.exercise.ladder != null);
+      expect(i, greaterThanOrEqualTo(0));
+      final e = x.exercises[i]..intent = 'working'..lightened = false;
+      final choices = levelChoices(s, x, i);
+      expect(choices.length, greaterThan(1));
+      final other = choices.firstWhere((c) => c.rung != e.rung);
+      final planned = e.rung;
+      changeLevel(s, x, i, rung: other.rung);
+      expect(e.rung, other.rung);
+      expect(e.asPlanned, planned);
+      expect(e.rungLabel, other.label);
+      for (var k = 0; k < e.workingSets; k++) { e.sets[k].reps = e.hi; e.sets[k].rung = e.rung; }
+      expect(verdictFor(e, null, -1, i), Verdict.neutral);
     });
   });
 }
