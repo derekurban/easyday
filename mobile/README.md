@@ -48,6 +48,36 @@ Everything runs from `mobile/`. The emulator is the `Pixel_9_Pro_API_36` AVD; bo
 6. **Time travel**: Settings → Prototype tools moves the app clock by days and simulates clean or short sessions, so decay,
    person state and defaults can be exercised without waiting.
 
+### Phone + emulator: building it together
+
+The way Derek and an agent work on the app: Derek uses Easyday Dev on the phone (anywhere, no cable) and talks to the
+agent in T3 Code; the agent changes code, checks it on the emulator, and ships it to the phone when it is ready to try.
+Two dev loops run from this one checkout: the emulator on `127.0.0.1:5181`, the phone on `127.0.0.1:5182`. The phone
+only changes when it is told to. The agent runbook is the `phone-dev` skill (`../.claude/skills/phone-dev/SKILL.md`).
+
+- **Start**: boot the emulator, `node tool/dev.mjs` (emulator loop, detached), `node tool/phone.mjs` (phone loop: connects,
+  installs, waits until the app runs, ~2 min the first time).
+- **Iterate on the emulator**: `curl localhost:5181/reload`, `bash tool/shot.sh name`, `bash tool/tap.sh "Label"`, `flutter test`.
+- **Ship to the phone**: `node tool/phone.mjs reload` keeps the screen and state; `node tool/phone.mjs restart` starts the
+  app over. If Easyday Dev is in the background the new code is already on the phone and shows the moment it is opened.
+- **Look at the phone**: serial `100.68.165.42:5555` (`bash tool/shot.sh name 100.68.165.42:5555`, `bash tool/ui.sh
+  100.68.165.42:5555`). `node tool/phone.mjs status` / `stop`.
+
+How the phone connection works: the Pixel and this PC are both on Tailscale, so adb reaches the phone at its tailnet
+address `100.68.165.42` from any network, mobile data included, and a running loop survives the phone moving between
+Wi-Fi and LTE (reload ~1-4 s). `tool/phone.mjs` pins the phone's adbd to port 5555 (`adb tcpip`), which lasts until the
+phone reboots. Debug builds install as "Easyday Dev" (`app.easyday.staging.dev`) beside the release apps and keep their
+own data.
+
+| Situation | What it takes |
+|---|---|
+| Every session | Tailscale on on the phone (set it as the Always-on VPN), then `node tool/phone.mjs` |
+| After the phone rebooted | Developer options › Wireless debugging on. On the same Wi-Fi adb finds it by mDNS; elsewhere `node tool/phone.mjs start PORT` with the port that screen shows (without it the helper scans for ~2 min) |
+| The phone loop died (phone slept, network dropped) | `node tool/phone.mjs` again; `reload` does this by itself |
+| New PC or cleared adb keys | Wireless debugging › Pair device with pairing code, `node tool/phone.mjs pair PORT CODE` with the dialog still open. Needs platform-tools 37+ (35 fails with "protocol fault") |
+| Plugin, Kotlin or manifest change | Restart both loops (`curl localhost:518x/stop`, start again): hot reload cannot carry native code |
+| Emulator install fails with "not enough space" | Uninstall stale packages on the emulator (`adb -s emulator-5554 shell pm list packages -3`) |
+
 ## Builds, releases and updates
 
 Two flavours on one dimension, so a try-out never touches the real install:

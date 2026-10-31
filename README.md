@@ -11,7 +11,7 @@ The UI uses [derekurban/design-system](https://github.com/derekurban/design-syst
 `app/styles.css` consumes its tokens only. Icons are Lucide (`app/vendor/lucide.min.js`).
 
 **Android app:** `mobile/` is the Flutter build of the same spec, the one in daily use. Its dev loop, flavours,
-releases and in-app updates are in `mobile/README.md`.
+releases, in-app updates and the phone + emulator flow (hot reload on the phone over Tailscale) are in `mobile/README.md`.
 
 ## Branches and releases
 Work lands on `dev`. Merging `dev` into `staging` builds and publishes a staging release on GitHub; merging `staging`
@@ -31,6 +31,7 @@ merge publishes. Details: `mobile/README.md`, "Branches and releases" and "Updat
 | `docs/` | The app spec (`docs/app/`), muscle-mapping decisions, project history, and the 2026 exercise review record (`docs/exercise-review/`) |
 | `mobile/` | The Android app (Flutter): `lib/` code, `test/`, `android/`, `tool/` dev scripts |
 | `.github/workflows/` | `release.yml`: staging and prod releases on merge |
+| `.claude/skills/` | Agent runbooks: `phone-dev` runs the app on Derek's phone over Tailscale beside an emulator loop (human version in `mobile/README.md`) |
 | `app/` | Mobile prototype: onboarding, today, session, progress, settings. Logic in `app/js/{planner,loops,params}.js`; illustrations in `app/art/` (monoline SVGs generated with Codex, see `app/art/manifest.json`) |
 | `docs/inspiration/` | Inspiration board: exercise demonstration images in several styles, generated with the Codex image tool from `styles.json` |
 | `docs/app-logic/` | App logic diagrams (system map, session loop, feedback loops, states, automations) + design principles |
