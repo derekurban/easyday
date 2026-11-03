@@ -12,7 +12,7 @@ import 'person.dart';
 const prefLiked = 'liked';
 const prefFine = 'fine';
 const prefNo = 'no';
-const preferenceLabel = {prefLiked: 'Liked', prefFine: 'Fine', prefNo: 'Not for me'};
+const preferenceLabel = {prefLiked: 'Loved', prefFine: 'Fine', prefNo: 'Hated'};
 /// A manual pick of an unrated exercise counts as liked for this long.
 const softLikeDays = 28;
 /// Swapped out this many times in a row, never done in between, asks "still like it?".

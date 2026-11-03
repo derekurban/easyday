@@ -34,7 +34,7 @@ Session build(AppState s, {Energy energy = Energy.normal, int minutes = 45, Date
     buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, picks: picks, liftInstead: true), at ?? t0);
 
 /// Run a lifting session with every set at the target (the top), finishing cleanly.
-Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes = 35, List<String> muscles = const [], Map<String, String> picks = const {}}) {
+Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes = 35, List<String> muscles = const [], Map<String, String> picks = const {}, bool known = false}) {
   final session = buildSession(s, BuildOptions(energy: energy, minutes: minutes, muscles: muscles, picks: picks, liftInstead: true), at);
   startSession(s, session, at);
   var clock = at;
@@ -44,6 +44,8 @@ Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes
       logSet(session, i, session.exercises[i].target, clock);
     }
   }
+  // known: done before, so today is judged rather than taken as a starting point
+  if (known) { for (final e in session.exercises) { final st = ensureState(s, e.exercise); if (st.appearances == 0) st.appearances = 1; } }
   finishSession(s, session, Finish(), clock);
   return session;
 }
@@ -81,6 +83,7 @@ void main() {
           logSet(session, i, session.exercises[i].target, clock);
         }
       }
+      ensureState(s, session.exercises[0].exercise).appearances = 1; // done before: judged, not a starting point
       finishSession(s, session, Finish(), clock);
       expect(s.ex[session.exercises[0].exId]!.rung, session.exercises[0].rung + 1);
       expect(s.ex[session.exercises[1].exId]!.rung, session.exercises[1].rung);
@@ -348,7 +351,7 @@ void main() {
     test('the level history folds a hard day back to the user\'s level and reads the growth in weights', () {
       final s = fresh(template: 'gym');
       final ex = exerciseById['bb_squat']!;
-      run(s, t0);                                            // clean: steps up after
+      run(s, t0, known: true);                               // clean: steps up after
       run(s, t0.add(const Duration(days: 2)), energy: Energy.hard, muscles: const ['quads'], picks: const {'quads1': 'bb_squat'});  // the next level on the hardest, reached
       final h = levelHistory(s, ex);
       expect(h.length, 3, reason: 'two workouts and now');
@@ -491,6 +494,7 @@ void main() {
       for (var i = 0; i < session.exercises.length; i++) {
         for (var k = 0; k < session.exercises[i].sets.length; k++) { clock = clock.add(const Duration(minutes: 2)); logSet(session, i, session.exercises[i].target, clock); }
       }
+      for (final e in session.exercises) { ensureState(s, e.exercise).appearances = 1; } // done before: judged
       finishSession(s, session, Finish(), clock);
       final trend = levelTrend(s, clock);
       expect(trend[session.exercises.first.exId], 1);
@@ -553,7 +557,7 @@ void main() {
       for (var k = 0; k < e.workingSets; k++) { clock = clock.add(const Duration(minutes: 2)); logSet(session, i, e.lo, clock); }
       finishSession(s, session, Finish(), clock.add(const Duration(minutes: 3)));
       expect(s.ex[e.exId]!.rung, before + 1);
-      expect(session.note, contains('levels up now'));
+      expect(session.note, contains('up to'));
     });
 
     test('one rep short at the next level is read by its worth: within the range at your level, so it holds', () {
@@ -584,17 +588,18 @@ void main() {
       expect(e.atWorkingLevel, isFalse);
     });
 
-    test('an energy stop makes the exercise it cut a miss and leaves the rest untouched', () {
+    test('an energy stop counts what was done and never steps down: the exercise it cut is not short', () {
       final s = fresh();
       final session = startNormal(s);
       final a = session.exercises[0], b = session.exercises[1];
       var clock = t0;
       for (var k = 0; k < a.sets.length; k++) { clock = clock.add(const Duration(minutes: 2)); logSet(session, 0, a.hi, clock); }
       logSet(session, 1, b.hi, clock.add(const Duration(minutes: 2)));
+      ensureState(s, a.exercise).appearances = 1; // done before: judged
       finishSession(s, session, Finish(stopReason: StopReason.energy, stopAt: 1), clock.add(const Duration(minutes: 3)));
       expect(s.ex[a.exId]!.rung, a.rung + 1, reason: 'the finished exercise is a hit');
-      expect(s.ex[b.exId]!.shortRun, 1, reason: 'the cut exercise is a miss');
-      expect(s.ex[b.exId]!.rung, b.rung);
+      expect(s.ex[b.exId]!.shortRun, 0, reason: 'out of energy: nothing steps down');
+      expect(s.ex[b.exId]!.rung, b.rung, reason: 'a first time at the top of the range: the level was right');
       expect(s.ex[session.exercises[2].exId]!.shortRun, 0, reason: 'never started: neutral');
     });
 

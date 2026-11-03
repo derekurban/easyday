@@ -147,9 +147,9 @@ Once the listed exercises fit, what is left goes where the goal says, in one pla
 - **Cardio**: all of it to the cardio block.
 - **Rest**: nothing is added. The workout says "12 minutes to spare, no rush."
 
-This is what the feel tap tunes. Two "too much" taps in the last four workouts flip "more exercises" to
-cardio; two "easy" taps flip cardio back. Nothing is ever asked per set, and nothing the user sees is a
-number they have to understand.
+The feel tap tunes it: two "too much" taps in the last four workouts flip "more exercises" to cardio; two
+"easy" taps flip cardio back. The tap is now asked only after a cardio or stretching day; a strength workout
+ends on the finish screen, which does not ask it (an open question below). Nothing is ever asked per set.
 
 ## Cardio and stretching
 
@@ -218,34 +218,65 @@ does.
 
 ## Judging, afterwards
 
-Each exercise is judged against its working level and nothing else.
+Each exercise is judged by one score against its working level and nothing else (`mobile/lib/logic/score.dart`).
 
-| What was asked | What happened | Verdict |
-|---|---|---|
-| Below the working level (light) | anything | neutral: no streak moves |
-| At the next level (a hard day) | every working set reached the floor | step up now: it is yours |
-| At the next level, bodyweight | a set fell short of the floor | neutral: it was an attempt |
-| At the next level, loaded | a set fell short | read by worth, below |
-| At the working level | every working set at the top or more | hit: hit streak plus one |
-| At the working level | every set in range, none short | hold: hit streak resets, nothing else |
-| At the working level | any set short of the floor | miss: miss streak plus one |
-| At the working level | cut short by an energy stop | miss |
-| At the working level | cut short by time, pain, or no reason | neutral |
-| A version changed mid-workout, bodyweight | anything | neutral: no streak moves |
-| A weight changed mid-workout, loaded | anything | read by worth, each set at the weight it was done at; a hard day steps up now only if every set was at least the planned weight |
+**The score.** Every set is worth its load times one plus reps over thirty (Epley). The load is the weight, or for a
+bodyweight version the share of bodyweight it moves: measured for the push-up versions (knee 0.49, floor 0.64, feet
+elevated 0.74), otherwise each version taken as 1.2 times the one before. The exercise's score is the average of its
+sets, each at the weight or version it was actually done at, so a weight changed mid-workout is read set by set.
 
-**Read by worth.** A loaded set is worth what it would be at the usual weight, by the same percent-of-max
-table that defines the expressions (max is weight times one plus reps over thirty). So on a hard day a set
-that fell one rep short at the next level is converted: seven at 72.5 kg is worth about nine at 70, which is
-in range, so the exercise holds at the current level rather than being marked short. Below the floor's
-worth is a miss; the top's worth or more is a hit. At the usual weight the worth is just the reps.
+Two bars come from the level and the rep range:
 
-Step up after the step-up number of hits in a row (default one). Step down after the step-down number of
-misses in a row (default two). A hard day is the one way to skip the count: the floor on every set at the
-next level shows it is already yours. Only the exercise that was cut
-mid-way by an energy stop is a miss; exercises never started are not attempted and neutral.
+- **The floor**: this level at the bottom of the range.
+- **Step up**: the higher of this level at the top of the range and the next level at the bottom. For a loaded lift
+  that is the top of the range; for bodyweight it can ask for more (knee to floor push-ups: 18 knee push-ups in a 6
+  to 10 range).
 
-The feel tap tunes spare minutes and nothing else. The one line after the workout says what moved.
+Next time is one of three words, **Harder**, **Same** or **Easier**, decided in this order:
+
+| Situation | Next time |
+|---|---|
+| At the top of what this place can do | Same; the target is beating the best total |
+| The first time ever | Same: a first go is taken as the right level. Harder only if the reps averaged three or more over the top, Easier only if two or more under the floor |
+| Every set at the next level, the average at its floor or better (a hard day) | Harder now |
+| The average at the step-up bar | Harder after the step-up number in a row (default one); at once when coming back after decay |
+| The average under the floor, at the working level, on a day that counts | Easier after the step-down number in a row (default two) |
+| Anything else | Same |
+
+A day counts against a level only when it ended normally or out of time: never on an easy-energy day, a low-energy
+read, a light exercise, or one that hurt. Harder and Easier move one step; a first time can pick further on its wheel.
+Exercises skipped, never started or changed to another level before starting are not judged. A first time sets the
+starting point and does not count toward a step-up run. The user can change any word on the finish screen; what is
+shown when they tap Done is what is saved.
+
+## The finish screen
+
+End goes straight to the finish (`mobile/lib/ui/logged.dart`): no stop question, no feel tap. Every exercise is one
+tile in one frame: a round mark, its name, one plain line, and next time's word at the right. A tap opens Easier,
+Same and Harder with the level under each.
+
+- **What happened, per exercise**, the first that fits: it hurt; the user went heavier mid-workout and made every set
+  (YOUR PUSH, the sweep, a flame) or did not (reached for it); a first time; a level earned (LEVELLED UP, the sweep);
+  eased off partway; better than last time (heavier, or more total reps at the same weight); past the top of the
+  range; short; steady. The mark shows which, or an arrow when next time moves.
+- **A first time** has its own tile: a fresh-coloured edge and label, a compass mark, "How was 40 kg?" with Right
+  picked (Too light or Too heavy opens a wheel of levels for next time), and the user's take: a heart, a thumbs up
+  and a thumbs down, the picked one opened with its word. Unrated reads as the thumbs up.
+- **The tone** of the headline and badge comes from the most telling moment: a push or a level celebrates (confetti
+  only then), more than last time is pleased, reaching for more or falling short encourages, a hard day is proud,
+  out of time is brief, all new is curious, otherwise steady.
+- **How it ended.** Finished means every set of every planned exercise was done; time only sizes the plan. Finished
+  with the sets fading 15 % or more on average reads as a low-energy day, silently. Anything left undone shows one
+  tile, You finished early: Out of time, Low energy or No reason, the app's guess picked (time when 70 % of the
+  minutes were used, energy when an exercise faded or fell under its floor, nothing when both or neither fit). No
+  consequence is shown. Out of time makes the minutes the user had the default; low energy steps nothing down and
+  two make easy the default; no reason changes nothing.
+- **Check or fix details** opens the table of what was done (each set's reps, weight, time and rest), each line
+  opening a drawer to correct it; the total time is the sum of the rows. Something hurt and Back to the workout are
+  there too.
+
+The page's layout is fixed when it opens, so a choice animates inside its own tile and nothing else moves. Staging
+builds have a Playground tab that opens the finish on sample workouts without touching the user's data.
 
 ## Modes
 
@@ -299,8 +330,11 @@ how-to (`EXERCISES.md`). The calendar can lower the two picks on a busy day (`CA
 | A time limit, or a number of exercises | the minutes | Today, a switch; kept |
 | When the planned rest runs out | keep resting | Settings → Workout: keep resting, start the next set |
 | Show set time and rest as | minutes | Settings → Workout: minutes, share of time |
+| After each step, the next button | waits a moment (3 s) | Settings → Workout: waits a moment, is ready at once |
 
 ## Open questions
 
+- Spare minutes learned from the feel tap, which strength workouts no longer ask. Whether a low-energy read or a
+  fade on the finish should tune it instead.
 - Whether the light expression should also be used by the time fit on normal days, picking lighter reps on
   the small exercises when the window is tight, within what the goal allows.

@@ -172,6 +172,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           ChoiceRow<bool>(label: 'When the planned rest runs out', value: st.restAuto, options: const {false: 'Keep resting', true: 'Start the next set'}, onChanged: (v) => store.update((_) => st.restAuto = v)),
           ChoiceRow<bool>(label: 'Show set time and rest as', value: st.timeAsShare, options: const {false: 'Minutes', true: 'Share of time'}, onChanged: (v) => store.update((_) => st.timeAsShare = v)),
+          ChoiceRow<bool>(label: 'After each step, the next button', value: st.buttonWait, options: const {true: 'Waits a moment', false: 'Is ready at once'},
+              hint: 'The wait stops a quick second tap from skipping a set.', onChanged: (v) => store.update((_) => st.buttonWait = v)),
         ])),
         const SizedBox(height: 24),
         const SectionHeader('Progressions', icon: LucideIcons.listOrdered),

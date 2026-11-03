@@ -93,7 +93,7 @@ Ranked by how directly each one causes quitting.
   down, full sets, fewer exercises), working (the working level), or next level (one step up, every set). A
   prescription, never a judgement.
 - **Spare minutes.** What is left once the listed exercises fit: more exercises, cardio, or rest. One
-  plain setting, tuned by the feel tap.
+  plain setting.
 - **Muscle map.** The app's one view of the body: the muscles, and strain points, how much work each
   has taken (0.00 to 1.00) and how much is left after the strain point decay. Says which muscles are ready;
   never touches a level. See `MUSCLE_MAP.md`.
@@ -154,11 +154,11 @@ Ranked by how directly each one causes quitting.
    breather"), so a quick second tap never skips what comes next. Warm-up sets for loaded hard exercises are
    shown in the rest before them and never logged. The last set can be corrected by tapping it. A later item on
    the strip can be jumped to; anything passed over is skipped and not judged. The workout can be paused: every
-   clock stops and nothing counts while it is. Ending the workout early asks one tap for the reason: out of
-   energy, out of time, or something hurts, or none.
-6. **Finish.** An optional one-tap rating: easy, right, or too much. Skipping is fine. Then the workout is
-   logged: one line about what changed, the time it took against the plan, and where it went, lifting and
-   rest.
+   clock stops and nothing counts while it is. End goes straight to the finish.
+6. **Finish.** One page that reads what happened (`WORKOUT.md`, the finish screen): a headline in the tone of
+   the day, each exercise as a tile with one plain line and next time's word (Harder, Same, Easier), a first
+   time asking how the level was and the user's take, and, only when the plan was not all done, what cut it
+   short. Anything can be changed there, or in the details behind it. Done logs it.
 7. **The app updates.** History is written, the progression judges each exercise, the timing model updates
    seconds per set, person state is recomputed, and one line explains what changed.
 
@@ -251,13 +251,14 @@ The instruction is always "as many as you can with good form"; the range is a ve
 - **Not attempted.** The set never started. This happens when time trimmed it, when the intent was light,
   or when the user stopped early. Never attempted sets are never failures.
 
-Stop reasons are separate from set outcomes, and each one has one owner:
+How the workout ended is separate from set outcomes. The app reads it rather than asking: finished means every
+set of every planned exercise was done, and a finish that faded 15 % or more reads as a low-energy day. Only
+when something was left undone does the finish ask, with its guess picked. Each answer has one owner:
 
 - **No reason.** Nothing. The sets done are kept; no level and no default moves.
-- **Out of energy.** Nudges the energy default toward easy. The one exercise it cut mid-way at the working
-  level is a miss; everything after it is not attempted.
-- **Out of time.** Nudges the time default toward short. Never a progression signal.
-- **Something hurts.** Pauses the exercise and its muscles. See 8.6.
+- **Low energy.** Nothing steps down. Two in the last four workouts make easy the energy default.
+- **Out of time.** The minutes the user had become the time default. Never a progression signal.
+- **Something hurt.** Said on the finish's details. Pauses the exercise and its primary muscles. See 8.6.
 
 Why this matters: "I couldn't" and "I didn't want to" look identical in a set count but mean opposite
 things. One says the level is too high. The other says the day was too big. Confusing them makes the app
@@ -270,20 +271,23 @@ and the rep range for its cost and the goal. The user does not manage reps. They
 reads the result against the working level, and against nothing else: not the energy pick, not the intent
 the builder gave the exercise, not what else was in the workout.
 
+Every set is scored as its load times one plus reps over thirty, the load being the weight or, for a bodyweight
+version, its share of bodyweight. The exercise's average is read against two bars: the floor (this level at the
+bottom of the range) and step up (this level at the top, or the next level at the bottom, whichever is higher).
+The rules and the finish screen that shows them are in `WORKOUT.md`.
+
 - **Neutral.** The exercise was asked for less than its working level today: one level down, or fewer than
   the working sets. Nothing moves. A light day never breaks a streak.
-- **Hit.** At the working level, every working set hit the top. Hit streak plus one. After the step-up
-  number of hits in a row (default one), the level rises by one and reps fall back toward the floor.
-- **Step up now.** A hard day trains the exercise at the next level on every set. The floor on every
-  working set there shows it is already yours; the count is skipped. A set that falls short at the next
-  level is read by its worth at the usual weight, so one rep short usually holds rather than misses.
-- **Hold.** At the working level, every set in range and none short. The hit streak resets; nothing else
-  moves. Not ready to go up, no reason to go down.
-- **Miss.** At the working level, any set short of the floor, or the working sets cut short by an energy
-  stop. Miss streak plus one. After the step-down number of misses in a row (default two), the level drops
-  by one. The floor is where the weight is wrong; the top is where it is earned.
-- **Calibration.** The first time an exercise appears, a feel tap of easy with every set at the top steps
-  up straight away, so a conservative starting level corrects in one workout.
+- **Harder.** The average reached step up: after the step-up number in a row (default one), the level rises
+  by one.
+- **Harder now.** A hard day trains the exercise at the next level on every set; an average at that level's
+  floor shows it is already yours, and the count is skipped.
+- **Same.** Between the bars. The run resets; nothing else moves.
+- **Easier.** The average under the floor, on a day that counts: after the step-down number in a row (default
+  two), the level drops by one.
+- **A first time** is taken as the right level: Same, unless the reps averaged three or more over the top or two
+  or more under the floor. The finish asks how it was, Right picked, and Too light or Too heavy lets the user
+  pick next time's level.
 
 Intent is how the builder asks; the working level is how the result is read. A user who picks easy for a
 month keeps every level. A user who picks normal every day and does the work progresses everything.
@@ -323,7 +327,7 @@ Energy is the user's side of the same word. It is not a budget and not a number:
 intents in section 7, and difficulty decides where the recipe lands. A hard day pushes the hardest
 exercises first; an easy day keeps the easy and medium ones at full. Two workouts with identical exercises
 can be an easy day and a hard day, depending on the intents. Nothing here is a setting the user has to
-understand the engine to use; the one knob, spare minutes, is in plain words and the feel tap tunes it.
+understand the engine to use; the one knob, spare minutes, is in plain words.
 
 **Difficulty in play** is the default or override, moved by the user's own history and clamped to the
 three steps:
@@ -335,7 +339,8 @@ three steps:
 - Loaded exercises mostly move by level instead. Difficulty stays, the weight climbs.
 
 **Spare minutes learn.** Two "too much" feel taps in the last four workouts flip "more exercises" to
-cardio; two "easy" taps flip cardio back. A tap after a plain stop does not count. No question is ever
+cardio; two "easy" taps flip cardio back. A tap after a plain stop does not count. The tap is now asked only
+after cardio or stretching days (section 15). No question is ever
 asked per set.
 
 **Defaults learn.** The energy and time defaults start from the last workout. Two energy stops in the last
@@ -385,8 +390,8 @@ down, and the user can pause it again with one tap. Anything longer than a pause
 
 ### 8.7 To the human, always
 
-- **After each workout**, one line about what changed and why, such as "Rows step up next time: you hit
-  twelve on every set." Or "Bench stays: eight, eight, six. Next time."
+- **After each workout**, the finish screen: each exercise's line and next time's word, in a tone that fits the
+  day. Then one line about what changed, such as "Rows: up to 32.5 kg next time."
 - **Between workouts**: workouts per month, level trend per muscle group, each active muscle's rhythm (last
   worked, about every N workouts), days active this month. Never streaks.
 - **On each exercise card**: the level, the average time per set, the best total at this level, and the
@@ -433,6 +438,7 @@ Six settings, in plain words, each with a range. Plus one override per exercise.
 | Warm-up block (on the plan, kept for next time) | 5 minutes | none, 3, 5, 8 minutes |
 | When the planned rest runs out | keep resting | keep resting, start the next set |
 | Show set time and rest as | minutes | minutes, share of time |
+| After each step, the next button | waits a moment (3 s) | waits a moment, is ready at once |
 | Workouts at the top before a level steps up | 1 | 1 to 5 |
 | Workouts below the bottom before a level steps down | 2 | 1 to 5 |
 | Weeks before an unused level decays | 3 | 2 to 8, or off |
@@ -544,10 +550,11 @@ level. An energy or time they default to does not count as the user's choice.
   free form, after I'm ready, a list of the exercises left with their sets, and the finished ones under Done. A small looping
   picture of the kind of work (strength, power, stability, cardio, stretching, the warm-up, rest) with a line
   on how to do it, then the how-to as numbered steps. No set timer and no rest countdown. At the bottom one
-  thing at a time: the rep wheel while lifting, then I'm ready. End asks one thing: energy, time, pain, or no
-  reason.
-- **After.** The optional feel tap, then one line about what changed, such as "bench steps up next time",
-  the time against the plan, and set time and rest for the workout and each item.
+  thing at a time: the rep wheel while lifting, then I'm ready. End goes straight to the finish.
+- **After.** The finish screen: a badge and headline in the day's tone, the minutes, exercises and sets, a tile
+  per exercise with next time's word (a level earned in the violet-to-gold sweep, a first time with a fresh edge),
+  You finished early only when the plan was not all done, and Check or fix details behind it with every set's
+  reps, weight, time and rest. After cardio or stretching days, the optional feel tap and one line.
 - **Exercise card.** The name, what it works and its difficulty, the stage picture, the muscles on the body
   figure (primary green, secondary paler, each list named beside it), the level as facts (average time per set, best total at this level, workouts, the max), the how-to as numbered steps, the
   progression as a track, the reps it trains at, the difficulty with its override, and your word.
@@ -573,6 +580,8 @@ Explicitly out of scope, at least until the core loop has proven itself.
 
 ## 15. Open questions
 
+- **Spare minutes lost their signal.** They learned from the feel tap, which strength workouts no longer ask.
+  A low-energy read or a fade on the finish could tune them instead.
 - **Section 8.7 is thin.** What the user sees between workouts is the strongest lever on adherence and
   the least defined part of this document.
 - **The expression shares are guesses.** 85, 70 and 60 per cent of the level are the usual table; real

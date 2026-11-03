@@ -4,8 +4,10 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
 import '../data/store.dart';
+import '../features.dart';
 import 'catalog.dart';
 import 'onboarding.dart';
+import 'playground.dart';
 import 'progress.dart';
 import 'session.dart';
 import 'settings.dart';
@@ -54,7 +56,9 @@ class _ShellState extends State<Shell> {
     final s = store.state;
     if (s.profile == null || s.plan == null) { tab = 0; return const OnboardingScreen(); }
     if (s.active != null) return const SessionScreen();
-    final pages = const [TodayScreen(), ProgressScreen(), CatalogScreen(), SettingsScreen()];
+    // staging builds carry a Playground tab: the finish screen on sample workouts
+    final pages = [const TodayScreen(), const ProgressScreen(), const CatalogScreen(), const SettingsScreen(), if (prototypeTools) const PlaygroundScreen()];
+    if (tab >= pages.length) tab = 0;
     return Scaffold(
       body: IndexedStack(index: tab, children: pages),
       bottomNavigationBar: NavigationBar(
@@ -70,6 +74,7 @@ class _ShellState extends State<Shell> {
                 const Icon(LucideIcons.slidersHorizontal),
                 if (r != null) const Positioned(top: -4, right: -6, child: UpdateDot()),
               ]))),
+          if (prototypeTools) const NavigationDestination(icon: Icon(LucideIcons.flaskConical), label: 'Playground'),
         ],
       ),
     );

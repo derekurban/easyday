@@ -9,6 +9,7 @@ import 'package:easyday/logic/after.dart';
 import 'package:easyday/logic/builder.dart';
 import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/person.dart';
+import 'package:easyday/logic/score.dart';
 import 'package:easyday/logic/selection.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,7 +35,7 @@ Session build(AppState s, {Energy energy = Energy.normal, int minutes = 35, Date
 
 /// Run a lifting session with the same reps in every set of every exercise (or per exercise by id).
 Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes = 35, int? reps, Map<String, int> repsBy = const {},
-    bool hitTop = true, Finish? finish, int gapSeconds = 120, Map<String, int> rungOverrides = const {}, List<String> muscles = const [], Map<String, String> picks = const {}}) {
+    bool hitTop = true, Finish? finish, int gapSeconds = 120, Map<String, int> rungOverrides = const {}, List<String> muscles = const [], Map<String, String> picks = const {}, bool known = false}) {
   final session = buildSession(s, BuildOptions(energy: energy, minutes: minutes, rungOverrides: rungOverrides, muscles: muscles, picks: picks, liftInstead: true), at);
   startSession(s, session, at);
   var clock = at;
@@ -46,6 +47,8 @@ Session run(AppState s, DateTime at, {Energy energy = Energy.normal, int minutes
       logSet(session, i, r, clock);
     }
   }
+  // known: the exercises have been done before, so today is judged rather than taken as a starting point
+  if (known) { for (final e in session.exercises) { final st = ensureState(s, e.exercise); if (st.appearances == 0) st.appearances = 1; } }
   finishSession(s, session, finish ?? Finish(), clock);
   return session;
 }
@@ -176,30 +179,33 @@ void main() {
   });
 
   group('ladder', () {
-    test('a normal session with every set at the top steps up next time (step up = 1)', () {
+    test('a normal session with every set at the top steps a loaded lift up next time (step up = 1)', () {
       final s = fresh();
-      final a = run(s, t0);
+      final a = run(s, t0, known: true);
       expect(a.type, 'lift');
-      expect(a.note, contains('levels up'));
-      for (final e in a.exercises) {
+      expect(a.note, contains('up to'));
+      for (final e in a.exercises.where((e) => e.exercise.loaded)) {
         expect(s.ex[e.exId]!.rung, e.rung + 1, reason: e.exId);
       }
     });
 
-    test('step up waits for N sessions in a row when the setting is raised', () {
+    test('step up waits for N sessions in a row when the setting is raised; a first time is taken as the right level', () {
       final s = fresh()..settings.stepUp = 3;
       run(s, t0);
+      expect(s.ex['bb_squat']!.rung, 0, reason: 'first appearance at the top of the range: the level was right');
+      expect(s.ex['bb_squat']!.topRun, 0, reason: 'a first time sets the starting point and does not count toward a step');
       final before = s.ex['bb_squat']!.rung;
       run(s, t0.add(const Duration(days: 2)), repsBy: {'bb_squat': 12}, muscles: quads, picks: const {'quads1': 'bb_squat'});
+      run(s, t0.add(const Duration(days: 4)), repsBy: {'bb_squat': 12}, muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(s.ex['bb_squat']!.rung, before);
       expect(s.ex['bb_squat']!.topRun, 2);
-      run(s, t0.add(const Duration(days: 4)), repsBy: {'bb_squat': 12}, muscles: quads, picks: const {'quads1': 'bb_squat'});
+      run(s, t0.add(const Duration(days: 6)), repsBy: {'bb_squat': 12}, muscles: quads, picks: const {'quads1': 'bb_squat'});
       expect(s.ex['bb_squat']!.rung, before + 1);
     });
 
     test('a set below the bottom holds, two in a row step down (step down = 2)', () {
       final s = fresh();
-      run(s, t0, reps: 5); // below 8
+      run(s, t0, reps: 5, known: true); // below 8
       final squat = s.ex['bb_squat']!;
       final r0 = squat.rung;
       expect(squat.shortRun, 1);
@@ -246,7 +252,7 @@ void main() {
 
     test('an energy stop with the work done still counts, and the default turns easy after two stops', () {
       final s = fresh();
-      run(s, t0, finish: Finish(stopReason: StopReason.energy));
+      run(s, t0, finish: Finish(stopReason: StopReason.energy), known: true);
       expect(s.ex['bb_squat']!.rung, 1);
       expect(s.plan!.energyDefault, Energy.normal);
       run(s, t0.add(const Duration(days: 2)), finish: Finish(stopReason: StopReason.energy));
@@ -263,17 +269,21 @@ void main() {
       expect(defaultsFor(s, t0.add(const Duration(days: 1))).minutes, s.plan!.timeDefault);
     });
 
-    test('calibration: first appearance with an easy feel and every set at the top steps up even with step up = 3', () {
+    test('calibration: a first time with reps well past the range steps up at once, even with step up = 3', () {
       final s = fresh()..settings.stepUp = 3;
-      run(s, t0, finish: Finish(feel: Feel.easy));
+      run(s, t0, repsBy: const {'bb_squat': 20});
       expect(s.ex['bb_squat']!.rung, 1);
     });
 
-    test('bodyweight ladders climb by variant', () {
+    test('bodyweight ladders climb by variant, once the reps are worth the next version', () {
       final s = fresh(template: 'none');
       final a = run(s, t0);
       final pushup = a.exercises.firstWhere((e) => e.exId == 'pushup');
       expect(pushup.rungLabel, 'Push-ups'); // experience some -> rung 3
+      expect(s.ex['pushup']!.rung, 3, reason: 'the top of the range is not yet worth feet-elevated push-ups');
+      final need = repsToStepUp(s, pushup, rung: 3)!;
+      expect(need, greaterThan(pushup.hi));
+      run(s, t0.add(const Duration(days: 2)), repsBy: {'pushup': need}, muscles: chest);
       expect(s.ex['pushup']!.rung, 4);
       expect(rungLabel(s, exerciseById['pushup']!, s.ex['pushup']!, 4), 'Feet-elevated push-ups');
     });
@@ -609,7 +619,7 @@ void main() {
   group('decay and breaks', () {
     test('an unused rung decays one per period, never below the start, and re-climbs in one clean session', () {
       final s = fresh();
-      run(s, t0);
+      run(s, t0, known: true);
       final st = s.ex['bb_squat']!;
       expect(st.rung, 1);
       st.rung = 3;
