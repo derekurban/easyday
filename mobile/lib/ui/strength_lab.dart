@@ -67,8 +67,8 @@ Rater _rater(Exercise ex) => Rater(ex, sex: labPerson.value.sex, bodyweight: lab
   if (ex.loaded) {
     final step = stepKg(s, ex);
     final top = max(startLoad(ex, 2) * 2, r.lifterTiers.last / epley(5));
-    levels = [for (var kg = step; kg <= top + 1e-6; kg += step) (name: fmtLoad(s, ex, kg), load: kg)];
-    start = max(0, levels.indexWhere((l) => l.load >= startLoad(ex, 1) - 1e-6));
+    levels = [for (var kg = step; kg <= top + 1e-6; kg += step) (name: fmtLoad(s, ex, kg), load: r.load(kg: kg))];
+    start = max(0, levels.indexWhere((l) => l.load >= r.load(kg: startLoad(ex, 1)) - 1e-6));
   } else {
     final l = ex.ladder!;
     levels = [for (var i = 0; i < l.variants.length; i++) (name: l.variants[i].name, load: r.load(rung: i))];
@@ -225,9 +225,8 @@ class _StrengthLabScreenState extends State<StrengthLabScreen> {
                 style: t.bodySmall?.copyWith(color: du.inkSecondary))),
             TextButton(
               onPressed: () => showRanks(context, title: '${ex.name}: ranks', rating: rating, takes: (x) => _rankLift(x, range),
-                  ratings: ratings, performances: perfs, basis: r.grounded
-                      ? 'Ranked against a mix: half everyone, half people who train. People who train come from strength standards (strengthlevel.com) for ${person.sex == Sex.man ? 'men' : 'women'} around ${person.bodyweight.round()} kg, adjusted to age ${person.age}.'
-                      : 'No standard for this one yet: its ranks are estimated from where a beginner starts.'),
+                  ratings: ratings, performances: perfs,
+                  basis: '${basisLine(r)}: ${person.sex == Sex.man ? 'men' : 'women'} around ${person.bodyweight.round()} kg, adjusted to age ${person.age}.'),
               child: const Text('All ranks'),
             ),
           ]),
@@ -305,11 +304,11 @@ class _StrengthLabScreenState extends State<StrengthLabScreen> {
   /// What a rating takes on this lift: in the standard's own version for push-ups and pull-ups ("39 × Push-ups"), else
   /// as reps at the levels around it, or as one lift when it is past them all.
   String _rankLift(double rating, RepRange range) {
-    final st = standards[ex.id];
-    if (st != null && st.reps) {
-      final i = max(0, ex.ladder!.variants.indexWhere((v) => v.name == st.version));
+    final version = r.standard.version;
+    final i = ex.ladder?.variants.indexWhere((v) => v.name == version) ?? -1;
+    if (version != null && i >= 0) {
       final n = r.repsAt(rating, r.load(rung: i)).round();
-      if (n >= 1) return '$n × ${st.version}';
+      if (n >= 1) return '$n × $version';
     }
     final line = _equalLine(r, levels, rating, range, max: 2);
     if (line.isNotEmpty) return line;

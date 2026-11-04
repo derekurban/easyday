@@ -1,6 +1,7 @@
 import 'package:easyday/data/library.dart';
 import 'package:easyday/data/model.dart';
 import 'package:easyday/logic/after.dart';
+import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/rating.dart';
 import 'package:easyday/logic/score.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,16 +12,18 @@ import 'workout_test.dart' as w;
 void main() {
   final squat = exerciseById['bb_squat']!;
   final pushup = exerciseById['pushup']!;
+  final pullup = exerciseById['pullup']!;
   Rater man({double bw = 80, int age = 30}) => Rater(squat, sex: Sex.man, bodyweight: bw, age: age);
 
-  test('half everyone, half lifters: an untrained adult is Bronze, a typical lifter Platinum, an elite one Champion', () {
+  test('three parts lifters, one part everyone: an untrained adult is Bronze, a typical lifter Gold, an elite one Champion', () {
     final r = man();
-    final untrained = r.rating(r.lifterTiers[0] * 0.85), median = r.rating(r.lifterTiers[2]), elite = r.rating(r.lifterTiers[4]);
-    expect(untrained, closeTo(970, 15));
+    // studies put untrained adults at about 0.95 of the lifters' 5 % mark
+    final untrained = r.rating(r.lifterTiers[0] * 0.95), median = r.rating(r.lifterTiers[2]), elite = r.rating(r.lifterTiers[4]);
+    expect(untrained, closeTo(829, 15));
     expect(rankOf(untrained).name, 'Bronze');
-    expect(median, closeTo(1430, 15));
-    expect(rankOf(median).name, 'Platinum');
-    expect(elite, closeTo(1825, 20));
+    expect(median, closeTo(1306, 15));
+    expect(rankOf(median).name, 'Gold');
+    expect(elite, closeTo(1823, 20));
     expect(rankOf(elite).name, 'Champion');
     expect(Rater.percentile(1200), closeTo(50, 1e-6));
   });
@@ -40,17 +43,54 @@ void main() {
     expect(ageFactor(60), closeTo(0.77, 1e-9));
   });
 
-  test('push-up versions land on the push-up standard, whatever the bodyweight', () {
+  test('push-up versions land on the push-up standard, and the standard knows bodyweight', () {
     final r = Rater(pushup, sex: Sex.man, bodyweight: 80, age: 30);
     final full = pushup.ladder!.variants.indexWhere((v) => v.name == 'Push-ups');
     expect(r.setRating(r.load(rung: full + 1), 10), greaterThan(r.setRating(r.load(rung: full), 10)));
-    expect(Rater(pushup, sex: Sex.man, bodyweight: 110, age: 30).setRating(r.load(rung: full), 20), closeTo(r.setRating(r.load(rung: full), 20), 1e-9));
+    // a heavier body does fewer push-ups, so the same 50 rate higher
+    expect(Rater(pushup, sex: Sex.man, bodyweight: 110, age: 30).setRating(r.load(rung: full), 50), greaterThan(r.setRating(r.load(rung: full), 50)));
   });
 
-  test('an exercise without a standard is estimated from its beginner start', () {
-    final curl = Rater(exerciseById['db_curl']!, sex: Sex.man, bodyweight: 80, age: 30);
-    expect(curl.grounded, isFalse);
-    expect(curl.lifterTiers.first, closeTo(6 * (1 + 10 / 30), 1e-9));
+  test('every strength exercise the app tracks has a standard, its tiers rising, at every bodyweight', () {
+    for (final ex in builtInExercises.where((e) => e.isStrength && e.tracked)) {
+      final st = exerciseStandards[ex.id];
+      expect(st, isNotNull, reason: ex.id);
+      for (final rows in [st!.man, st.woman]) {
+        for (final row in rows) {
+          for (var k = 2; k <= 5; k++) { expect(row[k], greaterThan(row[k - 1]), reason: '${ex.id} at ${row[0]} kg'); }
+        }
+      }
+      expect(st.basis == Basis.estimated || st.from.isNotEmpty, isTrue, reason: '${ex.id} names its sources');
+    }
+    // the dumbbell curl is measured now; band curls are still estimated from their start
+    expect(Rater(exerciseById['db_curl']!, sex: Sex.man, bodyweight: 80, age: 30).basis, Basis.measured);
+    expect(Rater(exerciseById['band_curl']!, sex: Sex.man, bodyweight: 80, age: 30).grounded, isFalse);
+  });
+
+  test('one scale: the same place among lifters rates the same on every exercise', () {
+    final squatR = Rater(squat, sex: Sex.woman, bodyweight: 70, age: 30);
+    for (final ex in builtInExercises.where((e) => e.isStrength && e.tracked)) {
+      final r = Rater(ex, sex: Sex.woman, bodyweight: 70, age: 30);
+      if (r.standard.everyone != squatR.standard.everyone) continue;
+      expect(r.rating(r.lifterTiers[2]), closeTo(squatR.rating(squatR.lifterTiers[2]), 1e-6), reason: '${ex.id}: the median');
+      for (final k in [1, 3]) {
+        expect(r.rating(r.lifterTiers[k]), closeTo(squatR.rating(squatR.lifterTiers[k]), 20), reason: '${ex.id}, tier $k: lifts spread a little unevenly');
+      }
+    }
+  });
+
+  test('the bodyweight tables read between rows, and the assisted machine is read on the pull-up standard', () {
+    final st = exerciseStandards['bb_bench']!;
+    final row = st.man.firstWhere((r) => r[0] == 80);
+    expect(st.tiersAt(Sex.man, 80)[2], closeTo(row[3], 1e-9));
+    expect(st.tiersAt(Sex.man, 85)[2], inInclusiveRange(row[3], st.man.firstWhere((r) => r[0] == 90)[3]));
+    final assisted = Rater(exerciseById['assisted_pullup']!, sex: Sex.man, bodyweight: 80, age: 30);
+    final pull = Rater(exerciseById['pullup']!, sex: Sex.man, bodyweight: 80, age: 30);
+    final full = pullup.ladder!.variants.indexWhere((v) => v.name == 'Pull-ups');
+    // no assist (the machine's load at assistRefKg) is a full pull-up; more assist rates lower
+    expect(assisted.setRating(assisted.load(kg: assistRefKg), 8), closeTo(pull.setRating(pull.load(rung: full), 8), 1));
+    expect(assisted.setRating(assisted.load(kg: assistRefKg - 30), 8), lessThan(assisted.setRating(assisted.load(kg: assistRefKg - 10), 8)));
+    expect(assisted.kgFor(assisted.load(kg: 55)), closeTo(55, 1e-9));
   });
 
   test('the rating moves part of the way to a workout, and a day that does not count never lowers it', () {

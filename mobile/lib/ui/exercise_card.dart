@@ -186,7 +186,7 @@ class _Strength extends StatelessWidget {
     }
     final age = s.profile?.ageAt(store.now);
     final weight = s.profile?.bodyweightKg;
-    final basis = '${r.grounded ? 'Ranked against half everyone, half people who train' : 'Estimated: no standard for this one yet'}: '
+    final basis = '${basisLine(r)}: '
         '${s.settings.figure == 'female' ? 'women' : 'men'}${age == null ? '' : ' aged $age'}${weight == null ? '' : ', around ${fmtKg(s, weight)}'}. '
         'Change these in Settings, Your body.';
     return Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
