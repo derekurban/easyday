@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the strength rating is worked out</title>
+<style>
+@font-face { font-family: "Albert Sans"; src: url("../../app/vendor/du/assets/fonts/AlbertSans-500.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "Wix Madefor Text"; src: url("../../app/vendor/du/assets/fonts/WixMadeforText-400.woff2") format("woff2"); font-weight: 400; }
+@font-face { font-family: "Wix Madefor Text"; src: url("../../app/vendor/du/assets/fonts/WixMadeforText-600.woff2") format("woff2"); font-weight: 600; }
+:root {
+  color-scheme: light;
+  --page: #f6f6f6; --surface: #fcfcfc; --line: #d4d4d4; --line-strong: #bebebe; --ink: #1b1b1b; --ink-2: #555555;
+  --accent: #456938; --accent-subtle: #e6f3e2; --accent-text: #426635; --on-accent: #fafafa;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;  /* the dataviz reference palette's first three slots, validated */
+  --band-a: #f0f0ef; --band-b: #fcfcfc; --est: #c4c4c4; --radius: 12px;
+  --sans: "Wix Madefor Text", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root {
+  color-scheme: dark;
+  --page: #141414; --surface: #1c1c1c; --line: #383838; --line-strong: #464646; --ink: #eeeeee; --ink-2: #9e9e9e;
+  --accent: #86ab7a; --accent-subtle: #1e281a; --accent-text: #87a87c; --on-accent: #1b1b1b;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --band-a: #232323; --band-b: #1c1c1c; --est: #424242;
+} }
+body { background: var(--page); color: var(--ink); max-width: 940px; margin: 0 auto !important; padding: 28px 20px 48px; }
+h1 { font: 500 30px/36px "Albert Sans", system-ui, sans-serif; margin: 0 0 6px; }
+h2, h3 { font-family: "Albert Sans", system-ui, sans-serif !important; }
+.lede { color: var(--ink-2); margin: 0 0 18px; max-width: 720px; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 400 14px/21px var(--sans); }
+h2, h3 { font-family: var(--sans); font-weight: 500; margin: 0; }
+h2 { font-size: 18px; line-height: 24px; margin-bottom: 2px; }
+h3 { font-size: 14px; line-height: 20px; }
+.sub { color: var(--ink-2); font-size: 13px; line-height: 19px; margin: 0 0 10px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius, 12px); padding: 14px 16px; }
+section { margin-top: 20px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; padding: 0 0 14px; border-bottom: 1px solid var(--line); }
+.ctl { display: flex; flex-direction: column; gap: 4px; }
+.ctl label { font: 500 12px/16px var(--sans); color: var(--ink-2); }
+.ctl .val { font-variant-numeric: tabular-nums; color: var(--ink); }
+select, input[type=number] { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 5px 8px; }
+input[type=number] { width: 76px; }
+input[type=range] { width: 112px; accent-color: var(--accent); }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg button { font: 500 13px/16px var(--sans); border: 0; background: var(--surface); color: var(--ink-2); padding: 7px 12px; cursor: pointer; }
+.seg button[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius, 12px); padding: 12px; display: flex; flex-direction: column; }
+.step .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-subtle); color: var(--accent-text); font: 600 11px/1 var(--sans); margin-bottom: 6px; }
+.step p { margin: 2px 0 0; color: var(--ink-2); font-size: 12px; line-height: 17px; }
+.step .calc { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; line-height: 17px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.step .head { height: 8px; }
+.step .big { font: 500 19px/26px var(--sans); display: block; color: var(--ink); margin-top: 2px; }
+@media (max-width: 620px) { .steps { grid-template-columns: 1fr 1fr; } }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--ink-2); margin: 0 0 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid; }
+.legend i.dot { width: 9px; height: 9px; border-radius: 50%; border: 0; }
+.tip { position: absolute; pointer-events: none; background: var(--popover, var(--surface)); color: var(--popover-foreground, var(--ink)); border: 1px solid var(--line-strong); border-radius: 10px; padding: 8px 10px; font-size: 12.5px; line-height: 18px; box-shadow: 0 4px 16px rgb(0 0 0 / 0.14); opacity: 0; transition: opacity 80ms; white-space: nowrap; z-index: 3; }
+.tip b { font-weight: 600; }
+.tip .k { color: var(--ink-2); }
+.axis text { fill: var(--ink-2); font: 400 11.5px var(--sans); }
+.axis line { stroke: var(--line); }
+.grid line { stroke: var(--line); stroke-dasharray: 2 4; }
+.lbl { font: 500 11.5px var(--sans); fill: var(--ink-2); }
+.lbl-strong { font: 600 11.5px var(--sans); fill: var(--ink); }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--ink-2); font-weight: 500; }
+td.num, th.num { text-align: right; }
+.cols { display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+@media (max-width: 620px) { .cols { grid-template-columns: 1fr; } }
+.list { margin: 6px 0 0; padding: 0; list-style: none; }
+.list li { padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 12.5px; line-height: 18px; color: var(--ink-2); }
+.list li:last-child { border-bottom: 0; }
+.list b { font-weight: 600; color: var(--ink); }
+.basisbar { display: flex; gap: 2px; height: 22px; margin: 8px 0 6px; }
+.basisbar div { border-radius: 4px; }
+.note { font-size: 12px; color: var(--ink-2); line-height: 17px; margin: 6px 0 0; }
+details { margin-top: 8px; }
+summary { cursor: pointer; color: var(--ink-2); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<h1>How the strength rating is worked out</h1>
+<p class="lede">One number per exercise, like a chess rating: what you lifted, placed among real people of your build, bodyweight and age, moving a little with every workout. Every number here is the app's own calculation (<code>mobile/lib/logic/rating.dart</code>) on its own standards (<code>data/standards/</code>), for a few sample lifts.</p>
+<div class="controls" role="group" aria-label="Who and what to rate">
+  <div class="ctl"><label for="ex">Exercise</label><select id="ex"></select></div>
+  <div class="ctl"><label>Build</label><div class="seg" id="sex"><button data-v="man" aria-pressed="true">Man</button><button data-v="woman" aria-pressed="false">Woman</button></div></div>
+  <div class="ctl"><label for="bw">Bodyweight <span class="val" id="bwv"></span></label><input type="range" id="bw" min="45" max="130" step="1" value="80"></div>
+  <div class="ctl"><label for="age">Age <span class="val" id="agev"></span></label><input type="range" id="age" min="16" max="85" step="1" value="30"></div>
+  <div class="ctl" id="kgwrap"><label for="kg">Weight (kg)</label><input type="number" id="kg" min="1" step="2.5" value="80"></div>
+  <div class="ctl"><label for="reps">Reps <span class="val" id="repsv"></span></label><input type="range" id="reps" min="1" max="40" step="1" value="8"></div>
+</div>
+
+<section>
+  <h2>Four steps from a set to a rating</h2>
+  <p class="sub" id="stepsub"></p>
+  <div class="steps">
+    <div class="step"><span class="n">1</span><h3>What the set is worth</h3><p>Weight × (1 + reps/30): an estimated one-rep max. A workout averages its sets.</p><div class="head"></div><div class="calc" id="c1"></div></div>
+    <div class="step"><span class="n">2</span><h3>The standard for you</h3><p>Five tiers that beat 5, 20, 50, 80, 95 % of people who train it, at your build, weight and age.</p><div class="head"></div><div class="calc" id="c2"></div></div>
+    <div class="step"><span class="n">3</span><h3>Where you sit</h3><p>Ranked in a mix: three parts people who train, one part everyone.</p><div class="head"></div><div class="calc" id="c3"></div></div>
+    <div class="step"><span class="n">4</span><h3>Rating and rank</h3><p>1200 is the middle; 350 points is one standard deviation.</p><div class="head"></div><div class="calc" id="c4"></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>Who you are compared with</h2>
+  <p class="sub">The share of each group a strength beats. People who train run straight through the standard's five tiers (the dots). Everyone else sits a little under their 5 % mark, where studies of untrained adults are. Your place is the mix: 75 % people who train, 25 % everyone.</p>
+  <div class="panel">
+    <div class="legend" aria-hidden="true"><span><i style="border-color:var(--s1)"></i>People who train</span><span><i style="border-color:var(--s2)"></i>Everyone</span><span><i style="border-color:var(--s3);border-top-width:3px"></i>The mix you are ranked in</span><span><i style="border-color:var(--ink);border-top-style:dashed"></i>You</span></div>
+    <div class="chart" id="dist"></div>
+  </div>
+</section>
+
+<section>
+  <h2>From strength to rating</h2>
+  <p class="sub">That share on the chess-like scale. Steep in the middle, where most people are; flatter at the ends, so past Elite each extra kilogram is worth fewer points.</p>
+  <div class="panel"><div class="chart" id="curve"></div>
+    <details><summary>The tiers as a table</summary><div id="tiers"></div></details></div>
+</section>
+
+<section>
+  <h2>How it moves, like Elo</h2>
+  <p class="sub">The first workout sets it outright. The next three move it half the way to that day's worth, then a quarter. A day that does not count against you can lift it, never lower it. A sample history around your set:</p>
+  <div class="panel">
+    <div class="legend" aria-hidden="true"><span><i class="dot" style="background:var(--s1)"></i>What the workout was worth</span><span><i class="dot" style="background:transparent;box-shadow:inset 0 0 0 2px var(--s1)"></i>A day that does not count against you</span><span><i style="border-color:var(--ink)"></i>Your rating after it</span></div>
+    <div class="chart" id="elo"></div>
+  </div>
+</section>
+
+<section>
+  <div class="panel cols">
+    <div>
+      <h2>What it considers</h2>
+      <ul class="list">
+        <li><b>Weight and reps</b> of every set, averaged over the workout</li>
+        <li><b>The version</b> of a bodyweight exercise, by the share of bodyweight it moves (knee push-ups 0.49, push-ups 0.64)</li>
+        <li><b>Your build</b>: men's or women's tables, from the body figure in Settings</li>
+        <li><b>Your bodyweight</b>: tables every 10 kg, read in proportion between</li>
+        <li><b>Your age on the day</b>: all of it 20 to 39, then 0.885 at 50, 0.77 at 60, 0.64 at 70</li>
+        <li><b>How the day went</b>: easy, low energy, light or hurt can lift it, never lower it</li>
+        <li><b>Your history</b> on the lift: half the way while new, a quarter once settled</li>
+      </ul>
+    </div>
+    <div>
+      <h2>What it does not</h2>
+      <ul class="list">
+        <li><b>Rest, tempo, effort or form</b>: only what was lifted, how many times</li>
+        <li><b>Other exercises</b>: each lift has its own; the overall rating averages them</li>
+        <li><b>Anything stored</b>: worked out from the log every time</li>
+      </ul>
+      <h3 style="margin-top:12px">What the standards stand on</h3>
+      <div class="basisbar" id="basisbar" role="img" aria-label="224 exercises: 130 measured, 15 modelled, 20 from a close cousin, 59 estimated"></div>
+      <div class="legend" id="basislegend"></div>
+      <p class="note">Measured: lifts logged on strengthlevel.com (plus Symmetric Strength for barbell lifts). Modelled: FitnessVolt's tables only. Close cousin: a similar exercise's page. Estimated: no page; from the beginner start.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+const STD = {"bb_bench":{"basis":"measured","man":[[50,31.9,45.9,62.4,80.6,101],[60,39.8,54.9,72.4,92.1,113],[70,49.4,65.4,84,106,128],[80,57.3,75.3,96.3,119,143],[90,64.3,83.4,106,131,157],[100,69.4,90.7,115,142,170],[110,74,96.5,123,151,180],[120,68.7,95.5,127,162,198],[130,96.5,121,151,183,218],[140,104,130,160,193,229]],"woman":[[40,12,21.5,34.2,47.7,63.2],[50,16.2,26.5,39.3,53.7,69.1],[60,21.8,32.4,46.1,62.4,81.1],[70,24.8,36.9,51.4,69.1,88.7],[80,28.9,40.6,56.5,75.6,96.5],[90,27.5,42.6,60.6,80,119],[100,32.3,48.6,69.2,93,119],[110,35.4,52.6,73.3,98.1,125],[120,38.5,55.9,77.5,103,130]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com, Symmetric Strength","version":null},"bb_squat":{"basis":"measured","man":[[50,41.9,60.4,83.2,110,138],[60,51.9,72.1,97,125,155],[70,63.5,86,113,143,174],[80,73.7,98.9,128,161,195],[90,83,110,142,177,214],[100,90.8,119,153,191,230],[110,96.6,126,163,204,245],[120,87.3,124,171,218,269],[130,129,163,202,246,293],[140,139,174,214,260,307]],"woman":[[40,22,37.1,55.4,76.7,99.2],[50,27.9,43.5,62.5,84.5,108],[60,35.4,51.4,71.9,95.9,123],[70,38.8,57.3,80.2,107,134],[80,43.8,63.9,88.2,117,149],[90,38,57.9,89,124,175],[100,50.7,72.6,99.9,131,166],[110,54.7,77.6,106,138,173],[120,58.7,81.7,111,144,180]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com, Symmetric Strength","version":null},"deadlift":{"basis":"measured","man":[[50,51.8,74.5,101,131,164],[60,62.5,87.3,116,148,181],[70,76.6,103,134,168,205],[80,90,118,152,189,227],[90,99,130,166,206,247],[100,107,140,179,220,263],[110,114,148,189,234,279],[120,111,150,197,247,300],[130,147,185,230,279,330],[140,158,197,242,293,345]],"woman":[[40,28.9,45.5,66.9,92.5,120],[50,35.8,53.4,75.5,101,129],[60,44.1,63,86.1,114,143],[70,49.4,70.7,95.6,125,156],[80,56.5,76.9,105,137,172],[90,52.5,74.9,106,141,191],[100,59.9,84.7,115,150,187],[110,64.7,89.9,121,157,195],[120,68.7,94.6,127,163,202]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com, Symmetric Strength","version":null},"db_curl":{"basis":"measured","man":[[50,3.71,8.72,15.4,24.2,34.2],[60,5.51,10.9,18.4,27.4,38.5],[70,6.58,12.2,20.6,30.5,41.8],[80,7.69,14.1,22.7,33.6,45],[90,8.85,16.1,24.8,35.8,48],[100,10.5,17.2,26.8,38,51],[110,11.7,19.1,28.8,40.1,53.3],[120,12.7,20.3,30.2,42.3,55.5],[130,13.7,21.4,32.2,44.3,57.7],[140,14.8,22.5,33.3,46.3,59.8]],"woman":[[40,1.91,4.97,9.29,14.7,21.2],[50,2.9,5.97,11.1,16.7,23.4],[60,3.74,7.12,12.3,18.8,25.5],[70,4.03,8.12,13.5,20,27.6],[80,4.94,9.12,14.6,21.2,28.9],[90,5.81,10.1,15.7,23,30.8],[100,5.97,10.4,16.7,24.2,32],[110,6.93,11.3,17.7,25.2,33.1],[120,7.16,12.3,18.7,26.2,34.1]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com","version":null},"lat_raise":{"basis":"measured","man":[[50,1.76,5.65,10.8,17.9,26.3],[60,2.77,6.68,12.8,20.2,29.4],[70,3.78,8.45,14.7,22.9,32.4],[80,4.61,9.62,16,25,34.6],[90,5.62,10.6,17.8,27,37.4],[100,6.61,11.8,19,28.4,39.5],[110,7.45,12.8,20.8,30.2,40.8],[120,7.75,13.8,22,32.1,42.8],[130,8.66,14.8,23.1,33.3,44.8],[140,9.52,15.8,24.8,34.4,46.6]],"woman":[[40,1.93,4.03,7.06,11.2,15.5],[50,2.73,4.85,8.06,12.2,16.7],[60,2.77,5.68,8.91,13.2,17.7],[70,2.97,5.88,9.24,14.2,18.7],[80,3.71,6.06,10.1,14.4,19.7],[90,3.87,6.91,10.3,15.3,20.7],[100,4.03,7.09,11.1,15.6,20.9],[110,4.67,7.78,11.3,16.4,21.7],[120,4.92,7.9,12.2,16.5,22]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com","version":null},"pulldown":{"basis":"measured","man":[[50,27.4,41.7,59.4,79.5,102],[60,33.4,49,68.4,90.5,115],[70,40.1,56,76.7,99.8,125],[80,45.3,62.9,84.6,109,135],[90,50.4,68.9,91.6,117,144],[100,55.4,74.7,97.9,124,152],[110,60.2,79.9,104,131,160],[120,64.3,85,110,137,167],[130,68.4,89.9,115,143,174],[140,72.3,94.1,120,149,180]],"woman":[[40,15.9,25.2,37.5,51.4,67.1],[50,18.7,28.9,41.5,56.2,73.1],[60,21.5,31.9,45.3,60.4,77.3],[70,23.5,34.7,48.4,64.3,82.1],[80,25.5,36.8,51.3,68,85.9],[90,27.4,39.5,54.1,71,89],[100,29.2,41.5,56.3,73.8,92],[110,31,43.4,58.3,76,94.9],[120,32.2,45.3,61,78.9,97.8]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com","version":null},"pushup":{"basis":"measured","man":[[50,0.614,0.907,1.34,1.87,2.46],[60,0.656,0.945,1.36,1.85,2.39],[70,0.704,0.977,1.36,1.82,2.3],[80,0.72,0.995,1.35,1.77,2.22],[90,0.738,0.99,1.33,1.72,2.15],[100,0.744,0.992,1.32,1.68,2.07],[110,0.756,0.984,1.29,1.63,2],[120,0.756,0.976,1.26,1.59,1.94],[130,0.759,0.965,1.24,1.55,1.88],[140,0.759,0.961,1.22,1.51,1.83]],"woman":[[40,0.492,0.7,1.01,1.43,1.9],[50,0.561,0.762,1.05,1.43,1.85],[60,0.579,0.778,1.06,1.41,1.78],[70,0.616,0.803,1.05,1.37,1.71],[80,0.625,0.809,1.04,1.34,1.65],[90,0.636,0.805,1.03,1.3,1.59],[100,0.639,0.805,1.01,1.27,1.53],[110,0.646,0.795,0.981,1.23,1.48],[120,0.643,0.786,0.957,1.19,1.44]],"everyone":-0.557,"from":"strengthlevel.com, fitnessvolt.com","version":"Push-ups"},"pullup":{"basis":"measured","man":[[50,0.653,0.856,1.06,1.32,1.58],[60,0.681,0.88,1.06,1.29,1.55],[70,0.699,0.88,1.06,1.27,1.5],[80,0.728,0.88,1.03,1.24,1.44],[90,0.728,0.88,1.02,1.19,1.39],[100,0.698,0.864,0.992,1.17,1.34],[110,0.695,0.856,0.966,1.14,1.3],[120,0.689,0.836,0.96,1.11,1.27],[130,0.683,0.832,0.939,1.07,1.22],[140,0.671,0.808,0.936,1.05,1.19]],"woman":[[40,0.5,0.652,0.864,1.06,1.29],[50,0.535,0.674,0.864,1.04,1.26],[60,0.538,0.681,0.87,1.02,1.21],[70,0.546,0.678,0.848,0.996,1.17],[80,0.55,0.671,0.848,0.971,1.12],[90,0.552,0.664,0.824,0.945,1.08],[100,0.555,0.655,0.8,0.92,1.05],[110,0.548,0.646,0.782,0.902,1.01],[120,0.543,0.636,0.76,0.88,0.983]],"everyone":-2,"from":"strengthlevel.com, fitnessvolt.com","version":"Pull-ups"}};
+const NAMES = { bb_bench: 'Barbell bench press', bb_squat: 'Barbell back squat', deadlift: 'Deadlift', db_curl: 'Dumbbell curl (one dumbbell)', lat_raise: 'Lateral raise (one dumbbell)', pulldown: 'Lat pulldown', pushup: 'Push-ups', pullup: 'Pull-ups' };
+const SHARE = { pushup: 0.64, pullup: 0.72 }; // the version's share of bodyweight (lib/logic/score.dart)
+const DEFAULT = { bb_bench: [80, 8], bb_squat: [100, 5], deadlift: [120, 5], db_curl: [14, 10], lat_raise: [10, 12], pulldown: [60, 10], pushup: [null, 25], pullup: [null, 8] };
+const Z = [-1.6449, -0.8416, 0, 0.8416, 1.6449];
+const TIER = ['Beginner', 'Novice', 'Intermediate', 'Advanced', 'Elite'];
+const RANKS = [['Iron', -Infinity], ['Bronze', 800], ['Silver', 1000], ['Gold', 1200], ['Platinum', 1400], ['Diamond', 1600], ['Champion', 1800]];
+
+// ---- the app's maths, as in lib/logic/rating.dart ----
+const epley = r => 1 + r / 30;
+function erf(x) { const s = x < 0 ? -1 : 1, a = Math.abs(x), t = 1 / (1 + 0.3275911 * a);
+  return s * (1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-a * a)); }
+const phi = z => 0.5 * (1 + erf(z / Math.SQRT2));
+function probit(p) { let lo = -8, hi = 8; for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (phi(m) < p) lo = m; else hi = m; } return (lo + hi) / 2; }
+function ageFactor(age) {
+  if (age < 20) return Math.max(0.75, 1 - 0.025 * (20 - age));
+  const pts = [[40, 1], [50, 0.885], [60, 0.77], [70, 0.64], [80, 0.5], [90, 0.4]];
+  if (age <= 40) return 1;
+  for (let i = 1; i < pts.length; i++) { const [a0, f0] = pts[i - 1], [a1, f1] = pts[i]; if (age <= a1) return f0 + (age - a0) / (a1 - a0) * (f1 - f0); }
+  return 0.4;
+}
+function tiersAt(rows, bw) {
+  let i = 1; while (i < rows.length - 1 && bw > rows[i][0]) i++;
+  const a = rows[i - 1], b = rows[i], f = (Math.log(bw) - Math.log(a[0])) / (Math.log(b[0]) - Math.log(a[0]));
+  return [1, 2, 3, 4, 5].map(k => Math.exp(Math.log(a[k]) + f * (Math.log(b[k]) - Math.log(a[k]))));
+}
+function rater(id, sex, bw, age) {
+  const st = STD[id], f = ageFactor(age);
+  const tiers = tiersAt(st[sex], bw).map(x => x * f), L = tiers.map(Math.log);
+  const sigma = (L[3] - L[1]) / (Z[3] - Z[1]), muE = L[2] + st.everyone * sigma;
+  const zL = x => { let i = 1; while (i < 4 && x > L[i]) i++; return Z[i - 1] + (x - L[i - 1]) / (L[i] - L[i - 1]) * (Z[i] - Z[i - 1]); };
+  const lifters = s => phi(zL(Math.log(s))), everyone = s => phi((Math.log(s) - muE) / sigma);
+  const share = s => 0.75 * lifters(s) + 0.25 * everyone(s);
+  const rating = s => 1200 + 350 * probit(Math.min(1 - 1e-12, Math.max(1e-12, share(s))));
+  const strength = r => { const want = phi((r - 1200) / 350); let lo = Math.min(muE, L[0]) - 10 * sigma, hi = L[4] + 10 * sigma;
+    for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (share(Math.exp(m)) < want) lo = m; else hi = m; } return Math.exp((lo + hi) / 2); };
+  return { st, f, tiers, sigma, muE, lifters, everyone, share, rating, strength };
+}
+const rankOf = r => { let i = 0; RANKS.forEach((k, j) => { if (r >= k[1]) i = j; }); return { name: RANKS[i][0], i }; };
+const nextRating = (r, p, n, counts) => r == null ? p : (!counts && p < r ? r : r + (n < 3 ? 0.5 : 0.25) * (p - r));
+
+// ---- state and words ----
+const $ = id => document.getElementById(id);
+const state = { ex: 'bb_bench', sex: 'man', bw: 80, age: 30, kg: 80, reps: 8 };
+Object.keys(NAMES).forEach(id => { const o = document.createElement('option'); o.value = id; o.textContent = NAMES[id]; $('ex').appendChild(o); });
+const isBw = () => SHARE[state.ex] != null, unitShare = () => SHARE[state.ex], load = () => isBw() ? unitShare() : state.kg;
+const fmt = (v, d = 0) => v.toLocaleString('en', { maximumFractionDigits: d, minimumFractionDigits: d });
+function say(s) { if (!isBw()) return `${fmt(s, s < 20 ? 1 : 0)} kg`; const reps = 30 * (s / unitShare() - 1); return reps < 0.5 ? 'under 1 rep' : `${fmt(reps)} reps`; }
+const pct = p => `${fmt(Math.min(99.9, Math.max(0.1, p * 100)), p > 0.99 || p < 0.01 ? 1 : 0)} %`;
+
+// ---- svg helpers ----
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs = {}, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function text(parent, x, y, s, cls = 'lbl', anchor = 'start') { const t = el('text', { x, y, class: cls, 'text-anchor': anchor }, parent); t.textContent = s; return t; }
+function tipFor(box) { let t = box.querySelector('.tip'); if (!t) { t = document.createElement('div'); t.className = 'tip'; box.appendChild(t); } return t; }
+function placeTip(box, tip, e, html) { const b = box.getBoundingClientRect(), px = e.clientX - b.left, py = e.clientY - b.top;
+  tip.innerHTML = html; tip.style.opacity = 1; const tw = tip.offsetWidth;
+  tip.style.left = `${px + 14 + tw > box.clientWidth ? px - tw - 14 : px + 14}px`; tip.style.top = `${Math.max(0, py - tip.offsetHeight - 10)}px`; }
+function newSvg(box, H, label) { box.querySelectorAll('svg').forEach(s => s.remove()); const W = Math.max(320, box.clientWidth || 900);
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': label }); box.prepend(svg); return [svg, W]; }
+function niceTicks(a, b) {
+  if (isBw()) { const out = []; for (const r of [0, 1, 2, 5, 10, 15, 20, 30, 40, 50, 60, 80, 100, 120]) { const s = unitShare() * epley(r); if (s >= a && s <= b) out.push(s); } return out; }
+  const out = []; for (const base of [1, 10, 100]) for (const k of [1, 1.5, 2, 3, 4, 5, 6, 8]) { const v = base * k; if (v >= a && v <= b) out.push(v); }
+  return out.length > 9 ? out.filter((_, i) => i % 2 === 0) : out;
+}
+const tickLabel = v => isBw() ? fmt(30 * (v / unitShare() - 1)) : fmt(v);
+function xAxis(svg, xs, lo, hi, y, W, mid) {
+  const ax = el('g', { class: 'axis' }, svg);
+  niceTicks(Math.exp(lo), Math.exp(hi)).forEach(v => { const x = xs(Math.log(v)); el('line', { x1: x, x2: x, y1: y, y2: y + 4 }, ax); text(ax, x, y + 17, tickLabel(v), '', 'middle'); });
+  text(ax, mid, y + 33, isBw() ? `Reps of ${state.ex === 'pushup' ? 'push-ups' : 'pull-ups'} (log scale of strength)` : 'Estimated one-rep max, kg (log scale)', '', 'middle');
+  return ax;
+}
+
+// ---- 1. the steps ----
+function steps(R, you, rating) {
+  $('stepsub').textContent = `${NAMES[state.ex]}, ${state.sex === 'man' ? 'a man' : 'a woman'} of ${state.bw} kg aged ${state.age}: ` + (isBw() ? `${state.reps} ${R.st.version.toLowerCase()}.` : `${state.kg} kg × ${state.reps}.`);
+  $('c1').innerHTML = isBw() ? `${unitShare()} × bodyweight × (1 + ${state.reps}/30)<span class="big">${fmt(you, 2)} × bw</span>` : `${state.kg} × (1 + ${state.reps}/30)<span class="big">${fmt(you, 1)} kg</span>`;
+  const t = R.tiers.map(x => isBw() ? say(x).replace(' reps', '').replace('under 1 rep', '<1') : fmt(x, x < 20 ? 1 : 0)).join(' / ');
+  $('c2').innerHTML = `${R.st.basis}, age × ${fmt(R.f, 2)}<span class="big" style="font-size:15px;line-height:22px">${t}${isBw() ? ' reps' : ' kg'}</span>`;
+  $('c3').innerHTML = `beats ${pct(R.lifters(you))} of lifters, ${pct(R.everyone(you))} of everyone<span class="big">${pct(R.share(you))} of the mix</span>`;
+  $('c4').innerHTML = `1200 + 350 × ${fmt(probit(R.share(you)), 2)}<span class="big">${fmt(rating)} · ${rankOf(rating).name}</span>`;
+}
+
+// ---- 2. who you are compared with: share beaten ----
+function dist(R, you) {
+  const box = $('dist'), H = 220, m = { l: 40, r: 96, t: 10, b: 40 };
+  const [svg, W] = newSvg(box, H, 'Share of people who train, of everyone and of the mix that a strength beats');
+  const lo = Math.log(Math.min(R.tiers[0], Math.exp(R.muE)) * 0.5), hi = Math.log(R.tiers[4] * 1.35);
+  const xs = x => m.l + (x - lo) / (hi - lo) * (W - m.l - m.r), ys = p => H - m.b - p * (H - m.t - m.b);
+  const g = el('g', { class: 'grid' }, svg);
+  [0, 0.25, 0.5, 0.75, 1].forEach(p => { el('line', { x1: m.l, x2: W - m.r, y1: ys(p), y2: ys(p) }, g); text(svg, m.l - 6, ys(p) + 4, `${p * 100}%`, 'lbl', 'end'); });
+  el('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: 'var(--line)' }, svg);
+  xAxis(svg, xs, lo, hi, H - m.b, W, (m.l + W - m.r) / 2);
+  const N = 240, pts = [...Array(N + 1)].map((_, i) => lo + (hi - lo) * i / N);
+  const line = f => pts.map((x, i) => `${i ? 'L' : 'M'}${xs(x).toFixed(1)},${ys(f(Math.exp(x))).toFixed(1)}`).join('');
+  el('path', { d: line(R.everyone), fill: 'none', stroke: 'var(--s2)', 'stroke-width': 2 }, svg);
+  el('path', { d: line(R.lifters), fill: 'none', stroke: 'var(--s1)', 'stroke-width': 2 }, svg);
+  el('path', { d: line(R.share), fill: 'none', stroke: 'var(--s3)', 'stroke-width': 3 }, svg);
+  R.tiers.forEach((t, k) => el('circle', { cx: xs(Math.log(t)), cy: ys([0.05, 0.2, 0.5, 0.8, 0.95][k]), r: 4, fill: 'var(--s1)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg));
+  // direct labels at the right end, spread apart
+  const endY = [['Everyone', R.everyone], ['The mix', R.share], ['People who train', R.lifters]].map(([n, f]) => [n, ys(f(Math.exp(hi)))]);
+  endY.sort((a, b) => a[1] - b[1]); for (let i = 1; i < endY.length; i++) endY[i][1] = Math.max(endY[i][1], endY[i - 1][1] + 14);
+  endY.forEach(([n, y]) => text(svg, W - m.r + 8, y + 4, n, n === 'The mix' ? 'lbl-strong' : 'lbl'));
+  // you
+  const yx = xs(Math.min(hi, Math.max(lo, Math.log(you))));
+  el('line', { x1: yx, x2: yx, y1: m.t, y2: H - m.b, stroke: 'var(--ink)', 'stroke-width': 1.5, 'stroke-dasharray': '5 4' }, svg);
+  el('circle', { cx: yx, cy: ys(R.share(you)), r: 5.5, fill: 'var(--ink)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+  text(svg, yx - 8, ys(R.share(you)) - 9, `You: ${say(you)}, ${pct(R.share(you))}`, 'lbl-strong', 'end');
+  const hit = el('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent' }, svg);
+  const cross = el('line', { y1: m.t, y2: H - m.b, stroke: 'var(--ink-2)', 'stroke-width': 1, visibility: 'hidden' }, svg);
+  const tip = tipFor(box);
+  hit.addEventListener('pointermove', e => { const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * W, s = Math.exp(lo + (vx - m.l) / (W - m.l - m.r) * (hi - lo));
+    cross.setAttribute('x1', vx); cross.setAttribute('x2', vx); cross.setAttribute('visibility', 'visible');
+    placeTip(box, tip, e, `<b>${say(s)}</b><br><span class="k">beats</span> ${pct(R.lifters(s))} <span class="k">of people who train</span><br><span class="k">beats</span> ${pct(R.everyone(s))} <span class="k">of everyone</span><br><span class="k">the mix:</span> <b>${pct(R.share(s))}</b> <span class="k">→ rating</span> <b>${fmt(R.rating(s))}</b>`); });
+  hit.addEventListener('pointerleave', () => { tip.style.opacity = 0; cross.setAttribute('visibility', 'hidden'); });
+}
+
+// ---- 3. strength to rating ----
+function curve(R, you, rating) {
+  const box = $('curve'), H = 232, m = { l: 44, r: 76, t: 10, b: 40 };
+  const [svg, W] = newSvg(box, H, 'Rating against strength, with the rank bands');
+  const r0 = 700, r1 = 1950, lo = Math.log(R.strength(r0)), hi = Math.log(R.strength(r1));
+  const xs = x => m.l + (x - lo) / (hi - lo) * (W - m.l - m.r), ys = r => H - m.b - (r - r0) / (r1 - r0) * (H - m.t - m.b);
+  RANKS.forEach(([name, from], i) => { const a = Math.max(r0, from), b = Math.min(r1, i + 1 < RANKS.length ? RANKS[i + 1][1] : r1);
+    el('rect', { x: m.l, y: ys(b), width: W - m.l - m.r, height: ys(a) - ys(b), fill: i % 2 ? 'var(--band-a)' : 'var(--band-b)' }, svg);
+    text(svg, W - m.r + 8, (ys(a) + ys(b)) / 2 + 4, name, i === rankOf(rating).i ? 'lbl-strong' : 'lbl'); });
+  const ax = el('g', { class: 'axis' }, svg);
+  for (let r = 800; r <= 1800; r += 200) { el('line', { x1: m.l - 4, x2: m.l, y1: ys(r), y2: ys(r) }, ax); text(ax, m.l - 8, ys(r) + 4, fmt(r), '', 'end'); }
+  el('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: 'var(--line)' }, svg);
+  xAxis(svg, xs, lo, hi, H - m.b, W, (m.l + W - m.r) / 2);
+  const N = 240, pts = [...Array(N + 1)].map((_, i) => lo + (hi - lo) * i / N);
+  el('path', { d: pts.map((x, i) => `${i ? 'L' : 'M'}${xs(x).toFixed(1)},${ys(R.rating(Math.exp(x))).toFixed(1)}`).join(''), fill: 'none', stroke: 'var(--s3)', 'stroke-width': 2.5 }, svg);
+  R.tiers.forEach((t, k) => { const x = xs(Math.log(t)), y = ys(R.rating(t)); el('circle', { cx: x, cy: y, r: 4, fill: 'var(--s1)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+    const edge = x > W - m.r - 70; text(svg, edge ? x - 8 : x + 7, y + (edge ? 4 : 14), TIER[k], 'lbl', edge ? 'end' : 'start'); });
+  const yx = xs(Math.min(hi, Math.max(lo, Math.log(you)))), yy = ys(Math.min(r1, Math.max(r0, rating)));
+  el('line', { x1: m.l, x2: yx, y1: yy, y2: yy, stroke: 'var(--ink)', 'stroke-dasharray': '4 4' }, svg);
+  el('line', { x1: yx, x2: yx, y1: yy, y2: H - m.b, stroke: 'var(--ink)', 'stroke-dasharray': '4 4' }, svg);
+  el('circle', { cx: yx, cy: yy, r: 5.5, fill: 'var(--ink)', stroke: 'var(--surface)', 'stroke-width': 2 }, svg);
+  text(svg, yx - 9, yy - 9, `You: ${fmt(rating)}`, 'lbl-strong', 'end');
+  const hit = el('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent' }, svg);
+  const dot = el('circle', { r: 5, fill: 'var(--s3)', stroke: 'var(--surface)', 'stroke-width': 2, visibility: 'hidden' }, svg);
+  const tip = tipFor(box);
+  hit.addEventListener('pointermove', e => { const r = svg.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * W, s = Math.exp(lo + (vx - m.l) / (W - m.l - m.r) * (hi - lo)), rt = R.rating(s);
+    dot.setAttribute('cx', vx); dot.setAttribute('cy', ys(Math.min(r1, Math.max(r0, rt)))); dot.setAttribute('visibility', 'visible');
+    placeTip(box, tip, e, `<b>${say(s)}</b><br><span class="k">rating</span> <b>${fmt(rt)}</b> · ${rankOf(rt).name}<br><span class="k">beats</span> ${pct(R.share(s))} <span class="k">of the mix</span>`); });
+  hit.addEventListener('pointerleave', () => { tip.style.opacity = 0; dot.setAttribute('visibility', 'hidden'); });
+  const ev = Math.exp(R.muE);
+  $('tiers').innerHTML = `<table><thead><tr><th>Tier</th><th>Beats people who train</th><th class="num">Strength</th><th class="num">Rating</th><th>Rank</th></tr></thead><tbody>` +
+    R.tiers.map((t, k) => `<tr><td>${TIER[k]}</td><td>${[5, 20, 50, 80, 95][k]} %</td><td class="num">${say(t)}</td><td class="num">${fmt(R.rating(t))}</td><td>${rankOf(R.rating(t)).name}</td></tr>`).join('') +
+    `<tr><td>Everyone's middle</td><td>${pct(R.lifters(ev))}</td><td class="num">${say(ev)}</td><td class="num">${fmt(R.rating(ev))}</td><td>${rankOf(R.rating(ev)).name}</td></tr></tbody></table>`;
+}
+
+// ---- 4. Elo ----
+function elo(R, you) {
+  const box = $('elo'), H = 210, m = { l: 44, r: 76, t: 20, b: 34 };
+  const [svg, W] = newSvg(box, H, "Sample history: each workout's worth and the rating after it");
+  const days = [[0.86, 1], [0.9, 1], [0.93, 1], [0.84, 0, 'an easy day'], [0.97, 1], [1.0, 1], [0.92, 1, 'a normal short day'], [1.03, 1]];
+  let r = null; const hist = days.map(([f, c, note], i) => { const p = R.rating(you * f); r = nextRating(r, p, i, !!c); return { p, r, c: !!c, note, i }; });
+  const all = hist.flatMap(h => [h.p, h.r]), r0 = Math.floor((Math.min(...all) - 70) / 50) * 50, r1 = Math.ceil((Math.max(...all) + 40) / 50) * 50;
+  const xs = i => m.l + 24 + i * (W - m.l - m.r - 48) / (days.length - 1), ys = v => H - m.b - (v - r0) / (r1 - r0) * (H - m.t - m.b);
+  RANKS.forEach(([name, from], i) => { const a = Math.max(r0, from), b = Math.min(r1, i + 1 < RANKS.length ? RANKS[i + 1][1] : r1); if (b <= a) return;
+    el('rect', { x: m.l, y: ys(b), width: W - m.l - m.r, height: ys(a) - ys(b), fill: i % 2 ? 'var(--band-a)' : 'var(--band-b)' }, svg);
+    text(svg, W - m.r + 8, (ys(a) + ys(b)) / 2 + 4, name, 'lbl'); });
+  const ax = el('g', { class: 'axis' }, svg);
+  for (let v = Math.ceil(r0 / 100) * 100; v <= r1; v += 100) { el('line', { x1: m.l - 4, x2: m.l, y1: ys(v), y2: ys(v) }, ax); text(ax, m.l - 8, ys(v) + 4, fmt(v), '', 'end'); }
+  el('line', { x1: m.l, x2: W - m.r, y1: H - m.b, y2: H - m.b, stroke: 'var(--line)' }, svg);
+  hist.forEach(h => text(ax, xs(h.i), H - m.b + 17, `${h.i + 1}`, '', 'middle'));
+  text(ax, m.l - 8, H - m.b + 17, 'Workout', '', 'end');
+  hist.forEach((h, i) => { if (i) el('line', { x1: xs(i), x2: xs(i), y1: ys(hist[i - 1].r), y2: ys(h.p), stroke: 'var(--ink-2)', 'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: 0.6 }, svg); });
+  el('path', { d: hist.map((h, i) => `${i ? 'L' : 'M'}${xs(i)},${ys(h.r)}`).join(''), fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2 }, svg);
+  hist.forEach(h => el('circle', { cx: xs(h.i), cy: ys(h.r), r: 3.5, fill: 'var(--ink)' }, svg));
+  hist.forEach(h => el('circle', { cx: xs(h.i), cy: ys(h.p), r: 6, fill: h.c ? 'var(--s1)' : 'var(--surface)', stroke: h.c ? 'var(--surface)' : 'var(--s1)', 'stroke-width': 2 }, svg));
+  const above = (i, s) => text(svg, xs(i), ys(Math.max(hist[i].p, hist[i].r)) - 11, s, 'lbl', 'middle');
+  const below = (i, s) => text(svg, xs(i), ys(Math.min(hist[i].p, hist[i].r)) + 20, s, 'lbl', 'middle');
+  above(0, 'sets it'); above(2, 'half the way'); below(3, 'easy: no drop'); above(5, 'a quarter'); below(6, 'short day counts');
+  const tip = tipFor(box);
+  hist.forEach(h => { const c = el('rect', { x: xs(h.i) - 28, y: m.t, width: 56, height: H - m.t - m.b, fill: 'transparent' }, svg);
+    c.addEventListener('pointermove', e => { const before = h.i ? hist[h.i - 1].r : null;
+      const pull = h.i === 0 ? 'the first workout sets it outright' : (!h.c && h.p < before ? 'does not count against you: no change' : `moves ${h.i < 3 ? 'half' : 'a quarter'} of the way`);
+      placeTip(box, tip, e, `<b>Workout ${h.i + 1}</b>${h.note ? `, ${h.note}` : ''}<br><span class="k">worth</span> ${fmt(h.p)}<br><span class="k">rating</span> ${before == null ? '' : fmt(before) + ' → '}<b>${fmt(h.r)}</b> · ${rankOf(h.r).name}<br><span class="k">${pull}</span>`); });
+    c.addEventListener('pointerleave', () => { tip.style.opacity = 0; }); });
+}
+
+// ---- what the standards stand on ----
+(function basis() {
+  const parts = [['Measured', 130, 'var(--s1)'], ['Modelled', 15, 'color-mix(in srgb, var(--s1) 62%, transparent)'], ['Close cousin', 20, 'color-mix(in srgb, var(--s1) 36%, transparent)'], ['Estimated', 59, 'var(--est)']];
+  $('basisbar').innerHTML = parts.map(([n, v, c]) => `<div title="${n}: ${v}" style="flex:${v};background:${c}"></div>`).join('');
+  $('basislegend').innerHTML = parts.map(([n, v, c]) => `<span><i class="dot" style="background:${c}"></i>${n} <b style="color:var(--ink)">${v}</b></span>`).join('');
+})();
+
+function render() {
+  const R = rater(state.ex, state.sex, state.bw, state.age), you = load() * epley(state.reps), rating = R.rating(you);
+  $('bwv').textContent = `${state.bw} kg`; $('agev').textContent = state.age; $('repsv').textContent = state.reps;
+  $('kgwrap').style.display = isBw() ? 'none' : '';
+  steps(R, you, rating); dist(R, you); curve(R, you, rating); elo(R, you);
+}
+$('ex').addEventListener('change', e => { state.ex = e.target.value; const [kg, reps] = DEFAULT[state.ex]; if (kg) { state.kg = kg; $('kg').value = kg; } state.reps = reps; $('reps').value = reps; render(); });
+$('sex').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state.sex = b.dataset.v;
+  [...$('sex').children].forEach(x => x.setAttribute('aria-pressed', x === b));
+  if (state.sex === 'woman' && state.bw === 80) { state.bw = 65; $('bw').value = 65; } else if (state.sex === 'man' && state.bw === 65) { state.bw = 80; $('bw').value = 80; } render(); });
+$('bw').addEventListener('input', e => { state.bw = +e.target.value; render(); });
+$('age').addEventListener('input', e => { state.age = +e.target.value; render(); });
+$('kg').addEventListener('input', e => { const v = +e.target.value; if (v > 0) { state.kg = v; render(); } });
+$('reps').addEventListener('input', e => { state.reps = +e.target.value; render(); });
+window.addEventListener('resize', render);
+render();
+</script>
+</body>
+</html>
