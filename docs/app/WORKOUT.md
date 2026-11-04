@@ -285,20 +285,27 @@ strength rating on sample lifts, without touching the user's data.
 ## Strength rating
 
 One number per exercise that rises with strength, whatever mix of weight, version and reps got there, and a rank from
-it (`mobile/lib/logic/rating.dart`). Like a chess rating it places the user among people: half everyone, half people
-who train, so neither a newcomer nor a seasoned lifter is put off.
+it (`mobile/lib/logic/rating.dart`). Like a chess rating it places the user among people: three parts people who
+train to one part everyone (`everyoneWeight`), so the measured standards do most of the ranking and a newcomer is
+still not put off.
 
-- **The crowd.** People who train come from strength standards (strengthlevel.com: stronger than 5, 20, 50, 80, 95 % of
-  lifters) by sex and bodyweight, read as a log-normal spread; everyone else is the same spread centred at 0.85 of the
-  lifters' 5 % mark, about where "untrained" standards put a healthy adult. Standards are for ages 20 to 39 and scaled
-  by the masters age coefficients outside them. Build, birthday and bodyweight come from Settings, Your body;
-  each workout is rated at the age the user was that day.
+- **The crowd.** People who train come from the strength standards in `data/standards/` (built by
+  `mobile/tool/gen_standards.py`; its README has the full table): five tiers, the strength that beats 5, 20, 50, 80
+  and 95 % of people who train the lift, for men and women at bodyweights 10 kg apart. Each exercise combines every page
+  that measures it: strengthlevel.com and Symmetric Strength (lifts people logged) count fully, FitnessVolt's model
+  tables a half or a quarter. The spread runs through all five tiers. Everyone else is a normal spread centred at the
+  lifters' 5 % mark, where studies of untrained adults put them (push-ups higher: most adults can do some). Standards
+  are for ages 20 to 39 and scaled by the masters age coefficients outside them, which the standards' own age tables
+  match. Build, birthday and bodyweight come from Settings, Your body; each workout is rated at the age the user was
+  that day.
 - **The scale.** 1200 is the middle of the crowd and 350 points one standard deviation, so the share of people beaten
   is exact. Ranks are 200-point bands: Iron under 800, Bronze, Silver from 1000, Gold from 1200, Platinum, Diamond,
   Champion from 1800.
-- **A workout's worth** is the judging's score (load x (1 + reps/30), averaged over the sets). Push-ups and pull-ups are
-  rated in reps of the full version, other versions converted by their share of bodyweight. An exercise with no
-  standard yet is estimated from its beginner start and says so.
+- **A workout's worth** is the judging's score (load x (1 + reps/30), averaged over the sets). Bodyweight exercises
+  are in their version's share of bodyweight x (1 + reps/30), so a standard counted in reps of one version rates every
+  version; the assisted machine is read as pull-ups with the assist off bodyweight. What a standard stands on is named:
+  measured, modelled (FitnessVolt only), a close cousin's page, or estimated (no page: from the beginner start, spaced
+  like the measured lifts for the same muscles).
 - **It moves like Elo.** The first workout sets it outright; then each workout moves it half the way to its worth for
   the first three, a quarter after. An easy or low-energy day, a light exercise or one that hurt can lift it but never
   lower it. It is worked out from the logged workouts every time, never stored.

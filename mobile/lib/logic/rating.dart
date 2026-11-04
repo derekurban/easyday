@@ -1,21 +1,23 @@
 // Strength rating: one number per lift that goes up as the user gets stronger, whatever mix of weight, version and reps
-// got them there, and a rank from it. Grounded in how strong people really are, like a chess rating. Explored in the
-// playground; nothing else reads it yet.
+// got them there, and a rank from it. Grounded in how strong people really are, like a chess rating.
 //
-// Who the user is compared with: half everyone, half people who train, so neither a newcomer nor a seasoned lifter is
-// put off. Lifters come from real strength standards (strengthlevel.com, from logged lifts, by sex and bodyweight): five
-// tiers, stronger than 5, 20, 50, 80 and 95 % of lifters, read as a normal spread of log strength. Everyone else is the
-// same spread centred a little under the lifters' 5 % mark, about where "untrained" standards put a healthy adult who
-// has never trained. The two are mixed half and half.
+// Who the user is compared with: a mix, three parts people who train to one part everyone, so the standards (which
+// measure people who train) do most of the ranking and a newcomer is still not put off. People who train come from the strength standards in lib/data/standards.g.dart, built by
+// mobile/tool/gen_standards.py from strengthlevel.com, Symmetric Strength and FitnessVolt (data/standards/README.md has
+// the table): five tiers, the strength that beats 5, 20, 50, 80 and 95 % of them, for men and for women at bodyweights
+// 10 kg apart. Their spread runs through all five tiers. Everyone else is a normal spread of log strength as wide as the
+// lifters' middle tiers, centred two of those spreads under their median: a little under their 5 % mark, about 0.9 of
+// it on the barbell lifts, where studies of untrained adults put them (push-ups higher). The same place on every lift,
+// so the same place among lifters rates the same everywhere. The two are mixed 75 / 25 ([everyoneWeight]).
 //
 // The rating is the user's place in that mix on a chess-like scale: 1200 is the middle, and each 350 points is one
 // standard deviation, so 1550 is stronger than about 84 % and 850 than about 16 %. It works for any day's sets: they
 // are worth what the judging reads (load x (1 + reps/30), averaged). Ranks are bands of 200 points.
 //
-// Standards are for adults 20 to 39; older or younger, they are scaled the way masters lifting adjusts for age. Lifts
-// with a kilogram standard scale it from the standard's bodyweight to the user's. Push-ups and pull-ups have standards in
-// reps of the full version; every version is turned into those reps by its share of bodyweight. An exercise with no
-// standard yet borrows the squat's spacing from its own beginner start, and says it is estimated.
+// Standards are for adults 20 to 39; older or younger, they are scaled the way masters lifting adjusts for age (the
+// standards' own age tables agree). A bodyweight exercise's strength is its version's share of bodyweight x
+// (1 + reps/30), so every version of it lands on its standard. An exercise with no standard page is estimated from its
+// beginner start, spaced like the measured lifts for the same muscles, and says so.
 //
 // Like Elo, the rating is the app's belief and each workout is evidence: the first workout sets it outright (a strong
 // lifter starts high), then it moves part of the way to each day's performance, further while the exercise is new, and a
@@ -27,7 +29,13 @@ import '../data/model.dart';
 import 'ladder.dart';
 import 'score.dart';
 
+part '../data/standards.g.dart';
+
 enum Sex { man, woman }
+
+/// How much of the mix the user is ranked in is everyone; the rest is people who train. The standards measure people who
+/// train; everyone is modelled from a few studies, so it counts for less.
+const everyoneWeight = 0.25;
 
 /// The middle of the scale, and the points in one standard deviation.
 const ratingMiddle = 1200.0;
@@ -44,37 +52,43 @@ const ranks = <({String name, double from})>[
   (name: 'Champion', from: 1800),
 ];
 
-/// A lift's standard: the five lifter tiers as a one-rep max in kilograms at a reference bodyweight, or as reps of one
-/// version.
+/// What a standard stands on: lifts people logged, a model's tables only, a close cousin exercise's page, or no page
+/// (estimated from the beginner start).
+enum Basis { measured, modelled, proxy, estimated }
+
+/// The tiers' places in the spread of people who train: stronger than 5, 20, 50, 80 and 95 % of them.
+const tierZ = [-1.6449, -0.8416, 0.0, 0.8416, 1.6449];
+
+/// A lift's standard: for each sex, rows of a bodyweight in kg and the five tiers there, in the exercise's strength (kg
+/// for a loaded lift, share of bodyweight for a bodyweight one, both x (1 + reps/30)).
 class Standard {
-  const Standard.kg({required this.man, required this.woman, this.manKg = 80, this.womanKg = 65}) : version = null;
-  const Standard.reps({required this.version, required this.man, required this.woman}) : manKg = 0, womanKg = 0;
-  final List<double> man, woman;
-  final double manKg, womanKg; // the bodyweights the kilograms are for
-  final String? version;       // reps of this version; under one is written as a negative: the reps short of one
-  bool get reps => version != null;
+  const Standard(this.basis, {required this.man, required this.woman, this.everyone = -2, this.version, this.assist, this.from = ''});
+  final Basis basis;
+  final List<List<double>> man, woman;
+  /// Where everyone else is centred, in the spread of the lifters' middle tiers from their median: -2 is a little under
+  /// their 5 % mark (-1.645), where studies of untrained adults put them; the same on every lift unless one says otherwise.
+  final double everyone;
+  /// The version a reps standard counts ("Push-ups"), to say a rating in its reps.
+  final String? version;
+  /// For the assisted machine: the share of bodyweight the full version moves; the assist comes off bodyweight.
+  final double? assist;
+  /// The sources, in words.
+  final String from;
+
+  /// The five tiers at a bodyweight: between rows in log-log, past the ends along the end rows.
+  List<double> tiersAt(Sex sex, double bodyweight) {
+    final rows = sex == Sex.man ? man : woman;
+    if (rows.length == 1) return rows[0].sublist(1);
+    var i = 1;
+    while (i < rows.length - 1 && bodyweight > rows[i][0]) { i++; }
+    final a = rows[i - 1], b = rows[i];
+    final f = (log(bodyweight) - log(a[0])) / (log(b[0]) - log(a[0]));
+    return [for (var k = 1; k <= 5; k++) exp(log(a[k]) + f * (log(b[k]) - log(a[k])))];
+  }
 }
 
-/// From strengthlevel.com, November 2026: the bodyweight tables at 80 kg (men) and 65 kg (women); stronger than 5, 20, 50,
-/// 80 and 95 % of lifters.
-const standards = <String, Standard>{
-  'bb_squat': Standard.kg(man: [75, 101, 132, 168, 206], woman: [35, 53, 76, 104, 134]),
-  'bb_bench': Standard.kg(man: [56, 75, 98, 124, 151], woman: [20.5, 33.5, 50, 70, 92]),
-  'bb_row': Standard.kg(man: [48, 66, 88, 114, 141], woman: [19, 30, 44, 62, 80]),
-  // a bodyweight row has no standard of its own: read as a barbell row of its share of the user's weight
-  'inverted_row': Standard.kg(man: [48, 66, 88, 114, 141], woman: [19, 30, 44, 62, 80]),
-  'pushup': Standard.reps(version: 'Push-ups', man: [5, 19, 39, 62, 87], woman: [-3, 7, 18, 31, 47]),
-  'pullup': Standard.reps(version: 'Pull-ups', man: [-3, 7, 13, 21, 30], woman: [-8, -3, 6, 12, 19]),
-};
-
-/// Strength across bodyweights grows slower than the weight: the standards' own tables run close to this power.
-const _bodyweightPower = 0.8;
-
-/// Where everyone else is centred, against the lifters' 5 % mark: "untrained" standards put a healthy adult who has
-/// never trained a little under it.
-const _untrained = 0.85;
-
-/// The squat's tiers as multiples of its lowest, for an exercise with no standard yet.
+/// For an exercise with no standard at all (every built-in strength exercise has one): the squat's spacing from its
+/// beginner start.
 const _borrowed = [1.0, 1.35, 1.76, 2.24, 2.75];
 
 /// How much of an adult's peak strength is expected at an age: all of it from 20 to 39, a little less while still
@@ -114,53 +128,65 @@ double _probit(double p) {
 
 /// Rates one lift for one person.
 class Rater {
-  Rater(this.ex, {required this.sex, required this.bodyweight, required this.age}) {
-    final st = standards[ex.id];
-    _standard = st;
-    final List<double> tiers;
-    if (st == null) {
-      final start = ex.loaded ? startLoad(ex, 0) * epley(10) : versionShare(ex, ex.ladder!.start[0].clamp(0, ex.ladder!.variants.length - 1)) * epley(10);
-      tiers = [for (final m in _borrowed) start * m];
-    } else if (st.reps) {
-      final share = versionShare(ex, max(0, ex.ladder!.variants.indexWhere((v) => v.name == st.version)));
-      tiers = [for (final r in sex == Sex.man ? st.man : st.woman) share * epley(r.round())];
-    } else {
-      final ref = sex == Sex.man ? st.manKg : st.womanKg;
-      final scale = pow(bodyweight / ref, _bodyweightPower).toDouble();
-      tiers = [for (final kg in sex == Sex.man ? st.man : st.woman) kg * scale];
-    }
+  Rater(this.ex, {required this.sex, required this.bodyweight, required this.age}) : standard = exerciseStandards[ex.id] ?? _fallback(ex) {
     final f = ageFactor(age);
-    lifterTiers = [for (final x in tiers) x * f];
-    final logs = [for (final x in lifterTiers) log(x)];
-    _mu = logs[2];
-    _sigma = (logs[4] - logs[0]) / (2 * 1.6449);
-    _muEveryone = log(lifterTiers[0] * _untrained);
+    lifterTiers = [for (final x in standard.tiersAt(sex, bodyweight)) x * f];
+    _logs = [for (final x in lifterTiers) log(x)];
+    // everyone else: a normal spread as wide as the lifters' middle tiers (a small lift's Beginner and Elite marks are
+    // noisy), centred [Standard.everyone] of those spreads from their median
+    _sigma = (_logs[3] - _logs[1]) / (tierZ[3] - tierZ[1]);
+    _muEveryone = _logs[2] + standard.everyone * _sigma;
+  }
+
+  static Standard _fallback(Exercise ex) {
+    final start = ex.loaded ? startLoad(ex, 0) * epley(10) : versionShare(ex, ex.ladder!.start[0].clamp(0, ex.ladder!.variants.length - 1)) * epley(10);
+    final row = [80.0, for (final m in _borrowed) start * m];
+    return Standard(Basis.estimated, man: [row], woman: [row]);
   }
 
   final Exercise ex;
   final Sex sex;
   final double bodyweight;
   final int age;
+  final Standard standard;
   /// The lifters' five tiers for this person, in this exercise's unit: stronger than 5, 20, 50, 80, 95 % of lifters.
   late final List<double> lifterTiers;
-  Standard? _standard;
-  late final double _mu, _sigma, _muEveryone;
+  late final List<double> _logs;
+  late final double _sigma, _muEveryone;
 
-  /// Whether real standards ground it, or it is estimated from the exercise's beginner start.
-  bool get grounded => _standard != null;
+  Basis get basis => standard.basis;
 
-  /// A level's load in this exercise's unit: kilograms, a version's share of bodyweight, or for a bodyweight exercise
-  /// read against a kilogram standard, its share of the user's weight in kilograms.
+  /// Whether a standard grounds it, or it is estimated from the exercise's beginner start.
+  bool get grounded => standard.basis != Basis.estimated;
+
+  /// A level's load in this exercise's unit: kilograms, a version's share of bodyweight, or for the assisted machine
+  /// (whose kilograms are [assistRefKg] less the assist) the full version's share of what is left of bodyweight.
   double load({double? kg, int? rung}) {
-    if (ex.loaded) return kg!;
-    final share = versionShare(ex, rung!);
-    return _standard != null && !_standard!.reps ? share * bodyweight : share;
+    if (ex.loaded) {
+      final a = standard.assist;
+      return a == null ? kg! : a * max(0.0, bodyweight - (assistRefKg - kg!)) / bodyweight;
+    }
+    return versionShare(ex, rung!);
   }
 
-  /// The share of the mix (half everyone, half lifters) a strength is stronger than, 0 to 1.
+  /// The kilograms of a loaded exercise's load: [load] backwards.
+  double kgFor(double load) {
+    final a = standard.assist;
+    return a == null ? load : assistRefKg - bodyweight + load * bodyweight / a;
+  }
+
+  /// Where a strength sits among people who train, as a z: straight between the tiers in log strength, past them along
+  /// the end ones.
+  double _zLifters(double x) {
+    var i = 1;
+    while (i < 4 && x > _logs[i]) { i++; }
+    return tierZ[i - 1] + (x - _logs[i - 1]) / (_logs[i] - _logs[i - 1]) * (tierZ[i] - tierZ[i - 1]);
+  }
+
+  /// The share of the mix (three parts lifters, one part everyone) a strength is stronger than, 0 to 1.
   double share(double strength) {
     final x = log(max(strength, 1e-9));
-    return 0.5 * _phi((x - _mu) / _sigma) + 0.5 * _phi((x - _muEveryone) / _sigma);
+    return (1 - everyoneWeight) * _phi(_zLifters(x)) + everyoneWeight * _phi((x - _muEveryone) / _sigma);
   }
 
   /// A strength as a rating: its place in the mix on the chess-like scale.
@@ -169,7 +195,7 @@ class Rater {
   /// A rating as a strength.
   double strength(double rating) {
     final want = _phi((rating - ratingMiddle) / ratingSpread);
-    var lo = _muEveryone - 10 * _sigma, hi = _mu + 10 * _sigma;
+    var lo = min(_muEveryone, _logs[0]) - 10 * _sigma, hi = _logs[4] + 10 * _sigma;
     for (var i = 0; i < 60; i++) {
       final mid = (lo + hi) / 2;
       if (share(exp(mid)) < want) { lo = mid; } else { hi = mid; }
@@ -208,6 +234,14 @@ double nextRating(double? rating, double perf, {required int workoutsBefore, boo
   return rating + ratingPull(workoutsBefore) * (perf - rating);
 }
 
+/// Who a standard ranks against, in a sentence, for the ranks sheet.
+String basisLine(Rater r) => switch (r.basis) {
+      Basis.measured => 'Ranked mostly against people who train (and a quarter everyone), from lifts logged on ${r.standard.from}',
+      Basis.modelled => "Ranked mostly against people who train (and a quarter everyone), from FitnessVolt's model tables",
+      Basis.proxy => 'Ranked mostly against people who train (and a quarter everyone), read from a close cousin of this exercise',
+      Basis.estimated => 'Estimated: no standard for this one yet, so its ranks come from where a beginner starts',
+    };
+
 // ---- the user's own ratings, from their logged workouts ----
 
 /// The rater for the user on [at]: their build (the body figure), their age that day from their birth date, and their
@@ -227,7 +261,7 @@ typedef RatedWorkout = ({DateTime at, double performance, double rating});
   final sets = e.attempted.toList();
   if (sets.isEmpty || x.painAt == i) return null;
   final ex = e.exercise;
-  final perf = r.performance([for (final l in sets) (load: ex.loaded ? setLoad(s, e, l) : r.load(rung: l.rung ?? e.rung), reps: l.reps ?? 0)]);
+  final perf = r.performance([for (final l in sets) (load: ex.loaded ? r.load(kg: setLoad(s, e, l)) : r.load(rung: l.rung ?? e.rung), reps: l.reps ?? 0)]);
   final end = endReadOf(x.endRead);
   final low = end == EndRead.energy || end == EndRead.low || x.stopReason == StopReason.energy;
   return (performance: perf, counts: x.energy != Energy.easy && e.atWorkingLevel && !low);
@@ -260,11 +294,13 @@ List<String> liftsAt(AppState s, Exercise ex, Rater r, double rating, RepRange r
   if (ex.loaded) {
     final step = stepKg(s, ex);
     // three weights a step apart around the middle of the range, each with the reps it takes there
-    final mid = roundStep(strength / epley(((range.lo + range.hi) / 2).round()), step);
+    final mid = roundStep(r.kgFor(strength / epley(((range.lo + range.hi) / 2).round())), step);
     final out = <String>[];
     for (final kg in [mid + step, mid, mid - step]) {
       if (kg <= 0) continue;
-      final reps = (30 * (strength / kg - 1)).round();
+      final load = r.load(kg: kg);
+      if (load <= 0) continue;
+      final reps = (30 * (strength / load - 1)).round();
       if (reps >= 1) out.add('$reps × ${fmtLoad(s, ex, kg, equipment: equipment)}');
     }
     return out;
