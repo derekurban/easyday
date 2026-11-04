@@ -8,11 +8,14 @@ import '../data/model.dart';
 import 'builder.dart' show changeSeconds, warmupSetsSeconds;
 import 'ladder.dart';
 import 'person.dart';
+import 'score.dart';
 import 'selection.dart';
 import 'workout.dart';
 
 class Finish {
-  Finish({this.feel, this.stopReason, this.stopAt, this.effort});
+  Finish({this.feel, this.stopReason, this.stopAt, this.effort, this.endRead, this.painAt});
+  final EndRead? endRead; // how it ended, from Logged; without one the stop reason stands for it
+  final int? painAt;      // the exercise that hurt, from Logged
   final Feel? feel;
   final StopReason? stopReason;
   final int? stopAt;
@@ -44,13 +47,15 @@ void undoSet(Session session, int exIdx) {
   }
 }
 
-String _reps(Iterable<SetLog> sets) => sets.where((x) => x.attempted).map((x) => x.reps).join(', ');
-
 /// Finish: write history, judge each exercise, update timing, budgets, defaults, and the note.
 void finishSession(AppState s, Session session, Finish f, DateTime now) {
   session.endedAt = now;
   session.feel = f.feel;
-  session.stopReason = f.stopReason;
+  final end = f.endRead ?? switch (f.stopReason) { null => EndRead.normal, StopReason.time => EndRead.time, StopReason.none => EndRead.none, _ => EndRead.energy };
+  session.endRead = end.name;
+  session.painAt = f.painAt ?? (f.stopReason == StopReason.pain ? f.stopAt : null);
+  session.reviewing = false;
+  session.stopReason = f.stopReason ?? stopReasonOf(end);
   session.stopAt = f.stopAt;
   session.effort = f.effort;
   final lines = <String>[];
@@ -58,8 +63,9 @@ void finishSession(AppState s, Session session, Finish f, DateTime now) {
   if (session.type == 'lift') {
     _judge(s, session, now, lines);
     _learnTiming(s, session);
-    if (f.stopReason == StopReason.pain && f.stopAt != null && f.stopAt! < session.exercises.length) {
-      final ex = session.exercises[f.stopAt!].exercise;
+    final hurt = session.painAt;
+    if (hurt != null && hurt < session.exercises.length) {
+      final ex = session.exercises[hurt].exercise;
       s.plan!.paused[ex.id] = now.add(Duration(days: s.settings.painRestDays));
       lines.insert(0, '${ex.name} and its muscles rest for ${s.settings.painRestDays} days, then it comes back one level down.');
     }
@@ -122,26 +128,28 @@ Verdict verdictFor(SessionExercise e, StopReason? stop, int stopAt, int idx) {
   return Verdict.hold;
 }
 
+/// Judge each exercise by its score (score.dart): the average set against this level's floor and the next level, with
+/// any change the user made on Logged. The top of a progression with nothing above it is judged by its best total.
 void _judge(AppState s, Session session, DateTime now, List<String> lines) {
-  final ups = <String>[], downs = <String>[], stays = <String>[];
-  var anyWorking = false;
-  for (var idx = 0; idx < session.exercises.length; idx++) {
-    final e = session.exercises[idx];
+  final w = readWorkout(s, session, now);
+  final eq = s.location(session.locationId)?.equipment ?? const <String>[];
+  final ups = <String>[], downs = <String>[];
+  for (final r in w.exercises) {
+    final e = session.exercises[r.index];
     final ex = e.exercise;
+    if (e.attempted.isEmpty) continue;
     final st = ensureState(s, ex);
-    final attempted = e.attempted.toList();
-    if (attempted.isEmpty) continue;
+    final firstTime = st.appearances == 0;
     st.appearances++;
     st.lastDoneAt = now;
     st.decayPeriodsApplied = 0;
     st.swappedOut = 0;
-    if (session.skipped.contains(idx)) continue;
-    if (session.stopReason == StopReason.pain && session.stopAt == idx) continue;
-    if (e.edited && e.asPlanned != st.rung) continue; // today's rung was edited but not saved: nothing to judge against
-    if (e.atWorkingLevel) { st.lastWorkingAt = now; anyWorking = true; }
-    final total = attempted.fold(0, (a, x) => a + x.reps!);
-
-    if (e.atCeiling && e.atWorkingLevel) {
+    // calibrating: the rep band the user picked becomes this exercise's own; the weight follows the reps
+    if (e.reps != null) st.repsOverride = expressionRange[Expression.values.byName(e.reps!)];
+    if (!r.judged) continue;
+    if (e.atWorkingLevel) st.lastWorkingAt = now;
+    final total = e.total;
+    if (r.ceiling) {
       // the range is open upward: the target is beating the best total
       if (total > st.bestTotal) {
         st.bestTotal = total;
@@ -155,81 +163,44 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
         }
       } else {
         st.ceilingRun = 0;
-        stays.add('${ex.name} stays: $total total, best is ${st.bestTotal}.');
       }
       st.calibrating = false;
       continue;
     }
-
-    var v = verdictFor(e, session.stopReason, session.stopAt ?? -1, idx);
-    if (v == Verdict.miss && session.stopReason == StopReason.none) v = Verdict.neutral; // a plain stop carries no penalty
-    if (v == Verdict.neutral) continue;
     if (total > st.bestTotal) st.bestTotal = total;
-    switch (v) {
-      case Verdict.hit:
-      case Verdict.stepNow:
-        st.topRun++;
+    switch (r.call) {
+      case Call.up:
+        st.rung = r.levels[Call.up] ?? st.rung + 1;
+        st.topRun = 0;
         st.shortRun = 0;
-        final stepNow = v == Verdict.stepNow || st.topRun >= s.settings.stepUp || (st.calibrating && session.feel == Feel.easy) || st.decayedBy > 0;
-        if (stepNow) {
-          st.rung++;
-          st.topRun = 0;
-          st.bestTotal = 0;
-          if (st.decayedBy > 0) st.decayedBy--;
-          st.costUp = 0;
-          if (v == Verdict.stepNow) {
-            // a level earned today leads the note
-            ups.insert(0, '${ex.name} levels up now: ${e.asPlanned == e.rung ? e.rungLabel : 'the next level'} is yours, ${_reps(e.sets)}.');
-          } else {
-            ups.add('${ex.name} levels up next time: ${e.hi} or more on every set.');
-          }
-        } else {
-          stays.add('${ex.name}: top of the range, ${s.settings.stepUp - st.topRun} more to level up.');
-        }
-      case Verdict.miss:
-        st.shortRun++;
+        st.bestTotal = 0;
+        st.costUp = 0;
+        if (st.decayedBy > 0) st.decayedBy--;
+        ups.add('${ex.name}: up to ${rungLabel(s, ex, st, st.rung, e.range, eq)} next time.');
+      case Call.down:
+        st.rung = r.levels[Call.down] ?? max(ex.loaded ? floorRung(s, ex, st) : 0, st.rung - 1);
         st.topRun = 0;
-        final cut = e.sets.take(e.workingSets).any((x) => !x.attempted);
-        if (st.shortRun >= s.settings.stepDown) {
-          st.rung = max(ex.loaded ? floorRung(s, ex, st) : 0, st.rung - 1);
+        st.shortRun = 0;
+        st.bestTotal = 0;
+        downs.add('${ex.name}: down to ${rungLabel(s, ex, st, st.rung, e.range, eq)} next time.');
+      case Call.hold:
+        // worth the next level but the setting asks for more in a row: one more toward it
+        // a first time sets the starting point: it does not count toward one
+        st.topRun = r.worthUp && !r.changed && !firstTime ? st.topRun + 1 : 0;
+        // a short workout counts toward a step down only on a day read as normal, and not when the user said hold
+        final counts = downsCount(w.end) && session.energy != Energy.easy && e.atWorkingLevel && !r.changed;
+        if (r.short && counts) {
+          st.shortRun++;
+        } else if (!r.short) {
           st.shortRun = 0;
-          st.bestTotal = 0;
-          downs.add('${ex.name} drops a level next time: ${cut ? 'cut short' : _reps(e.sets)}.');
-        } else {
-          stays.add('${ex.name}: ${cut ? 'cut short, counts as a miss' : 'short of the floor (${_reps(e.sets)})'}. ${switch (s.settings.stepDown - st.shortRun) { 1 => 'One', 2 => 'Two', 3 => 'Three', final n => '$n' }} more and it drops a level.');
         }
-      case Verdict.hold:
-        st.topRun = 0;
-        stays.add('${ex.name} holds: ${_reps(e.sets)}${e.nextLevel ? ' at the next level, worth your level' : ''}. In range.');
-      case Verdict.neutral:
-        break;
     }
     st.calibrating = false;
   }
-  if (!anyWorking) {
-    if (session.stopReason == StopReason.none) {
-      lines.add('Stopped. Nothing changes; what you did still counts.');
-    } else if (session.energy == Energy.easy) {
-      lines.add('Easy day logged. Nothing was at its working level, so levels hold.');
-    } else {
-      lines.add('Logged. Nothing was at its working level, so levels hold.');
-    }
-    return;
-  }
-  if (session.stopReason == StopReason.none && ups.isEmpty && downs.isEmpty && stays.isEmpty) {
-    lines.add('Stopped. Nothing changes; what you did still counts.');
-    return;
-  }
-  lines.addAll([...ups, ...downs, ...stays]);
-  if (lines.isEmpty) {
-    lines.add(switch (session.stopReason) {
-      StopReason.energy => 'Stopped for energy. Levels hold; tomorrow defaults a little easier.',
-      StopReason.time => 'Stopped for time. Levels hold; next time defaults shorter.',
-      StopReason.none => 'Stopped. Nothing changes; what you did still counts.',
-      _ => 'Logged. Levels hold.',
-    });
-  }
+  lines.addAll([...ups, ...downs]);
+  if (lines.isEmpty) lines.add(headline(s, session, w));
 }
+
 
 /// Seconds per set per exercise, weighted toward recent workouts. A workout moved through with I'm ready teaches from
 /// each item's whole time, rest and setting up included: less the change-over and any warm-up sets the plan prices on

@@ -1,5 +1,5 @@
 // Exercise card (UI.md): the name, what it works and its difficulty, the stage picture, the muscles it works on the
-// figure (primary and secondary), the level as facts, how to do it as steps, the progression as a track, the reps it trains at, the difficulty with its override, and your word.
+// figure (primary and secondary), the level as facts, the strength rating and rank, how to do it as steps, the progression as a track, the reps it trains at, the difficulty with its override, and your word.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -7,9 +7,11 @@ import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import '../logic/ladder.dart';
+import '../logic/rating.dart';
 import '../logic/selection.dart';
 import 'app.dart';
 import 'exercise_muscles.dart';
+import 'rank.dart';
 import 'stage_art.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -73,6 +75,11 @@ class ExerciseCardScreen extends StatelessWidget {
             if (ex.loaded && !ex.assist) Fact('Max about ${fmtLoad(s, ex, maxFor(s, ex, st, st.rung))}', icon: LucideIcons.scale),
           ]),
         ])),
+        if (ex.isStrength && ex.tracked) ...[
+          const SizedBox(height: 24),
+          const SectionHeader('Strength', icon: LucideIcons.trophy),
+          _Strength(ex: ex, range: range, equipment: equipmentHere),
+        ],
         const SizedBox(height: 24),
         HowToSteps(howAt(ex, st.rung)),
         const SizedBox(height: 12),
@@ -147,5 +154,66 @@ class ExerciseCardScreen extends StatelessWidget {
     if (st.costUp > 0) parts.add('+1 while unpractised');
     if (st.costDown > 0) parts.add('−${st.costDown} from clearing the top');
     return parts.join(' · ');
+  }
+}
+
+/// The strength rating on this exercise, kept short: the number and rank, the share of people it beats, what it is
+/// worth as one lift, how it has moved, and a bar to the next rank. Every rank and who it is ranked against are behind
+/// All ranks. Before the first workout, a line on what it will be.
+class _Strength extends StatelessWidget {
+  const _Strength({required this.ex, required this.range, required this.equipment});
+  final Exercise ex;
+  final RepRange range;
+  final List<String> equipment;
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final s = store.state;
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final r = raterFor(s, ex, store.now);
+    final history = ratingHistory(s, ex, store.now);
+    if (history.isEmpty) {
+      return Panel(child: Text('Do it once and it gets a strength rating and a rank, like a chess rating.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)));
+    }
+    final rating = history.last.rating;
+    final rank = rankOf(rating);
+    final next = rank.index + 1 < ranks.length ? ranks[rank.index + 1] : null;
+    // one lift says what a rating is worth: the middle of the three
+    String lift(double x) {
+      final l = liftsAt(s, ex, r, x, range, equipment);
+      return l.isEmpty ? '' : l[l.length ~/ 2];
+    }
+    final age = s.profile?.ageAt(store.now);
+    final weight = s.profile?.bodyweightKg;
+    final basis = '${r.grounded ? 'Ranked against half everyone, half people who train' : 'Estimated: no standard for this one yet'}: '
+        '${s.settings.figure == 'female' ? 'women' : 'men'}${age == null ? '' : ' aged $age'}${weight == null ? '' : ', around ${fmtKg(s, weight)}'}. '
+        'Change these in Settings, Your body.';
+    return Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Text('${rating.round()}', style: t.headlineMedium?.copyWith(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()])),
+        const SizedBox(width: 10),
+        RankBadge(rank.index),
+        const Spacer(),
+        Text('beats ${Rater.percentile(rating).round()} %', style: t.labelLarge?.copyWith(color: du.inkSecondary)),
+      ]),
+      if (lift(rating).isNotEmpty) Text('About ${lift(rating)}', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
+      // how it has moved, once there is more than one workout
+      if (history.length > 1) ...[
+        const SizedBox(height: 12),
+        RatingChart(ratings: [for (final h in history) h.rating], performances: [for (final h in history) h.performance], height: 110),
+      ],
+      const SizedBox(height: 12),
+      RankProgress(rating: rating),
+      const SizedBox(height: 4),
+      Row(children: [
+        Expanded(child: Text(next == null ? 'The top rank' : '${(next.from - rating).ceil()} to ${next.name}${lift(next.from).isEmpty ? '' : ', about ${lift(next.from)}'}',
+            style: t.bodySmall?.copyWith(color: du.inkSecondary))),
+        TextButton(
+          onPressed: () => showRanks(context, title: '${ex.name}: ranks', rating: rating, takes: (x) => lift(x), basis: basis),
+          child: const Text('All ranks'),
+        ),
+      ]),
+    ]));
   }
 }

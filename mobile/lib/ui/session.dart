@@ -9,14 +9,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/library.dart';
 import '../data/model.dart';
+import '../data/store.dart';
 import '../integrations.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
 import '../logic/calendar.dart';
 import '../logic/ladder.dart';
-import '../logic/selection.dart';
+import '../logic/score.dart';
 import '../logic/workout.dart';
 import 'app.dart';
+import 'logged.dart';
 import 'motion.dart';
 import 'stage_art.dart';
 import 'theme.dart';
@@ -29,10 +31,7 @@ class SessionScreen extends StatefulWidget {
 }
 
 class _SessionScreenState extends State<SessionScreen> {
-  bool finishing = false;     // the feel question is showing
-  Finish? pendingFinish;      // stop reason chosen, waiting for feel
-  String? note;               // after finishSession: the one line
-  List<Exercise>? toRate;     // first-time exercises still to get a word, shown before the log
+  String? note;               // a cardio or stretching day, after finishSession: the one line
   int? effort;
   int? _view;                 // a block of the strip being looked at, back or ahead; null follows the step under way
   bool _viewForward = true;   // which way the last move went, so the body swipes the right way
@@ -68,7 +67,7 @@ class _SessionScreenState extends State<SessionScreen> {
     if (!mounted) return;
     final store = context.store;
     final x = store.state.active;
-    if (x == null || note != null || finishing || x.pausedAt != null) return;
+    if (x == null || note != null || x.reviewing || x.pausedAt != null) return;
     if (x.type != 'lift') { setState(() {}); return; } // the clock, and cardio's stopwatch
     final cur = currentItem(x);
     final now = store.now;
@@ -85,8 +84,10 @@ class _SessionScreenState extends State<SessionScreen> {
   Widget build(BuildContext context) {
     final store = context.store;
     final session = store.state.active!;
-    if (note != null) return (toRate ?? const []).isNotEmpty ? _rate(context) : _done(context, note!);
-    if (finishing) return _feel(context, session);
+    if (note != null) return _done(context, note!);
+    if (session.reviewing) {
+      return LoggedView(session: session, onDone: () => _logIt(context, session), onReopen: () => _reopen(context, session));
+    }
     if (session.type == 'move') return _move(context, session);
     if (session.exercises.isEmpty) return _feel(context, session);
     final paused = session.pausedAt != null;
@@ -102,9 +103,9 @@ class _SessionScreenState extends State<SessionScreen> {
     final at = _view == null ? live : places.indexOf(_view!);
     final choosing = _isChoosing(session, cur);
 
-    return Scaffold(
-      appBar: _bar(context, session, paused: paused, elapsed: elapsed, endTip: 'End workout', onEnd: () => _stop(context, session),
-          onOrder: session.exercises.length > 1 ? () => _changeOrder(context, session) : null),
+    final screen = Scaffold(
+      appBar: _bar(context, session, paused: paused, elapsed: elapsed, endTip: 'End workout', onEnd: () => _end(context, session),
+              onOrder: session.exercises.length > 1 ? () => _changeOrder(context, session) : null),
       body: Column(children: [
         Padding(padding: const EdgeInsets.fromLTRB(16, 2, 16, 16), child: _strip(context, session, items, curIdx, now, view, places)),
         // swipe the body to look back at what is done or ahead at what is coming
@@ -128,6 +129,7 @@ class _SessionScreenState extends State<SessionScreen> {
         _dock(context, session, items, cur, view, places, at, live, choosing: choosing),
       ]),
     );
+    return screen;
   }
 
   /// The places to look at, in order: every block of the strip, with the step under way standing in for its block
@@ -531,19 +533,38 @@ class _SessionScreenState extends State<SessionScreen> {
     final r = b.set!;
     final e = x.exercises[r.ex];
     final log = setOf(x, r);
-    final title = e.exercise.ladder != null ? e.rungLabel : e.exercise.name;
+    final done = b.state == BlockState.done;
+    final title = done || e.exercise.ladder == null ? e.exercise.name : e.rungLabel;
     final weight = _weightOf(e);
     final seconds = e.exercise.repLabel == 'seconds';
     final which = 'Set ${r.set + 1} of ${e.sets.length}';
+    final state = context.store.state;
+    final eq = state.location(x.locationId)?.equipment ?? const <String>[];
+    final setLevel = !done ? null : e.exercise.loaded
+        ? fmtLoad(state, e.exercise, log.kg ?? e.loadKg ?? 0, equipment: eq)
+        : rungLabel(state, e.exercise, ensureState(state, e.exercise), log.rung ?? e.rung, e.range, eq);
+    final levelStyle = t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600);
     return [
       Text(title, style: t.headlineLarge),
       const SizedBox(height: 8),
-      if (b.state == BlockState.done)
+      if (done)
         Row(children: [
           Icon(LucideIcons.check, size: 16, color: du.accentText),
           const SizedBox(width: 8),
-          Expanded(child: Text('$which · ${log.reps} ${seconds ? 'seconds' : log.reps == 1 ? 'rep' : 'reps'}', style: t.titleMedium?.copyWith(color: du.accentText))),
-          if (weight != null) Text(weight, style: t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600)),
+          Flexible(child: Text('$which · ${log.reps} ${seconds ? 'seconds' : log.reps == 1 ? 'rep' : 'reps'}', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleMedium?.copyWith(color: du.accentText))),
+          const SizedBox(width: 12),
+          Flexible(child: Align(alignment: Alignment.centerRight, child: levelChoices(state, x, r.ex).length <= 1
+              ? Text(setLevel!, maxLines: 1, overflow: TextOverflow.ellipsis, style: levelStyle)
+              : Material(color: Colors.transparent, child: InkWell(
+                  key: const ValueKey('set level'),
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _levelSheet(context, x, r.ex, only: r),
+                  child: Padding(padding: const EdgeInsets.fromLTRB(8, 4, 2, 4), child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: Text(setLevel!, maxLines: 1, overflow: TextOverflow.ellipsis, style: levelStyle)),
+                    const SizedBox(width: 2),
+                    Icon(LucideIcons.chevronRight, size: 18, color: du.accentText),
+                  ])),
+                )))),
         ])
       else if (b.state == BlockState.ahead && weight != null)
         // still to come: the weight to load on the right, as it will be shown under way
@@ -668,8 +689,8 @@ class _SessionScreenState extends State<SessionScreen> {
 
   // ---- the dock: the reps, or the button to what comes next ----
 
-  /// Every button that arrives after a step waits this long before it can be pressed.
-  static const _wait = Duration(seconds: 3);
+  /// Every button that arrives after a step waits this long before it can be pressed; none when the setting is off.
+  Duration get _wait => context.store.state.settings.buttonWait ? const Duration(seconds: 3) : Duration.zero;
 
   /// The button to what comes next, named for what it does: Start set 2, Start bench press, Start round 2, Start
   /// cardio, or Finish workout when nothing is left.
@@ -706,8 +727,8 @@ class _SessionScreenState extends State<SessionScreen> {
     setState(() {
       _choosing = false;
       _viewForward = true;
-      if (i + 1 >= items.length) finishing = true;
     });
+    if (i + 1 >= items.length) _end(context, x);
   }
 
   Widget _dock(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur, StripView view, List<int> places, int at, int live, {bool choosing = false}) {
@@ -802,10 +823,11 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   /// The numbers a wheel offers for an exercise: every rep, or every five seconds for a long hold.
-  static List<int> _wheelValues(SessionExercise e) {
+  List<int> _wheelValues(SessionExercise e) {
     final seconds = e.exercise.repLabel == 'seconds';
     final step = seconds && e.hi - e.lo > 12 ? 5 : 1;
-    final top = e.hi + step * max(6, (e.hi - e.lo) ~/ step);
+    final next = seconds ? null : repsToStepUp(context.store.state, e);
+    final top = max(e.hi + step * max(6, (e.hi - e.lo) ~/ step), next == null ? 0 : min(next + 2, e.hi * 3));
     return [for (var v = 0; v <= top; v += step) v];
   }
 
@@ -835,29 +857,32 @@ class _SessionScreenState extends State<SessionScreen> {
   /// The level drawer, from the chevron beside the weight or the version: a wheel to scroll to what is on the bar.
   /// Every turn saves at once: the set under way and the sets still to come are done at it. The plan's level stays in
   /// ink on the wheel, and a link turns back to it.
-  Future<void> _levelSheet(BuildContext context, Session x, int i) async {
+  Future<void> _levelSheet(BuildContext context, Session x, int i, {SetRef? only}) async {
     final store = context.store;
     final choices = levelChoices(store.state, x, i);
     final e = x.exercises[i];
     final loaded = e.exercise.loaded;
     int find(double? kg, int rung) => loaded ? choices.indexWhere((c) => kg != null && (c.kg! - kg).abs() < 1e-6) : choices.indexWhere((c) => c.rung == rung);
     final planned = find(e.plannedKg ?? e.loadKg, e.asPlanned);
+    final one = only == null ? null : setOf(x, only);
     final wheel = GlobalKey<_DrumWheelState>();
     HapticFeedback.selectionClick();
     await showSheet<void>(context, StatefulBuilder(builder: (context, setSheet) {
       final t = Theme.of(context).textTheme;
       final du = context.du;
-      final at = max(0, find(e.loadKg, e.rung));
+      final at = max(0, one == null ? find(e.loadKg, e.rung) : find(one.kg ?? e.loadKg, one.rung ?? e.rung));
       return Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         const SizedBox(height: 4),
-        SheetHeader(loaded ? 'Weight' : 'Version', subtitle: 'For this set and the ones after it.', icon: loaded ? LucideIcons.weight : LucideIcons.personStanding),
+        SheetHeader(loaded ? 'Weight' : 'Version', subtitle: one == null ? 'For this set and the ones after it.' : 'For this set only.', icon: loaded ? LucideIcons.weight : LucideIcons.personStanding),
         Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: _DrumWheel(
           key: wheel,
           count: choices.length, initial: at,
           label: (k) => choices[k].label,
           marked: (k) => k == planned,
           onChanged: (k) {
-            store.update((_) => changeLevel(store.state, x, i, kg: choices[k].kg, rung: choices[k].rung));
+            store.update((_) => only == null
+                ? changeLevel(store.state, x, i, kg: choices[k].kg, rung: choices[k].rung)
+                : fixSetLevel(store.state, x, only, kg: choices[k].kg, rung: choices[k].rung));
             setSheet(() {});
           },
         )),
@@ -935,10 +960,10 @@ class _SessionScreenState extends State<SessionScreen> {
     store.update((_) => more = ready(x, store.now));
     setState(() {
       _viewForward = true;
-      if (!more) finishing = true;
       _hold = _wait;
       _holdCaption = 'Settle in';
     });
+    if (!more) _end(context, x);
   }
 
   Widget _splitBar(BuildContext context, double lifting, double rest, {bool key = true}) {
@@ -964,18 +989,29 @@ class _SessionScreenState extends State<SessionScreen> {
 
   // ---- ending ----
 
-  Future<void> _stop(BuildContext context, Session session) async {
-    final idx = currentExercise(session) ?? 0;
-    final reason = await showSheet<StopReason>(context, ListView(shrinkWrap: true, padding: const EdgeInsets.only(bottom: 16), children: [
-      const SheetHeader('End the workout?', subtitle: 'What you have done is kept either way.', icon: LucideIcons.square),
-      ListTile(leading: const IconBadge(LucideIcons.hand, size: 40), title: const Text('Just stop'), subtitle: const Text('No reason needed. Nothing is judged and nothing changes.'), onTap: () => Navigator.pop(context, StopReason.none)),
-      ListTile(leading: const IconBadge(LucideIcons.batteryLow, size: 40), title: const Text('Out of energy'), subtitle: const Text('Levels hold. Tomorrow defaults a little easier.'), onTap: () => Navigator.pop(context, StopReason.energy)),
-      ListTile(leading: const IconBadge(LucideIcons.clock, size: 40), title: const Text('Out of time'), subtitle: const Text('Levels hold. The minutes you had become the default.'), onTap: () => Navigator.pop(context, StopReason.time)),
-      ListTile(leading: const IconBadge(LucideIcons.bandage, size: 40), title: const Text('Something hurts'), subtitle: const Text('This exercise and similar ones rest for a week.'), onTap: () => Navigator.pop(context, StopReason.pain)),
-    ]));
-    if (reason == null || !context.mounted) return;
-    if (reason == StopReason.none) { _finish(context, session, null, stop: Finish(stopReason: StopReason.none, stopAt: idx)); return; }
-    setState(() { pendingFinish = Finish(stopReason: reason, stopAt: idx); finishing = true; });
+  /// End, or the last item done: the workout waits on Logged, nothing counted yet.
+  void _end(BuildContext context, Session x) {
+    final store = context.store;
+    HapticFeedback.mediumImpact();
+    store.update((_) => endWorkout(x, store.now));
+    setState(() { _view = null; _choosing = false; });
+  }
+
+  /// Logged, Back to the workout: it carries on, the time on Logged counted as a pause.
+  void _reopen(BuildContext context, Session x) {
+    final store = context.store;
+    HapticFeedback.lightImpact();
+    store.update((_) => reopenWorkout(x, store.now));
+    setState(() => _view = null);
+  }
+
+  /// Logged, Done: the reads as they stand now count.
+  void _logIt(BuildContext context, Session x) {
+    final store = context.store;
+    HapticFeedback.mediumImpact();
+    final w = readWorkout(store.state, x, store.now);
+    store.update((s) => finishSession(s, x, Finish(endRead: w.end, painAt: x.painAt, stopAt: currentExercise(x), effort: effort), x.endedAt ?? store.now));
+    _autoTrack(store, x);
   }
 
   Widget _feel(BuildContext context, Session session) {
@@ -1001,56 +1037,25 @@ class _SessionScreenState extends State<SessionScreen> {
     );
   }
 
-  void _finish(BuildContext context, Session session, Feel? feel, {Finish? stop}) {
+  void _finish(BuildContext context, Session session, Feel? feel) {
     final store = context.store;
-    final p = stop ?? pendingFinish;
-    final f = Finish(feel: feel, stopReason: p?.stopReason, stopAt: p?.stopAt, effort: effort);
+    final f = Finish(feel: feel, effort: effort);
     resumeWorkout(session, store.now); // ended while paused: the pause is not workout time
     finishSession(store.state, session, f, store.now);
     note = session.note;
-    toRate = firstTimers(store.state, session);
     store.state.active = session; // keep the screen until Done is tapped
     setState(() {});
-    _autoTrack(store.state, session);
-  }
-
-  /// Something new today: one row per first-time exercise, a word each, skippable (SELECTION.md).
-  Widget _rate(BuildContext context) {
-    final t = Theme.of(context).textTheme;
-    final du = context.du;
-    final store = context.store;
-    final list = toRate!;
-    return Scaffold(
-      appBar: AppBar(title: Text(list.length == 1 ? 'Something new today' : 'New today'), automaticallyImplyLeading: false),
-      body: Column(children: [
-        Expanded(child: ListView(padding: const EdgeInsets.all(20), children: [
-          Text('One tap each, or skip. Liked goes first for its muscle; not for me is picked only when nothing else fits.', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
-          const SizedBox(height: 16),
-          for (var i = 0; i < list.length; i++)
-            Reveal(delay: Duration(milliseconds: 50 * i), child: Padding(padding: const EdgeInsets.only(bottom: 10), child: Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [IconBadge(exerciseIcon(list[i]), size: 36), const SizedBox(width: 10), Expanded(child: Text(list[i].name, style: t.titleMedium))]),
-              const SizedBox(height: 8),
-              ChoiceRow<String>(
-                value: store.state.ex[list[i].id]?.preference ?? '',
-                options: {prefLiked: preferenceLabel[prefLiked]!, prefFine: preferenceLabel[prefFine]!, prefNo: preferenceLabel[prefNo]!},
-                icons: const {prefLiked: LucideIcons.heart, prefFine: LucideIcons.check, prefNo: LucideIcons.thumbsDown},
-                onChanged: (v) => store.update((x) => ensureState(x, list[i]).preference = v),
-              ),
-            ])))),
-        ])),
-        Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: SizedBox(width: double.infinity, height: 56, child: FilledButton.icon(
-          onPressed: () => setState(() => toRate = []), iconAlignment: IconAlignment.end, icon: const Icon(LucideIcons.chevronRight, size: 18), label: const Text('Continue')))),
-      ]),
-    );
+    _autoTrack(store, session);
   }
 
   /// With auto-track on, a workout that started is written to the calendar from start to end. Never one that did not.
-  Future<void> _autoTrack(AppState s, Session session) async {
+  Future<void> _autoTrack(Store store, Session session) async {
+    final s = store.state;
     final st = s.settings;
     if (!st.calendar || !st.autoTrack || session.startedAt == null || session.endedAt == null) return;
     final text = workoutEventText(s, session, (e) => e.rungLabel);
     final id = await CalendarBridge.writeEvent(calendarId: st.calendarId, eventId: session.calendarEventId, begin: session.startedAt!.subtract(Duration(seconds: session.pausedSeconds)), end: session.endedAt!, title: text.title, description: text.description);
-    if (id != null && mounted) context.store.update((_) => session.calendarEventId = id);
+    if (id != null) store.update((_) => session.calendarEventId = id);
   }
 
   /// Logged: the one line, the time it took against the plan, and where it went: lifting and rest.

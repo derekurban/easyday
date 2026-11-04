@@ -126,4 +126,20 @@ void main() {
     expect(find.textContaining('Log '), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('with the button wait turned off, Log is ready the moment a set arrives', (tester) async {
+    tester.view.physicalSize = const Size(412, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final s = w.fresh(template: 'gym')..settings.buttonWait = false;
+    final x = w.build(s, warmup: 0);
+    startWorkout(s, x, DateTime.now().subtract(const Duration(seconds: 5)));
+    s.active = x;
+    await tester.pumpWidget(StoreScope(store: Store(s, null), child: MaterialApp(theme: buildTheme(Brightness.dark), home: const SessionScreen())));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Do your set'), findsNothing, reason: 'no wait');
+    expect(find.textContaining('Log '), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
