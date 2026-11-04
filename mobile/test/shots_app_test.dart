@@ -9,9 +9,11 @@ import 'package:easyday/data/index.dart';
 import 'package:easyday/data/library.dart';
 import 'package:easyday/data/model.dart';
 import 'package:easyday/data/store.dart';
+import 'package:easyday/logic/after.dart';
 import 'package:easyday/logic/builder.dart';
 import 'package:easyday/logic/muscle_map.dart';
 import 'package:easyday/logic/muscle_plan.dart';
+import 'package:easyday/logic/score.dart';
 import 'package:easyday/logic/workout.dart';
 import 'package:easyday/ui/app.dart';
 import 'package:easyday/ui/exercise_card.dart';
@@ -105,7 +107,7 @@ void main() {
       }
     });
 
-    // the end of a workout: feel, then the log
+    // the end of a workout: finished and logged (the finish page itself is in shots_logged_test.dart), then Today
     final x = buildSession(s, BuildOptions(energy: Energy.normal, minutes: 45, locationId: 'l1', liftInstead: true), now);
     startWorkout(s, x, now.subtract(const Duration(minutes: 38)));
     for (var i = 0; i < x.exercises.length; i++) {
@@ -114,28 +116,12 @@ void main() {
         enterReps(x, x.exercises[i].target, now.subtract(Duration(minutes: 35 - i * 8 - k * 2)));
       }
     }
-    s.active = x;
-    await shoot(tester, store, () => const Shell(), '32-feel', then: () async {
-      await tester.pump(const Duration(seconds: 4));
-      await tester.tap(find.byType(FilledButton).last); // Finish workout, or the next part
-      await tester.pump(const Duration(seconds: 4));
-      if (find.text('How was it?').evaluate().isEmpty) { await tester.tap(find.byType(FilledButton).last); await tester.pump(const Duration(seconds: 4)); }
-    });
-    await shoot(tester, store, () => const Shell(), '33-logged', height: 1600, then: () async {
-      await tester.pump(const Duration(seconds: 4));
-      await tester.tap(find.byType(FilledButton).last);
-      await tester.pump(const Duration(seconds: 4));
-      if (find.text('How was it?').evaluate().isEmpty) { await tester.tap(find.byType(FilledButton).last); await tester.pump(const Duration(seconds: 4)); }
-      await tester.tap(find.text('About right'));
-      await tester.pump(const Duration(seconds: 1));
-      if (find.text('Continue').evaluate().isNotEmpty) { await tester.tap(find.text('Continue')); await tester.pump(const Duration(seconds: 1)); }
-    });
-    store.update((st) => st.active = null);
+    store.update((st) => finishSession(st, x, Finish(endRead: EndRead.done), now));
     await shoot(tester, store, () => const Shell(), '34-today-done', height: 1300);
 
     // onboarding, every page
     final fresh = Store(AppState(), null);
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < 6; i++) {
       await shoot(tester, fresh, () => const Shell(), '35-onboarding-$i', height: 1700, then: () async {
         for (var k = 0; k < i; k++) { await tester.tap(find.byType(FilledButton).last); await pumpSome(tester); }
       });
