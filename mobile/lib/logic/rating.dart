@@ -210,10 +210,11 @@ double nextRating(double? rating, double perf, {required int workoutsBefore, boo
 
 // ---- the user's own ratings, from their logged workouts ----
 
-/// The rater for the user: their build (the body figure), age and weight, or the usual guesses where not given.
-Rater raterFor(AppState s, Exercise ex, DateTime now) {
+/// The rater for the user on [at]: their build (the body figure), their age that day from their birth date, and their
+/// weight, or the usual guesses where not given.
+Rater raterFor(AppState s, Exercise ex, DateTime at) {
   final sex = s.settings.figure == 'female' ? Sex.woman : Sex.man;
-  return Rater(ex, sex: sex, bodyweight: s.profile?.bodyweightKg ?? (sex == Sex.man ? 80 : 65), age: s.profile?.ageAt(now) ?? 30);
+  return Rater(ex, sex: sex, bodyweight: s.profile?.bodyweightKg ?? (sex == Sex.man ? 80 : 65), age: s.profile?.ageAt(at) ?? 30);
 }
 
 /// One workout's place in an exercise's rating: when, what the day's sets were worth, and the rating after it.
@@ -233,19 +234,21 @@ typedef RatedWorkout = ({DateTime at, double performance, double rating});
 }
 
 /// An exercise's rating through the user's logged workouts, oldest first, and [plus] (the workout on the finish screen,
-/// not logged yet) at the end. Worked out from the history every time, so a change of age or weight reads it all again.
+/// not logged yet) at the end. Worked out from the history every time, so a change of birth date or weight reads it all
+/// again. Each workout is rated at the age the user was that day.
 List<RatedWorkout> ratingHistory(AppState s, Exercise ex, DateTime now, {Session? plus}) {
-  final r = raterFor(s, ex, now);
+  final raters = <int?, Rater>{};
   final out = <RatedWorkout>[];
   final logged = [for (final x in s.sessions) if (x.startedAt != null && !identical(x, plus)) x]..sort((a, b) => a.startedAt!.compareTo(b.startedAt!));
   double? rating;
   for (final x in [...logged, ?plus]) {
     final i = x.exercises.indexWhere((e) => e.exId == ex.id && e.attempted.isNotEmpty);
     if (i < 0) continue;
-    final p = workoutPerformance(s, x, i, r);
+    final at = x.startedAt ?? now;
+    final p = workoutPerformance(s, x, i, raters.putIfAbsent(s.profile?.ageAt(at), () => raterFor(s, ex, at)));
     if (p == null) continue;
     rating = nextRating(rating, p.performance, workoutsBefore: out.length, counts: p.counts);
-    out.add((at: x.startedAt ?? now, performance: p.performance, rating: rating));
+    out.add((at: at, performance: p.performance, rating: rating));
   }
   return out;
 }

@@ -186,7 +186,8 @@ tap or a slider, everything changeable later in Settings (`UI.md`).
 - **Locations.** At least one, the user's own: a name and an equipment list, filled from a template such
   as "commercial gym", "home with dumbbells and a bench", or "nothing" if that helps.
 - **Units.** Kilograms or pounds. Loads are stored in kilograms; steps and display follow the chosen unit.
-- **Your body.** Build (male or female, also the muscle map's figure), age and bodyweight. Used only to rank
+- **Your body.** Build (male or female, also the muscle map's figure), birthday and bodyweight. Age is
+  worked out from the birthday wherever it is used. Used only to rank
   strength against people like the user (the strength rating, being explored in the playground).
 
 **Goal translation** maps the chosen goal to the reps it likes, the sets each muscle should get, and

@@ -281,21 +281,33 @@ List<int> _tri(Tri t) => [t.min, t.ideal, t.max];
 Tri _ptri(dynamic v) => Tri(v[0], v[1], v[2]);
 
 class Profile {
-  Profile({required this.experience, required this.daysPerWeek, required this.createdAt, this.birthYear, this.bodyweightKg});
+  Profile({required this.experience, required this.daysPerWeek, required this.createdAt, DateTime? birthDate, this.bodyweightKg})
+      : birthDate = birthDate == null ? null : DateTime(birthDate.year, birthDate.month, birthDate.day);
   String experience;
   int daysPerWeek;
   DateTime createdAt;
-  int? birthYear;       // for ranking strength against people of the same age; unset reads as 30
+  DateTime? birthDate;  // for ranking strength against people of the same age; unset reads as 30. A local date, no time.
   double? bodyweightKg; // for ranking strength against people of the same weight; unset reads as the standards' own
 
-  /// The age this year, or null when not given.
-  int? ageAt(DateTime now) => birthYear == null ? null : now.year - birthYear!;
+  /// The age in whole years on [at], or null when no birth date is given.
+  int? ageAt(DateTime at) => birthDate == null ? null : ageOn(birthDate!, at);
 
   Map<String, dynamic> toJson() => {'experience': experience, 'daysPerWeek': daysPerWeek, 'createdAt': _ms(createdAt),
-        if (birthYear != null) 'birthYear': birthYear, if (bodyweightKg != null) 'bodyweightKg': bodyweightKg};
+        if (birthDate != null) 'birthDate': ymd(birthDate!), if (bodyweightKg != null) 'bodyweightKg': bodyweightKg};
   static Profile fromJson(Map<String, dynamic> j) => Profile(experience: j['experience'], daysPerWeek: j['daysPerWeek'], createdAt: _d(j['createdAt'])!,
-      birthYear: j['birthYear'], bodyweightKg: (j['bodyweightKg'] as num?)?.toDouble());
+      // before birth dates there was only a birth year: 1 January of it reads the same age the year did
+      birthDate: j['birthDate'] != null ? DateTime.parse(j['birthDate']) : j['birthYear'] != null ? DateTime(j['birthYear']) : null,
+      bodyweightKg: (j['bodyweightKg'] as num?)?.toDouble());
 }
+
+/// Whole years from [born] to [at]: a year more on each birthday (29 February counts from 1 March in other years).
+int ageOn(DateTime born, DateTime at) {
+  final had = at.month > born.month || (at.month == born.month && at.day >= born.day);
+  return at.year - born.year - (had ? 0 : 1);
+}
+
+/// A date as YYYY-MM-DD.
+String ymd(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 class Location {
   Location({required this.id, required this.name, this.template = customLocation, required this.equipment, this.lat, this.lng});

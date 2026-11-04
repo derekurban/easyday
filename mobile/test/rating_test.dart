@@ -61,15 +61,21 @@ void main() {
   });
 
   test('the profile keeps the age and weight it is ranked by', () {
-    final p = Profile(experience: 'some', daysPerWeek: 3, createdAt: DateTime(2026), birthYear: 1990, bodyweightKg: 82.5);
+    final p = Profile(experience: 'some', daysPerWeek: 3, createdAt: DateTime(2026), birthDate: DateTime(1990, 6, 15), bodyweightKg: 82.5);
     final back = Profile.fromJson(p.toJson());
-    expect(back.ageAt(DateTime(2026, 11)), 36);
+    expect(back.birthDate, DateTime(1990, 6, 15));
+    expect(back.ageAt(DateTime(2026, 6, 14)), 35, reason: 'the day before the birthday');
+    expect(back.ageAt(DateTime(2026, 6, 15)), 36, reason: 'on the birthday');
     expect(back.bodyweightKg, 82.5);
-    expect(Profile.fromJson(Profile(experience: 'some', daysPerWeek: 3, createdAt: DateTime(2026)).toJson()).birthYear, isNull);
+    expect(Profile.fromJson(Profile(experience: 'some', daysPerWeek: 3, createdAt: DateTime(2026)).toJson()).birthDate, isNull);
+    // a profile saved with only a birth year reads as 1 January of it
+    final old = Profile.fromJson({'experience': 'some', 'daysPerWeek': 3, 'createdAt': 0, 'birthYear': 1990});
+    expect(old.birthDate, DateTime(1990));
+    expect(old.ageAt(DateTime(2026, 11)), 36);
   });
 
   test("the user's rating comes from their logged workouts, and the one on the finish screen counts as the next", () {
-    final s = w.fresh(template: 'gym')..profile!.birthYear = 1996..profile!.bodyweightKg = 80;
+    final s = w.fresh(template: 'gym')..profile!.birthDate = DateTime(1996, 5, 1)..profile!.bodyweightKg = 80;
     final a = sc.play(s, [[10, 10, 10]]);
     finishSession(s, a, Finish(endRead: EndRead.none), a.endedAt!);
     final ex = a.exercises[0].exercise;
