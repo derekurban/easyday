@@ -172,9 +172,9 @@ the user asks for it. One workout a day is the shape people recognise; back-to-b
 
 ## 6. Onboarding and goal translation
 
-Onboarding asks for as little as possible and infers the rest from the first few workouts: five pages, one
-question each (how it works, the goal, about you, where you train, units), every answer a template or a tap,
-everything changeable later in Settings (`UI.md`).
+Onboarding asks for as little as possible and infers the rest from the first few workouts: six pages, one
+question each (how it works, the goal, about you, where you train, units, your body), every answer a template, a
+tap or a slider, everything changeable later in Settings (`UI.md`).
 
 - **Goal.** The user's own, named and shaped in plain words. Templates are suggestions that fill every
   knob at a tap: the reps it likes, how many exercises and sets, the sets each muscle should get over
@@ -186,6 +186,8 @@ everything changeable later in Settings (`UI.md`).
 - **Locations.** At least one, the user's own: a name and an equipment list, filled from a template such
   as "commercial gym", "home with dumbbells and a bench", or "nothing" if that helps.
 - **Units.** Kilograms or pounds. Loads are stored in kilograms; steps and display follow the chosen unit.
+- **Your body.** Build (male or female, also the muscle map's figure), age and bodyweight. Used only to rank
+  strength against people like the user (the strength rating, being explored in the playground).
 
 **Goal translation** maps the chosen goal to the reps it likes, the sets each muscle should get, and
 how often a movement workout comes round. Strength likes heavy and few: its hard exercises train at
@@ -556,7 +558,7 @@ level. An energy or time they default to does not count as the user's choice.
   You finished early only when the plan was not all done, and Check or fix details behind it with every set's
   reps, weight, time and rest. After cardio or stretching days, the optional feel tap and one line.
 - **Exercise card.** The name, what it works and its difficulty, the stage picture, the muscles on the body
-  figure (primary green, secondary paler, each list named beside it), the level as facts (average time per set, best total at this level, workouts, the max), the how-to as numbered steps, the
+  figure (primary green, secondary paler, each list named beside it), the level as facts (average time per set, best total at this level, workouts, the max), the strength rating and rank (`WORKOUT.md`), the how-to as numbered steps, the
   progression as a track, the reps it trains at, the difficulty with its override, and your word.
 - **Exercises.** The library grouped by the chosen index, one line per exercise: the name, its level and set
   time when practised, the difficulty word at the right.

@@ -281,13 +281,20 @@ List<int> _tri(Tri t) => [t.min, t.ideal, t.max];
 Tri _ptri(dynamic v) => Tri(v[0], v[1], v[2]);
 
 class Profile {
-  Profile({required this.experience, required this.daysPerWeek, required this.createdAt});
+  Profile({required this.experience, required this.daysPerWeek, required this.createdAt, this.birthYear, this.bodyweightKg});
   String experience;
   int daysPerWeek;
   DateTime createdAt;
-  Map<String, dynamic> toJson() => {'experience': experience, 'daysPerWeek': daysPerWeek, 'createdAt': _ms(createdAt)};
-  static Profile fromJson(Map<String, dynamic> j) =>
-      Profile(experience: j['experience'], daysPerWeek: j['daysPerWeek'], createdAt: _d(j['createdAt'])!);
+  int? birthYear;       // for ranking strength against people of the same age; unset reads as 30
+  double? bodyweightKg; // for ranking strength against people of the same weight; unset reads as the standards' own
+
+  /// The age this year, or null when not given.
+  int? ageAt(DateTime now) => birthYear == null ? null : now.year - birthYear!;
+
+  Map<String, dynamic> toJson() => {'experience': experience, 'daysPerWeek': daysPerWeek, 'createdAt': _ms(createdAt),
+        if (birthYear != null) 'birthYear': birthYear, if (bodyweightKg != null) 'bodyweightKg': bodyweightKg};
+  static Profile fromJson(Map<String, dynamic> j) => Profile(experience: j['experience'], daysPerWeek: j['daysPerWeek'], createdAt: _d(j['createdAt'])!,
+      birthYear: j['birthYear'], bodyweightKg: (j['bodyweightKg'] as num?)?.toDouble());
 }
 
 class Location {

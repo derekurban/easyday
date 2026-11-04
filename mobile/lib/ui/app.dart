@@ -57,7 +57,7 @@ class _ShellState extends State<Shell> {
     if (s.profile == null || s.plan == null) { tab = 0; return const OnboardingScreen(); }
     if (s.active != null) return const SessionScreen();
     // staging builds carry a Playground tab: the finish screen on sample workouts
-    final pages = [const TodayScreen(), const ProgressScreen(), const CatalogScreen(), const SettingsScreen(), if (prototypeTools) const PlaygroundScreen()];
+    final pages = [const TodayScreen(), const ProgressScreen(), const CatalogScreen(), const SettingsScreen(), if (playgroundTab) const PlaygroundScreen()];
     if (tab >= pages.length) tab = 0;
     return Scaffold(
       body: IndexedStack(index: tab, children: pages),
@@ -74,7 +74,7 @@ class _ShellState extends State<Shell> {
                 const Icon(LucideIcons.slidersHorizontal),
                 if (r != null) const Positioned(top: -4, right: -6, child: UpdateDot()),
               ]))),
-          if (prototypeTools) const NavigationDestination(icon: Icon(LucideIcons.flaskConical), label: 'Playground'),
+          if (playgroundTab) const NavigationDestination(icon: Icon(LucideIcons.flaskConical), label: 'Playground'),
         ],
       ),
     );

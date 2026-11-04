@@ -253,7 +253,7 @@ shown when they tap Done is what is saved.
 
 End goes straight to the finish (`mobile/lib/ui/logged.dart`): no stop question, no feel tap. Every exercise is one
 tile in one frame: a round mark, its name, one plain line, and next time's word at the right. A tap opens Easier,
-Same and Harder with the level under each.
+Same and Harder, just the words; whenever next time moves, the tile's line says where it lands ("Next time 37.5 kg").
 
 - **What happened, per exercise**, the first that fits: it hurt; the user went heavier mid-workout and made every set
   (YOUR PUSH, the sweep, a flame) or did not (reached for it); a first time; a level earned (LEVELLED UP, the sweep);
@@ -275,8 +275,35 @@ Same and Harder with the level under each.
   opening a drawer to correct it; the total time is the sum of the rows. Something hurt and Back to the workout are
   there too.
 
-The page's layout is fixed when it opens, so a choice animates inside its own tile and nothing else moves. Staging
-builds have a Playground tab that opens the finish on sample workouts without touching the user's data.
+- **Strength rating.** Under each tile's line: the exercise's rank badge, its rating and how today moved it ("first
+  rating" the first time, "new rank" with a small pop when it climbs a rank). See the strength rating below.
+
+The page's layout is fixed when it opens, so a choice animates inside its own tile and nothing else moves. Debug
+builds (the dev loops, never a release) have a Playground tab that opens the finish on sample workouts and the
+strength rating on sample lifts, without touching the user's data.
+
+## Strength rating
+
+One number per exercise that rises with strength, whatever mix of weight, version and reps got there, and a rank from
+it (`mobile/lib/logic/rating.dart`). Like a chess rating it places the user among people: half everyone, half people
+who train, so neither a newcomer nor a seasoned lifter is put off.
+
+- **The crowd.** People who train come from strength standards (strengthlevel.com: stronger than 5, 20, 50, 80, 95 % of
+  lifters) by sex and bodyweight, read as a log-normal spread; everyone else is the same spread centred at 0.85 of the
+  lifters' 5 % mark, about where "untrained" standards put a healthy adult. Standards are for ages 20 to 39 and scaled
+  by the masters age coefficients outside them. Build, age and bodyweight come from Settings, Your body.
+- **The scale.** 1200 is the middle of the crowd and 350 points one standard deviation, so the share of people beaten
+  is exact. Ranks are 200-point bands: Iron under 800, Bronze, Silver from 1000, Gold from 1200, Platinum, Diamond,
+  Champion from 1800.
+- **A workout's worth** is the judging's score (load x (1 + reps/30), averaged over the sets). Push-ups and pull-ups are
+  rated in reps of the full version, other versions converted by their share of bodyweight. An exercise with no
+  standard yet is estimated from its beginner start and says so.
+- **It moves like Elo.** The first workout sets it outright; then each workout moves it half the way to its worth for
+  the first three, a quarter after. An easy or low-energy day, a light exercise or one that hurt can lift it but never
+  lower it. It is worked out from the logged workouts every time, never stored.
+
+The exercise card shows it under Strength: the rank and rating, the share of people it beats, what it is worth as
+lifts, the rating over time, and what the next rank takes. The playground's strength lab tries it on sample lifts.
 
 ## Modes
 

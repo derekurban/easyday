@@ -1,7 +1,9 @@
+import 'package:easyday/data/library.dart';
 import 'package:easyday/data/store.dart';
 import 'package:easyday/ui/app.dart';
 import 'package:easyday/ui/logged.dart';
 import 'package:easyday/ui/playground.dart';
+import 'package:easyday/ui/strength_lab.dart';
 import 'package:easyday/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,21 +19,36 @@ void main() {
     final real = Store(w.fresh(), null);
     await tester.pumpWidget(StoreScope(store: real, child: MaterialApp(theme: buildTheme(Brightness.light), home: const PlaygroundScreen())));
     Future<void> frames() async { for (var k = 0; k < 4; k++) { await tester.pump(const Duration(milliseconds: 500)); } }
-    final n = find.byType(ListTile).evaluate().length;
-    expect(n, greaterThanOrEqualTo(8));
-    for (var i = 0; i < n; i++) {
-      await tester.scrollUntilVisible(find.byType(ListTile).at(i), 200);
-      final title = tester.widget<Text>(find.descendant(of: find.byType(ListTile).at(i), matching: find.byType(Text)).first).data;
-      await tester.tap(find.byType(ListTile).at(i));
+    final list = find.byType(Scrollable).first;
+    // the strength rating first: each opens, and back
+    for (final (id, _) in strengthLabExercises) {
+      final name = find.text(exerciseById[id]!.name);
+      await tester.scrollUntilVisible(name, 200, scrollable: list);
+      await tester.tap(name);
       await frames();
-      expect(tester.takeException(), isNull, reason: 'sample $i');
-      expect(find.byType(LoggedView), findsOneWidget, reason: 'sample $i');
+      expect(tester.takeException(), isNull, reason: id);
+      expect(find.byType(StrengthLabScreen), findsOneWidget);
+      await tester.pageBack();
+      await frames();
+    }
+    expect(playgroundSampleTitles.length, greaterThanOrEqualTo(8));
+    // the finish screen is kept closed until opened
+    expect(find.text(playgroundSampleTitles.first), findsNothing);
+    await tester.scrollUntilVisible(find.text('Finish screen'), 200, scrollable: list);
+    await tester.tap(find.text('Finish screen'));
+    await frames();
+    for (final title in playgroundSampleTitles) {
+      await tester.scrollUntilVisible(find.text(title), 200, scrollable: list);
+      await tester.tap(find.text(title));
+      await frames();
+      expect(tester.takeException(), isNull, reason: title);
+      expect(find.byType(LoggedView), findsOneWidget, reason: title);
       // only the samples that ended before the plan was done ask why
       final early = title == 'Out of time' || title == 'It has to ask';
-      expect(find.text('You finished early').evaluate().isNotEmpty, early, reason: '$title');
+      expect(find.text('You finished early').evaluate().isNotEmpty, early, reason: title);
       await tester.tap(find.text('Done'));
       await frames();
-      expect(find.byType(LoggedView), findsNothing, reason: 'back from sample $i');
+      expect(find.byType(LoggedView), findsNothing, reason: 'back from $title');
     }
     expect(real.state.sessions, isEmpty, reason: 'the samples never touch the real data');
     expect(real.state.active, isNull);

@@ -12,10 +12,13 @@ import '../data/store.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
 import '../logic/ladder.dart';
+import '../logic/rating.dart';
 import '../logic/score.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'logged.dart';
+import 'motion.dart';
+import 'strength_lab.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -74,6 +77,10 @@ final _samples = <_Sample>[
   _Sample('Bodyweight at home', 'Push-ups and friends: a harder version earned on each.', LucideIcons.house, (x) => _all(x, (e) => [e.hi + 8, e.hi + 8, e.hi + 7]),
       before: (x) => _all(x, _top), template: 'none'),
 ];
+
+/// The samples' titles, in order, for the tests.
+@visibleForTesting
+List<String> get playgroundSampleTitles => [for (final p in _samples) p.title];
 
 /// Play a sample into its own state: an earlier workout first when it has one, then today's, ended and waiting on the
 /// finish screen.
@@ -165,15 +172,44 @@ class PlaygroundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
+    startLabPerson(context.store.state, context.store.now);
     return Scaffold(
       appBar: AppBar(title: const Text('Playground')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
-        Text('The finish screen on sample workouts. Open one as often as you like: each starts fresh, and nothing here touches your workouts or levels.',
+        Text('Ideas to try before they reach the app. Nothing here touches your workouts or levels.',
             style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
         const SizedBox(height: 16),
-        const Subhead('Finish screen', icon: LucideIcons.flag),
+        const Subhead('Strength rating', icon: LucideIcons.gauge),
         const SizedBox(height: 10),
-        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+        // the lines follow who the lab rates against, set inside any exercise
+        ValueListenableBuilder(valueListenable: labPerson, builder: (context, _, _) => Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          // the rank across every lift: the ratings averaged
+          Builder(builder: (context) {
+            final all = [for (final (id, _) in strengthLabExercises) strengthLabRating(id)];
+            final mean = all.reduce((a, b) => a + b) / all.length;
+            return ListTile(
+              leading: IconBadge(LucideIcons.trophy, size: 38, accent: true),
+              title: Text('Overall: ${rankOf(mean).name} · ${mean.round()}'),
+              subtitle: const Text('The ratings of the lifts below, averaged: one rank for all of you'),
+            );
+          }),
+          Divider(height: 1, color: du.line),
+          for (var i = 0; i < strengthLabExercises.length; i++) ...[
+            if (i > 0) Divider(height: 1, indent: 64, color: du.line),
+            Builder(builder: (context) {
+              final ex = exerciseById[strengthLabExercises[i].$1]!;
+              return ListTile(
+                leading: IconBadge(ex.loaded ? LucideIcons.dumbbell : LucideIcons.personStanding, size: 38),
+                title: Text(ex.name),
+                subtitle: Text(strengthLabSummary(ex.id)),
+                trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
+                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StrengthLabScreen(exerciseId: ex.id))),
+              );
+            }),
+          ],
+        ]))),
+        const SizedBox(height: 20),
+        _Collapsible(title: 'Finish screen', icon: LucideIcons.flag, child: Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
           for (var i = 0; i < _samples.length; i++) ...[
             if (i > 0) Divider(height: 1, indent: 64, color: du.line),
             ListTile(
@@ -184,7 +220,7 @@ class PlaygroundScreen extends StatelessWidget {
               onTap: () => _open(context, _samples[i]),
             ),
           ],
-        ])),
+        ]))),
       ]),
     );
   }
@@ -202,5 +238,36 @@ class PlaygroundScreen extends StatelessWidget {
         },
       )),
     ))));
+  }
+}
+
+/// A section that opens and closes under its heading: for what is kept to revisit, out of the way until then.
+class _Collapsible extends StatefulWidget {
+  const _Collapsible({required this.title, required this.icon, required this.child});
+  final String title;
+  final IconData icon;
+  final Widget child;
+  @override
+  State<_Collapsible> createState() => _CollapsibleState();
+}
+
+class _CollapsibleState extends State<_Collapsible> {
+  bool open = false;
+  @override
+  Widget build(BuildContext context) {
+    final du = context.du;
+    final dur = m(context, durSlow);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => setState(() => open = !open),
+        child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [
+          Expanded(child: Subhead(widget.title, icon: widget.icon)),
+          AnimatedRotation(turns: open ? 0.5 : 0, duration: dur, child: Icon(LucideIcons.chevronDown, size: 18, color: du.inkTertiary)),
+        ])),
+      ),
+      AnimatedSize(duration: dur, curve: Curves.easeOutCubic, alignment: Alignment.topCenter,
+          child: open ? Padding(padding: const EdgeInsets.only(top: 8), child: widget.child) : const SizedBox(width: double.infinity)),
+    ]);
   }
 }

@@ -455,7 +455,8 @@ List<Win> winsOf(AppState s, Session x, WorkoutRead w) {
     if (e.attempted.isEmpty || x.painAt == r.index) continue;
     final ex = e.exercise;
     final st = ensureState(s, ex);
-    if (r.judged && r.call == Call.up) { out.add(Win(r.index, WinKind.levelUp, 'Harder next time: ${r.outcome}')); continue; }
+    // a level the app earned; the user's own Harder is their call, not a win
+    if (r.judged && r.call == Call.up && !r.changed) { out.add(Win(r.index, WinKind.levelUp, 'Harder next time: ${r.outcome}')); continue; }
     final prev = lastTimeOf(s, e.exId, x);
     if (prev == null) { out.add(Win(r.index, WinKind.firstTime, 'A new one for the log')); continue; }
     double top(SessionExercise q) => q.attempted.map((l) => setLoad(s, q, l)).reduce(max);

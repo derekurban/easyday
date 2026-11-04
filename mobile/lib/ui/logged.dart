@@ -9,12 +9,14 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
 import '../logic/ladder.dart';
+import '../logic/rating.dart';
 import '../logic/score.dart';
 import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'edit_drawer.dart';
 import 'motion.dart';
+import 'rank.dart';
 import 'theme.dart';
 
 class LoggedView extends StatefulWidget {
@@ -68,6 +70,7 @@ class _LoggedViewState extends State<LoggedView> {
     final done = x.exercises.where((e) => e.attempted.isNotEmpty).length;
     final minutes = max(1, (checkSeconds(x, store.now) / 60).round());
     final week = workoutsThisWeek(s, x);
+    final overall = overallRating(s, store.now, plus: x);
     final page = _details
         ? Column(key: const ValueKey('details'), children: [
             Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 4), child: Row(children: [
@@ -95,6 +98,8 @@ class _LoggedViewState extends State<LoggedView> {
                   style: t.bodyLarge?.copyWith(color: du.inkSecondary), textAlign: TextAlign.center)),
               if (week > 1) Reveal(delay: const Duration(milliseconds: 320), child: Padding(padding: const EdgeInsets.only(top: 4),
                   child: Text('Your ${_ordinal(week)} workout this week', style: t.bodyMedium?.copyWith(color: du.accentText), textAlign: TextAlign.center))),
+              // the overall strength rating, and what today did to it
+              if (overall != null) Reveal(delay: const Duration(milliseconds: 380), child: Padding(padding: const EdgeInsets.only(top: 12), child: _overall(context, overall))),
               const SizedBox(height: 28),
               for (final (k, i) in [...shape.ups, ...shape.rows].indexed) Padding(key: ValueKey('ex$i'), padding: const EdgeInsets.only(bottom: 10),
                   child: Reveal(delay: Duration(milliseconds: 400 + 90 * k), child: _tile(context, x, w, momentOf(i)))),
@@ -125,6 +130,30 @@ class _LoggedViewState extends State<LoggedView> {
       )),
       Padding(padding: const EdgeInsets.fromLTRB(20, 0, 20, 16), child: button),
     ]))));
+  }
+
+  /// The overall strength rating as one centred line: its rank, the number, and the change today made, when it made one.
+  /// A new overall rank pops in.
+  Widget _overall(BuildContext context, ({double rating, double? change}) o) {
+    final t = Theme.of(context).textTheme;
+    final before = o.change == null ? null : o.rating - o.change!;
+    return Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, runSpacing: 4, children: [
+      before != null && rankOf(o.rating).index > rankOf(before).index
+          ? TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.6, end: 1),
+              duration: m(context, const Duration(milliseconds: 800)),
+              curve: Curves.elasticOut,
+              builder: (context, v, child) => Transform.scale(scale: v, child: child),
+              child: RankBadge(rankOf(o.rating).index),
+            )
+          : RankBadge(rankOf(o.rating).index),
+      const SizedBox(width: 10),
+      Text('Strength ${o.rating.round()}', style: t.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+      if (before != null) ...[
+        const SizedBox(width: 8),
+        RatingDelta(rating: o.rating, before: before, withRank: false),
+      ],
+    ]);
   }
 
   static String _ordinal(int n) => switch (n % 100) {
@@ -212,6 +241,9 @@ class _LoggedViewState extends State<LoggedView> {
       mark = Container(key: ValueKey(icon), width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: fg.withValues(alpha: 0.13)),
           child: Icon(icon, size: 18, color: fg));
     }
+    // the rating through every logged workout and this one; nothing when this one does not rate (it hurt)
+    final history = x.painAt == v.index ? const <RatedWorkout>[] : ratingHistory(s, ex, store.now, plus: x);
+    final rated = history.isNotEmpty && history.last.at == (x.startedAt ?? store.now) ? history : const <RatedWorkout>[];
     final label = v.moment == Moment.pushed ? 'YOUR PUSH' : magic ? 'LEVELLED UP' : first ? 'FIRST TIME' : null;
     final labelStyle = t.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w600, color: white.withValues(alpha: 0.88));
     return _frame(context, kind, onTap: judged && !first ? () => _toggle('v${v.index}') : null, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -234,12 +266,20 @@ class _LoggedViewState extends State<LoggedView> {
             layoutBuilder: (c, p) => Stack(alignment: Alignment.topLeft, children: [...p, ?c]),
             child: Text(v.text, key: ValueKey(v.text), style: t.bodyMedium?.copyWith(color: magic ? white.withValues(alpha: 0.9) : du.inkSecondary)),
           ),
+          // where next time lands, whenever it moves: a level earned says it in its line, a first time on its wheel
+          if (judged && !first && r.call != Call.hold && v.moment != Moment.levelUp)
+            Text('Next time ${r.outcome}', style: t.bodyMedium?.copyWith(color: magic ? white : _callColor(context, r.call), fontWeight: FontWeight.w600)),
         ])),
-        if (judged) Padding(padding: EdgeInsets.only(left: 8, top: label == null ? 2 : 18), child: Row(mainAxisSize: MainAxisSize.min, children: [
-          AnimatedSwitcher(duration: dur, child: Text(callWord[r.call]!, key: ValueKey(r.call),
-              style: t.labelLarge?.copyWith(color: magic ? white : _callColor(context, r.call), fontWeight: r.call == Call.hold && !magic ? null : FontWeight.w600))),
-          if (!first) Padding(padding: const EdgeInsets.only(left: 2),
-              child: AnimatedRotation(turns: open ? 0.5 : 0, duration: dur, child: Icon(LucideIcons.chevronDown, size: 16, color: magic ? white.withValues(alpha: 0.85) : du.inkTertiary))),
+        if (judged) Padding(padding: EdgeInsets.only(left: 8, top: label == null ? 2 : 18), child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            AnimatedSwitcher(duration: dur, child: Text(callWord[r.call]!, key: ValueKey(r.call),
+                style: t.labelLarge?.copyWith(color: magic ? white : _callColor(context, r.call), fontWeight: r.call == Call.hold && !magic ? null : FontWeight.w600))),
+            if (!first) Padding(padding: const EdgeInsets.only(left: 2),
+                child: AnimatedRotation(turns: open ? 0.5 : 0, duration: dur, child: Icon(LucideIcons.chevronDown, size: 16, color: magic ? white.withValues(alpha: 0.85) : du.inkTertiary))),
+          ]),
+          // how today moved the strength rating, only when it did
+          if (rated.length > 1) Padding(padding: const EdgeInsets.only(top: 4),
+              child: RatingDelta(rating: rated.last.rating, before: rated[rated.length - 2].rating, onMagic: magic)),
         ])),
       ]),
       // a first time: how the level was, Right unless the reps said plainly otherwise
@@ -259,7 +299,7 @@ class _LoggedViewState extends State<LoggedView> {
       // customising: next time, opened by a tap on the tile
       if (open) _ask(context, 'Next time', onMagic: magic, _segments(context, [
         for (final c in [Call.down, Call.hold, Call.up])
-          if (r.levels.containsKey(c)) (callWord[c]!, r.outcomes[c], r.call == c, _segColor(context, c), () { call(c); setState(() => _open.remove('v${v.index}')); }),
+          if (r.levels.containsKey(c)) (callWord[c]!, null, r.call == c, _segColor(context, c), () { call(c); setState(() => _open.remove('v${v.index}')); }),
       ], onMagic: magic)),
     ]));
   }
