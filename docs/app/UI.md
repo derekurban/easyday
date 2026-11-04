@@ -60,5 +60,5 @@ goes.
   spare minutes, cardio and stretching shares, movement days, the muscles.
 - **Location.** Name, a template to fill from, the position, the equipment by group.
 - **Onboarding.** Six pages, one question each: how it works, the goal as a template, about you (experience
-  and days a week), where you train as a template, units, your body (build, age, bodyweight). Everything can be
+  and days a week), where you train as a template, units, your body (build, birthday, bodyweight). Everything can be
   changed later in Settings.

@@ -35,6 +35,9 @@ Future<void> loadFonts() async {
   await load('Albert Sans', [for (final w in [300, 400, 500, 600]) 'assets/fonts/AlbertSans-$w.ttf']);
   await load('Wix Madefor Text', [for (final w in [400, 500, 600]) 'assets/fonts/WixMadeforText-$w.ttf']);
   await load('packages/lucide_icons_flutter/Lucide', [lucide]);
+  // Material's own icons (the date picker's), from the Flutter SDK the test runs in
+  final flutter = Platform.environment['FLUTTER_ROOT'];
+  if (flutter != null) await load('MaterialIcons', ['$flutter/bin/cache/artifacts/material_fonts/materialicons-regular.otf']);
 }
 
 final key = GlobalKey();

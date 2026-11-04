@@ -291,7 +291,8 @@ who train, so neither a newcomer nor a seasoned lifter is put off.
 - **The crowd.** People who train come from strength standards (strengthlevel.com: stronger than 5, 20, 50, 80, 95 % of
   lifters) by sex and bodyweight, read as a log-normal spread; everyone else is the same spread centred at 0.85 of the
   lifters' 5 % mark, about where "untrained" standards put a healthy adult. Standards are for ages 20 to 39 and scaled
-  by the masters age coefficients outside them. Build, age and bodyweight come from Settings, Your body.
+  by the masters age coefficients outside them. Build, birthday and bodyweight come from Settings, Your body;
+  each workout is rated at the age the user was that day.
 - **The scale.** 1200 is the middle of the crowd and 350 points one standard deviation, so the share of people beaten
   is exact. Ranks are 200-point bands: Iron under 800, Bronze, Silver from 1000, Gold from 1200, Platinum, Diamond,
   Champion from 1800.

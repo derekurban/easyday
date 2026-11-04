@@ -1,7 +1,7 @@
 name: easyday
 description: "Easyday, a habit-first training app."
 publish_to: 'none'
-version: 0.16.0+24
+version: 0.16.1+25
 
 environment:
   sdk: ^3.11.3

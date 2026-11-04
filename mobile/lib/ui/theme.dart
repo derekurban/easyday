@@ -104,6 +104,9 @@ ThemeData buildTheme(Brightness b) {
         trackColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? du.accentStrong : du.sunk), trackOutlineColor: WidgetStatePropertyAll(du.line)),
     snackBarTheme: SnackBarThemeData(backgroundColor: du.ink, contentTextStyle: text.bodyMedium?.copyWith(color: du.bg), behavior: SnackBarBehavior.floating),
     dialogTheme: DialogThemeData(backgroundColor: du.surface, surfaceTintColor: Colors.transparent, titleTextStyle: text.titleLarge, contentTextStyle: text.bodyMedium),
+    // the birthday picker: the date in the main ink, not the grey Material gives its header
+    datePickerTheme: DatePickerThemeData(backgroundColor: du.surface, surfaceTintColor: Colors.transparent, headerForegroundColor: du.ink,
+        headerHelpStyle: text.labelMedium, headerHeadlineStyle: text.headlineLarge, dividerColor: du.line),
     iconTheme: IconThemeData(color: du.inkSecondary, size: 22),
   );
 }

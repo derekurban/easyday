@@ -476,6 +476,64 @@ class ValueSlider extends StatelessWidget {
   }
 }
 
+/// A birth date: the date and the age it makes [now], tapped to pick from a calendar that opens on the years.
+class BirthDateField extends StatelessWidget {
+  const BirthDateField({super.key, required this.value, required this.now, required this.onChanged, this.label = 'Birthday', this.hint});
+  final DateTime? value;
+  final DateTime now;
+  final ValueChanged<DateTime> onChanged;
+  final String label;
+  final String? hint;
+
+  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  Future<void> _pick(BuildContext context) async {
+    final last = DateTime(now.year - 10, now.month, now.day);
+    final first = DateTime(now.year - 100);
+    final initial = value ?? DateTime(now.year - 30, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context, firstDate: first, lastDate: last,
+      initialDate: initial.isAfter(last) ? last : initial.isBefore(first) ? first : initial,
+      initialDatePickerMode: DatePickerMode.year, helpText: 'Your birthday',
+    );
+    if (picked != null) onChanged(DateTime(picked.year, picked.month, picked.day));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final v = value;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Pressable(
+          borderRadius: 12,
+          onTap: () { HapticFeedback.selectionClick(); _pick(context); },
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(children: [
+              Expanded(child: Text(label, style: t.bodyLarge)),
+              const SizedBox(width: 12),
+              if (v == null)
+                Text('Not set', style: t.titleMedium?.copyWith(color: du.inkSecondary))
+              else ...[
+                Text('${v.day} ${_months[v.month - 1]} ${v.year}', style: t.titleMedium?.copyWith(color: du.accentText)),
+                const SizedBox(width: 8),
+                Text('age ${ageOn(v, now)}', style: t.bodySmall?.copyWith(color: du.inkSecondary)),
+              ],
+              const SizedBox(width: 4),
+              Icon(LucideIcons.calendar, size: 18, color: du.inkTertiary),
+            ]),
+          ),
+        ),
+        if (hint != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text(hint!, style: t.bodySmall)),
+      ]),
+    );
+  }
+}
+
 /// A range of reps as one band with two thumbs: the shape of "8 to 12".
 class RangeBand extends StatelessWidget {
   const RangeBand({super.key, required this.label, required this.value, required this.onChanged, this.min = 1, this.max = 30, this.unit = 'reps', this.hint});
