@@ -78,12 +78,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ])),
         ])),
         const SizedBox(height: 24),
-        const SectionHeader('Body figure', icon: LucideIcons.userRound),
-        Panel(child: Row(children: [
-          for (final f in const ['male', 'female']) ...[
-            if (f != 'male') const SizedBox(width: 12),
-            Expanded(child: _FigureChoice(figure: f, selected: st.figure == f, onTap: () => store.update((_) => st.figure = f))),
-          ],
+        const SectionHeader('Your body', icon: LucideIcons.userRound),
+        Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            for (final f in const ['male', 'female']) ...[
+              if (f != 'male') const SizedBox(width: 12),
+              Expanded(child: _FigureChoice(figure: f, selected: st.figure == f, onTap: () => store.update((_) => st.figure = f))),
+            ],
+          ]),
+          const SizedBox(height: 8),
+          ValueSlider(label: 'Age', value: (s.profile!.ageAt(store.now) ?? 30).clamp(14, 90), min: 14, max: 90,
+              onChanged: (v) => store.update((x) => x.profile!.birthYear = store.now.year - v)),
+          ValueSlider(label: 'Bodyweight', value: (s.profile!.bodyweightKg ?? 75).round().clamp(35, 180), min: 35, max: 180,
+              onChanged: (v) => store.update((x) => x.profile!.bodyweightKg = v.toDouble()),
+              display: (v) => s.units == 'lb' ? '${(v * 2.20462).round()} lb' : '$v kg',
+              hint: 'The body on the muscle map, and who your strength ranks are against.'),
         ])),
         const SizedBox(height: 24),
         SectionHeader('Locations', icon: LucideIcons.mapPin, trailing: st.location
@@ -172,6 +181,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           ChoiceRow<bool>(label: 'When the planned rest runs out', value: st.restAuto, options: const {false: 'Keep resting', true: 'Start the next set'}, onChanged: (v) => store.update((_) => st.restAuto = v)),
           ChoiceRow<bool>(label: 'Show set time and rest as', value: st.timeAsShare, options: const {false: 'Minutes', true: 'Share of time'}, onChanged: (v) => store.update((_) => st.timeAsShare = v)),
+          ChoiceRow<bool>(label: 'After each step, the next button', value: st.buttonWait, options: const {true: 'Waits a moment', false: 'Is ready at once'},
+              hint: 'The wait stops a quick second tap from skipping a set.', onChanged: (v) => store.update((_) => st.buttonWait = v)),
         ])),
         const SizedBox(height: 24),
         const SectionHeader('Progressions', icon: LucideIcons.listOrdered),

@@ -1,5 +1,5 @@
-// Onboarding (UI.md): five pages, one question each. How it works; the goal as a template; about you (experience and
-// days a week); where you train as a template; units. Everything can be changed later in Settings. The first page can
+// Onboarding (UI.md): six pages, one question each. How it works; the goal as a template; about you (experience and
+// days a week); where you train as a template; units; build, age and bodyweight for the strength ranks. Everything can be changed later in Settings. The first page can
 // instead restore data copied from another install.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -28,6 +28,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   int days = 3;
   final location = Location(id: 'l0', name: templates.first.name, template: templates.first.id, equipment: templates.first.equipment.toList());
   String units = 'kg';
+  String figure = 'male';
+  int age = 30;
+  int weightKg = 75;
   final scroll = ScrollController();
 
   void _go(int to) {
@@ -67,6 +70,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       (title: 'Kilograms or pounds?', blurb: 'Steps and labels follow your choice.', body: Column(children: [
         OptionCard(icon: LucideIcons.weight, title: 'Kilograms', blurb: 'Steps of 2.5 kg on a bar, 2 kg on dumbbells.', selected: units == 'kg', onTap: () => setState(() => units = 'kg')),
         OptionCard(icon: LucideIcons.scale, title: 'Pounds', blurb: 'Steps of 5 lb on a bar, 5 lb on dumbbells.', selected: units == 'lb', onTap: () => setState(() => units = 'lb')),
+      ])),
+      (title: 'For your ranks', blurb: 'Each lift gets a strength rating and a rank, against people of your build, age and weight. Change these any time in Settings.', body: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        ChoiceRow<String>(label: 'Build', value: figure, options: const {'male': 'Male', 'female': 'Female'}, onChanged: (v) => setState(() => figure = v),
+            hint: 'Also the body on the muscle map.'),
+        ValueSlider(label: 'Age', value: age, min: 14, max: 90, onChanged: (v) => setState(() => age = v)),
+        ValueSlider(label: 'Bodyweight', value: weightKg, min: 35, max: 180, onChanged: (v) => setState(() => weightKg = v),
+            display: (v) => units == 'lb' ? '${(v * 2.20462).round()} lb' : '$v kg'),
       ])),
     ];
     final p = pages[step];
@@ -133,7 +143,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final store = context.store;
     HapticFeedback.lightImpact();
     store.update((s) {
-      s.profile = Profile(experience: experience, daysPerWeek: days, createdAt: store.now);
+      s.profile = Profile(experience: experience, daysPerWeek: days, createdAt: store.now, birthYear: store.now.year - age, bodyweightKg: weightKg.toDouble());
+      s.settings.figure = figure;
       s.goal = goal;
       location.id = s.nextId('l');
       s.locations = [location];

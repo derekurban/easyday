@@ -2,6 +2,7 @@
 // hot-reload, hot-restart, read the log, and stop it without an interactive terminal.
 //
 //   node tool/dev.mjs [deviceId]          start (default device: emulator-5554), listens on 127.0.0.1:5181
+//   DEV_PORT=5182 node tool/dev.mjs ...   listen elsewhere (log in build/dev-5182.log); tool/phone.mjs runs the phone loop this way
 //   FLAVOR=prod node tool/dev.mjs         run the prod flavour instead of the default staging one
 //   UPDATE_FEED=http://127.0.0.1:8765/feed.json node tool/dev.mjs   read releases from a local feed (with adb reverse)
 //   curl localhost:5181/reload            hot reload (keeps state)
@@ -19,7 +20,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const device = process.argv[2] ?? "emulator-5554";
 const flavor = process.env.FLAVOR ?? "staging";
 const port = Number(process.env.DEV_PORT ?? 5181);
-const logFile = path.join(root, "build", "dev.log");
+const logFile = path.join(root, "build", port === 5181 ? "dev.log" : `dev-${port}.log`);
 try { writeFileSync(logFile, ""); } catch {}
 
 const lines = [];

@@ -52,6 +52,7 @@ class Settings {
   int warmup = 5;        // last chosen warm-up block, minutes (0 = none)
   bool restAuto = false; // when the planned rest runs out, start the next set as if I'm ready was tapped
   bool timeAsShare = false; // show lifting and rest as a share of the time, not minutes
+  bool buttonWait = true;   // the workout's main button waits a moment after each step, so a quick second tap cannot skip ahead
   ExerciseIndex index = ExerciseIndex.muscle;  // how the library is grouped for browsing
   String figure = 'male';    // the body map figure: male or female
 
@@ -59,7 +60,7 @@ class Settings {
         'stepUp': stepUp, 'stepDown': stepDown, 'decayWeeks': decayWeeks, 'daysAway': daysAway, 'painRestDays': painRestDays,
         'notify': notify, 'notifyHour': notifyHour, 'calendar': calendar, 'awakeStart': awakeStart, 'awakeEnd': awakeEnd,
         'busyAdjust': busyAdjust, 'busyShort': busyShort, 'busyEasy': busyEasy, 'autoTrack': autoTrack, 'calendarId': calendarId,
-        'location': location, 'order': _e(order), 'timeLimit': timeLimit, 'warmup': warmup, 'restAuto': restAuto, 'timeAsShare': timeAsShare,
+        'location': location, 'order': _e(order), 'timeLimit': timeLimit, 'warmup': warmup, 'restAuto': restAuto, 'timeAsShare': timeAsShare, 'buttonWait': buttonWait,
         'index': _e(index), 'figure': figure,
       };
   static Settings fromJson(Map<String, dynamic> j) => Settings()
@@ -84,6 +85,7 @@ class Settings {
     ..warmup = j['warmup'] ?? 5
     ..restAuto = j['restAuto'] ?? false
     ..timeAsShare = j['timeAsShare'] ?? false
+    ..buttonWait = j['buttonWait'] ?? true
     ..index = _p(ExerciseIndex.values, j['index'], ExerciseIndex.muscle)
     ..figure = j['figure'] == 'female' ? 'female' : 'male';
 }
@@ -279,13 +281,20 @@ List<int> _tri(Tri t) => [t.min, t.ideal, t.max];
 Tri _ptri(dynamic v) => Tri(v[0], v[1], v[2]);
 
 class Profile {
-  Profile({required this.experience, required this.daysPerWeek, required this.createdAt});
+  Profile({required this.experience, required this.daysPerWeek, required this.createdAt, this.birthYear, this.bodyweightKg});
   String experience;
   int daysPerWeek;
   DateTime createdAt;
-  Map<String, dynamic> toJson() => {'experience': experience, 'daysPerWeek': daysPerWeek, 'createdAt': _ms(createdAt)};
-  static Profile fromJson(Map<String, dynamic> j) =>
-      Profile(experience: j['experience'], daysPerWeek: j['daysPerWeek'], createdAt: _d(j['createdAt'])!);
+  int? birthYear;       // for ranking strength against people of the same age; unset reads as 30
+  double? bodyweightKg; // for ranking strength against people of the same weight; unset reads as the standards' own
+
+  /// The age this year, or null when not given.
+  int? ageAt(DateTime now) => birthYear == null ? null : now.year - birthYear!;
+
+  Map<String, dynamic> toJson() => {'experience': experience, 'daysPerWeek': daysPerWeek, 'createdAt': _ms(createdAt),
+        if (birthYear != null) 'birthYear': birthYear, if (bodyweightKg != null) 'bodyweightKg': bodyweightKg};
+  static Profile fromJson(Map<String, dynamic> j) => Profile(experience: j['experience'], daysPerWeek: j['daysPerWeek'], createdAt: _d(j['createdAt'])!,
+      birthYear: j['birthYear'], bodyweightKg: (j['bodyweightKg'] as num?)?.toDouble());
 }
 
 class Location {
@@ -422,6 +431,10 @@ class SessionExercise {
   List<Warmup> warmups;
   bool edited;
   bool lightened;     // one rung down after a week away
+  String? call;       // on Logged, the user changed what the app concluded: up, hold or down
+  String? feel;       // calibrating, the first three times: how the level felt, easy, right or hard
+  String? reps;       // calibrating: the rep band the user picked for it, an Expression name (heavy, middle, light)
+  int? next;          // on Logged, the level the user picked for next time, when it is more than one step from today's
 
   Exercise get exercise => exerciseById[exId]!;
   Iterable<SetLog> get attempted => sets.where((s) => s.attempted);
@@ -436,7 +449,7 @@ class SessionExercise {
         'atCeiling': atCeiling, 'bestTotal': bestTotal, 'difficulty': difficulty, 'loadKg': loadKg, 'relative': relative,
         'nextLevel': nextLevel, 'usualLoadKg': usualLoadKg, 'secPerSet': secPerSet, 'sets': sets.map((s) => s.toJson()).toList(),
         'warmups': warmups.map((w) => w.toJson()).toList(), 'edited': edited, 'lightened': lightened,
-        'why': why, 'fresh': fresh, 'asked': asked, if (plannedRung != null) 'plannedRung': plannedRung, if (plannedKg != null) 'plannedKg': plannedKg,
+        'why': why, 'fresh': fresh, 'asked': asked, if (plannedRung != null) 'plannedRung': plannedRung, if (plannedKg != null) 'plannedKg': plannedKg, if (call != null) 'call': call, if (feel != null) 'feel': feel, if (reps != null) 'reps': reps, if (next != null) 'next': next,
       };
   static SessionExercise fromJson(Map<String, dynamic> j) => SessionExercise(
         slot: j['slot'], exId: exerciseRenames[j['exId']] ?? j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
@@ -451,7 +464,11 @@ class SessionExercise {
         ..nextLevel = j['nextLevel'] ?? false
         ..usualLoadKg = (j['usualLoadKg'] as num?)?.toDouble()
         ..plannedRung = j['plannedRung']
-        ..plannedKg = (j['plannedKg'] as num?)?.toDouble();
+        ..plannedKg = (j['plannedKg'] as num?)?.toDouble()
+        ..call = j['call']
+        ..feel = j['feel']
+        ..reps = j['reps']
+        ..next = j['next'];
 }
 
 /// The muscle an exercise is filed under: its first primary muscle. For older sessions that carried no muscle.
@@ -522,6 +539,9 @@ class Session {
   StopReason? stopReason;
   int? stopAt;           // exercise index where the stop happened
   Feel? feel;
+  bool reviewing = false; // ended, waiting on Logged: the reads can still change; Done logs it
+  String? endRead;       // the user's word on how it ended (EndRead name); null takes the app's read
+  int? painAt;           // something hurt: the exercise that rests
   String note = '';      // the one line to the human
   bool swappedToMove = false;
   int? calendarEventId;  // the event auto-track wrote, so the calendar read can tell it from busy time
@@ -537,7 +557,7 @@ class Session {
         'stretchMinutes': stretchMinutes, 'spareMinutes': spareMinutes, 'relative': relative, 'pushes': pushes,
         'startedAt': _ms(startedAt), 'endedAt': _ms(endedAt), 'pausedAt': _ms(pausedAt), 'pausedSeconds': pausedSeconds, 'cardioDone': cardioDone, 'stopReason': stopReason == null ? null : _e(stopReason!), 'stopAt': stopAt,
         'feel': feel == null ? null : _e(feel!), 'note': note, 'swappedToMove': swappedToMove, 'order': _e(order), 'skipped': skipped,
-        'calendarEventId': calendarEventId, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
+        'calendarEventId': calendarEventId, if (reviewing) 'reviewing': true, if (endRead != null) 'endRead': endRead, if (painAt != null) 'painAt': painAt, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
       };
   static Session fromJson(Map<String, dynamic> j) => Session(
         id: j['id'], type: j['type'], kind: j['kind'], name: j['name'], itemIndex: j['itemIndex'] ?? 0, locationId: j['locationId'],
@@ -564,7 +584,10 @@ class Session {
     ..feel = j['feel'] == null ? null : _p(Feel.values, j['feel'], Feel.right)
     ..note = j['note'] ?? ''
     ..swappedToMove = j['swappedToMove'] ?? false
-    ..calendarEventId = j['calendarEventId'];
+    ..calendarEventId = j['calendarEventId']
+    ..reviewing = j['reviewing'] ?? false
+    ..endRead = j['endRead']
+    ..painAt = j['painAt'];
 }
 
 /// What carries over between workouts that is not a level: pain pauses, the two defaults, and the muscles the user asked
