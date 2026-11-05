@@ -1,6 +1,6 @@
-// Progress (UI.md): workouts per month and days active as facts, the strain muscle map with a strip per muscle, each
-// muscle's rhythm, level growth per exercise with a page that shows it as weights and versions over time, and the
-// recent workouts. Nothing that resets to zero.
+// Progress (UI.md): the user's rank and its line over time, their best lifts, and the ones climbing fastest. Behind one
+// link, Muscles and history: workouts per month and days active as facts, the strain muscle map with a strip per
+// muscle, each muscle's rhythm, level growth per exercise, and the recent workouts. Nothing that resets to zero.
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -11,18 +11,114 @@ import '../logic/after.dart';
 import '../logic/levels.dart';
 import '../logic/muscle_map.dart';
 import '../logic/person.dart';
+import '../logic/rating.dart';
 import 'app.dart';
 import 'muscle_figure.dart';
 import 'catalog.dart';
 import 'exercise_card.dart';
+import 'fresh.dart';
 import 'motion.dart';
 import 'muscle_tags.dart';
+import 'rank.dart';
 import 'strain_timeline.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
 class ProgressScreen extends StatelessWidget {
   const ProgressScreen({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final store = context.store;
+    final s = store.state;
+    final now = store.now;
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final o = overallRating(s, now);
+    final line = overallLine(s, now);
+    final lifts = standings(s, now);
+    final best = lifts.take(3).toList();
+    final climbing = [for (final l in lifts) if ((l.climb ?? 0) >= 1) l]..sort((a, b) => b.climb!.compareTo(a.climb!));
+    final toGo = overallRating(s, now)?.toGo ?? calibratedToRank;
+    Widget liftRow(LiftStanding l, {bool climb = false}) {
+      final ex = exerciseById[l.exId]!;
+      return Row1(
+        icon: exerciseIcon(ex),
+        title: Text(ex.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+        subtitle: climb ? null : 'beats ${Rater.percentile(l.rating).round()} %${l.stage == LiftStage.calibrated ? ' · provisional' : ''}',
+        trailing: climb
+            ? Text('+${l.climb!.round()}', style: t.titleSmall?.copyWith(color: du.accentText, fontFeatures: const [FontFeature.tabularFigures()]))
+            : Row(mainAxisSize: MainAxisSize.min, children: [
+                RankBadge(rankOf(l.rating).index, small: true, provisional: l.stage == LiftStage.calibrated),
+                const SizedBox(width: 6),
+                Text('${l.rating.round()}', style: t.bodyMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+              ]),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ExerciseCardScreen(ex.id))),
+      );
+    }
+    List<Widget> rows(List<LiftStanding> list, {bool climb = false}) => [
+          for (var k = 0; k < list.length; k++) ...[if (k > 0) const Divider(height: 1), liftRow(list[k], climb: climb)],
+        ];
+    return Scaffold(
+      appBar: AppBar(title: const Text('Progress')),
+      body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+        // the rank and the line it has drawn, from the first rank on
+        if (o == null || o.rating == null)
+          Panel(child: Row(children: [
+            Icon(freshIcon, size: 18, color: freshInk(context)),
+            const SizedBox(width: 12),
+            Expanded(child: Text('Unranked. $toGo more ${toGo == 1 ? 'exercise' : 'exercises'} to calibrate for your first rank. A new exercise calibrates in its first workout.',
+                style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
+          ]))
+        else ...[
+          const SizedBox(height: 4),
+          Row(children: [
+            RankBadge(rankOf(o.rating!).index, provisional: o.stage == RankStage.provisional),
+            const SizedBox(width: 10),
+            Flexible(child: Text('Strength ${o.rating!.round()}', maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: t.headlineSmall?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]))),
+          ]),
+          const SizedBox(height: 6),
+          Text([
+            if (line.length > 1) '${_signed(line.last.rating - line.first.rating)} since ${_date(line.first.at)}',
+            if (o.stage == RankStage.provisional) 'provisional until ${o.toGo} more ${o.toGo == 1 ? 'lift settles' : 'lifts settle'}',
+          ].join(' · '), style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
+          const SizedBox(height: 12),
+          Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (line.length > 1) RatingChart(ratings: [for (final p in line) p.rating], performances: const [], height: 140)
+            else Text('Your line starts with your next workout.', style: t.bodySmall),
+            const SizedBox(height: 12),
+            RankProgress(rating: o.rating!),
+          ])),
+        ],
+        const SizedBox(height: 24),
+        const SectionHeader('Your best lifts', icon: LucideIcons.trophy),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          if (best.isEmpty) const Row1(icon: LucideIcons.hourglass, title: Text('Nothing rated yet'), subtitle: 'A lift is rated in the workout that finds its weight.'),
+          ...rows(best),
+        ])),
+        const SizedBox(height: 24),
+        const SectionHeader('Climbing fastest, last 30 days', icon: LucideIcons.trendingUp),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
+          if (climbing.isEmpty) const Row1(icon: LucideIcons.hourglass, title: Text('Nothing climbing yet'), subtitle: 'A lift climbs from its second workout at its weight.'),
+          ...rows(climbing.take(4).toList(), climb: true),
+        ])),
+        const SizedBox(height: 24),
+        Panel(padding: EdgeInsets.zero, clip: true, child: Row1(
+          icon: LucideIcons.personStanding,
+          title: const Text('Muscles and history'),
+          subtitle: 'Strain, rhythm, levels and recent workouts',
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MusclesHistoryScreen())),
+        )),
+      ]),
+    );
+  }
+
+  static String _signed(double v) => v.round() >= 0 ? '+${v.round()}' : '${v.round()}';
+}
+
+/// Muscles and history, behind Progress: what the page held before the ranks.
+class MusclesHistoryScreen extends StatelessWidget {
+  const MusclesHistoryScreen({super.key});
   @override
   Widget build(BuildContext context) {
     final store = context.store;
@@ -45,7 +141,7 @@ class ProgressScreen extends StatelessWidget {
     final g = s.goal!;
     final active = daysActiveThisMonth(s, now);
     return Scaffold(
-      appBar: AppBar(title: const Text('Progress')),
+      appBar: AppBar(title: const Text('Muscles and history')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
         const SectionHeader('Workouts per month', icon: LucideIcons.calendarDays),
         Panel(child: SizedBox(
@@ -175,8 +271,9 @@ class ProgressScreen extends StatelessWidget {
     return '${line.replaceRange(0, 1, line[0].toUpperCase())}.';
   }
 
-  String _date(DateTime? d) => d == null ? '' : '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
 }
+
+String _date(DateTime? d) => d == null ? '' : '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
 
 /// Strain points over days, one cell a day, oldest first, each in its shade as the key draws it. [selected] outlines one.
 class StrainStrip extends StatelessWidget {

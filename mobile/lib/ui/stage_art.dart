@@ -52,8 +52,10 @@ const stageCaptionGap = 10.0;
 
 /// The stage's picture, and under it its word on the left and its tagline on the right.
 class StageArt extends StatefulWidget {
-  const StageArt({super.key, required this.stage});
+  const StageArt({super.key, required this.stage, this.tagline, this.taglineColor});
   final Stage stage;
+  final Color? taglineColor;
+  final String? tagline; // in place of the stage's own: a calibration set's "Until form breaks"
   @override
   State<StageArt> createState() => _StageArtState();
 }
@@ -98,7 +100,8 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    final (word, line) = _words[widget.stage]!;
+    final (word, own) = _words[widget.stage]!;
+    final line = widget.tagline ?? own;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(14)),
@@ -117,7 +120,7 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(word, style: t.labelLarge?.copyWith(color: du.inkSecondary)),
           const SizedBox(width: 16),
-          Expanded(child: Text(line, textAlign: TextAlign.end, style: t.bodySmall?.copyWith(color: du.inkTertiary))),
+          Expanded(child: Text(line, textAlign: TextAlign.end, style: t.bodySmall?.copyWith(color: widget.taglineColor ?? du.inkTertiary))),
         ]),
       ]),
     );

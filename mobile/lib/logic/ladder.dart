@@ -4,6 +4,8 @@ import 'dart:math';
 import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
+import 'rating.dart';
+import 'score.dart' show epley, versionShare;
 
 const lbPerKg = 2.20462;
 
@@ -204,8 +206,31 @@ int difficultyInPlay(Exercise ex, ExerciseState? st) {
   return (base + (st?.costUp ?? 0) - (st?.costDown ?? 0)).clamp(1, 3);
 }
 
-/// Starting state for an exercise: from experience, or from history with another loaded exercise for the same primary
-/// muscle, the most practised one.
+/// The strength rating a new exercise starts at, by experience (new, some, experienced), before any lift for its muscles
+/// has found its level. Low on purpose: reps over the top jump to the right level at once, a weight too heavy does not.
+const experienceStart = [750.0, 950.0, 1150.0];
+
+/// How far under the user's rating for the same muscles a new exercise starts: about two reps lighter.
+const knownStartMargin = 50.0;
+
+/// The rating a new exercise with a standard starts at: the user's settled lifts for the same muscles, averaged, a
+/// little under; else the experience's start. Calibration takes it from there.
+double startRating(AppState s, Exercise ex, DateTime now) {
+  final group = ex.primary.isEmpty ? null : muscleGroup(ex.primary.first);
+  final known = <double>[];
+  for (final other in exerciseById.values) {
+    if (other.id == ex.id || !other.isStrength || !other.tracked || other.primary.isEmpty || muscleGroup(other.primary.first) != group) continue;
+    if ((s.ex[other.id]?.appearances ?? 0) == 0) continue;
+    final h = ratingHistory(s, other, now);
+    if (h.isNotEmpty && h.last.stage != LiftStage.calibrating) known.add(h.last.rating);
+  }
+  if (known.isEmpty) return experienceStart[experienceIndex(s.profile!.experience)];
+  return known.reduce((a, b) => a + b) / known.length - knownStartMargin;
+}
+
+/// Starting state for an exercise. With a standard: the level that rates [startRating] for this user (their build,
+/// weight and age), in the middle of the range. Without one: the library's start for the experience, scaled by another
+/// loaded exercise for the same primary muscle, the most practised one.
 ExerciseState ensureState(AppState s, Exercise ex) {
   final existing = s.ex[ex.id];
   if (existing != null) {
@@ -214,10 +239,20 @@ ExerciseState ensureState(AppState s, Exercise ex) {
   }
   final exp = experienceIndex(s.profile!.experience);
   final seed = seedSeconds(s, ex, todayRange(s, ex));
+  final now = DateTime.now();
+  final rater = ex.isStrength && ex.tracked ? raterFor(s, ex, now) : null;
+  // the strength that rates where this exercise starts, in the middle of the range
+  final strength = rater != null && rater.grounded ? rater.strength(startRating(s, ex, now)) / epley((middleReps.lo + middleReps.hi) ~/ 2) : null;
   late final ExerciseState st;
   if (ex.loaded) {
     // the library's starting weights are middle-band working weights; the level keeps them in the home reps
     final home = homeRange(s, ex), step = stepKg(s, ex);
+    if (strength != null) {
+      final base = carryLoad(rater!.kgFor(strength), middleReps, home);
+      st = ExerciseState(rung: 0, startRung: 0, baseKg: max(ex.platesAdded ? 0 : step, (base / step).floor() * step), baseReps: home, baseStepKg: step, secPerSet: seed);
+      s.ex[ex.id] = st;
+      return st;
+    }
     var base = carryLoad(startLoad(ex, exp), middleReps, home);
     ExerciseState? knownSt;
     Exercise? known;
@@ -234,7 +269,12 @@ ExerciseState ensureState(AppState s, Exercise ex) {
     }
     st = ExerciseState(rung: 0, startRung: 0, baseKg: max(ex.platesAdded ? 0 : step, roundStep(base, step)), baseReps: home, baseStepKg: step, secPerSet: seed);
   } else {
-    final start = ex.ladder!.start[exp].clamp(0, ex.ladder!.variants.length - 1);
+    var start = ex.ladder!.start[exp].clamp(0, ex.ladder!.variants.length - 1);
+    if (strength != null) {
+      // the hardest version that strength still does in the middle of the range
+      start = 0;
+      for (var k = 1; k < ex.ladder!.variants.length; k++) { if (versionShare(ex, k) <= strength + 1e-9) start = k; }
+    }
     st = ExerciseState(rung: start, startRung: start, secPerSet: seed);
   }
   s.ex[ex.id] = st;

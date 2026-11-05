@@ -81,7 +81,11 @@ void main() {
 
     await shoot(tester, store, () => const Shell(), '20-today', height: 1500);
     await shoot(tester, store, () => const Shell(), '20-today-lift', height: 2000, then: () async { await tester.tap(find.text('Lift instead')); });
-    await shoot(tester, store, () => const Shell(), '21-progress', height: 2200, then: () async { await tester.tap(find.text('Progress')); });
+    final newcomer = Store(f.fresh(template: 'gym'), null);
+    await shoot(tester, newcomer, () => const Shell(), '20c-today-new', height: 1500);
+    await shoot(tester, newcomer, () => const Shell(), '21c-progress-new', height: 915, then: () async { await tester.tap(find.text('Progress')); });
+    await shoot(tester, store, () => const Shell(), '21-progress', height: 1300, then: () async { await tester.tap(find.text('Progress')); });
+    await shoot(tester, store, () => const MusclesHistoryScreen(), '21b-muscles-history', height: 2200);
     await shoot(tester, store, () => const Shell(), '22-exercises', height: 1800, then: () async { await tester.tap(find.text('Exercises')); });
     await shoot(tester, store, () => const Shell(), '23-settings', height: 3200, then: () async { await tester.tap(find.text('Settings')); });
     await shoot(tester, store, () => ExerciseCardScreen(exId), '24-exercise-card', height: 1700);
