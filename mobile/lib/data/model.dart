@@ -337,7 +337,7 @@ class ExerciseState {
   int topRun = 0;         // sessions in a row with every attempted set at the top
   int shortRun = 0;       // sessions in a row with a set below the bottom
   int appearances = 0;
-  bool calibrating = true; // first appearance: an easy feel with every set at the top steps up at once
+  bool calibrating = true; // until a workout finds the level: calibration sets (logic/calibrate.dart), else reps over the top jump
   int decayedBy = 0;      // rungs lost to decay still to be re-climbed
   int decayPeriodsApplied = 0;
   DateTime? lastDoneAt;
@@ -385,17 +385,19 @@ class ExerciseState {
 /// One logged set. reps == null means never attempted. [start] is when the set began (I'm ready), [at] when the reps
 /// went in; lifting is the time between them, rest everything else.
 class SetLog {
-  SetLog({this.reps, this.at, this.start, this.rung, this.kg});
+  SetLog({this.reps, this.at, this.start, this.rung, this.kg, this.test = false});
   int? reps;
   DateTime? at;
   DateTime? start;
   int? rung;     // the level the set was done at, written with the reps; null in older workouts: the exercise's rung
   double? kg;    // loaded exercises: the weight the set was done at, written with the reps
+  bool test;     // a calibration set: as many good reps as the user could, up to the cap (logic/calibrate.dart)
   bool get attempted => reps != null;
   /// Under way: started, reps not in yet.
   bool get lifting => start != null && reps == null;
-  Map<String, dynamic> toJson() => {'reps': reps, 'at': _ms(at), 'start': _ms(start), if (rung != null) 'rung': rung, if (kg != null) 'kg': kg};
-  static SetLog fromJson(Map<String, dynamic> j) => SetLog(reps: j['reps'], at: _d(j['at']), start: _d(j['start']), rung: j['rung'], kg: (j['kg'] as num?)?.toDouble());
+  Map<String, dynamic> toJson() => {'reps': reps, 'at': _ms(at), 'start': _ms(start), if (rung != null) 'rung': rung, if (kg != null) 'kg': kg, if (test) 'test': true};
+  static SetLog fromJson(Map<String, dynamic> j) =>
+      SetLog(reps: j['reps'], at: _d(j['at']), start: _d(j['start']), rung: j['rung'], kg: (j['kg'] as num?)?.toDouble(), test: j['test'] ?? false);
 }
 
 class Warmup {
@@ -411,7 +413,7 @@ class SessionExercise {
     required this.slot, required this.exId, required this.muscle, required this.intent, required this.workingSets, required this.rung, required this.rungLabel,
     required this.target, required this.lo, required this.hi, required this.atCeiling, required this.bestTotal, required this.difficulty,
     this.loadKg, required this.secPerSet, required this.sets, this.warmups = const [], this.edited = false, this.lightened = false,
-    this.why = '', this.fresh = false, this.asked = false,
+    this.why = '', this.fresh = false, this.asked = false, this.calibrating = false,
   });
   String slot;
   String exId;
@@ -419,6 +421,7 @@ class SessionExercise {
   String why;         // one line on why it was chosen, from the ledgers and the user's word
   bool fresh;         // an unrated exercise took its turn for something new here
   bool asked;         // the user asked for this muscle by hand today
+  bool calibrating;   // finding its weight today: the first sets are calibration sets (logic/calibrate.dart)
   String intent;      // light | working | extra: what today asks of this exercise. Never a judgement.
   int workingSets;    // the working set count at the time, so judging knows what the working level was
   int rung;           // the rung used today (after easy or comeback adjustments); changed mid-workout, the one now
@@ -461,11 +464,11 @@ class SessionExercise {
         'atCeiling': atCeiling, 'bestTotal': bestTotal, 'difficulty': difficulty, 'loadKg': loadKg, 'relative': relative,
         'nextLevel': nextLevel, 'usualLoadKg': usualLoadKg, 'secPerSet': secPerSet, 'sets': sets.map((s) => s.toJson()).toList(),
         'warmups': warmups.map((w) => w.toJson()).toList(), 'edited': edited, 'lightened': lightened,
-        'why': why, 'fresh': fresh, 'asked': asked, if (plannedRung != null) 'plannedRung': plannedRung, if (plannedKg != null) 'plannedKg': plannedKg, if (call != null) 'call': call, if (feel != null) 'feel': feel, if (reps != null) 'reps': reps, if (next != null) 'next': next,
+        'why': why, 'fresh': fresh, 'asked': asked, if (calibrating) 'calibrating': true, if (plannedRung != null) 'plannedRung': plannedRung, if (plannedKg != null) 'plannedKg': plannedKg, if (call != null) 'call': call, if (feel != null) 'feel': feel, if (reps != null) 'reps': reps, if (next != null) 'next': next,
       };
   static SessionExercise fromJson(Map<String, dynamic> j) => SessionExercise(
         slot: j['slot'], exId: exerciseRenames[j['exId']] ?? j['exId'], muscle: j['muscle'] ?? _groupOf(j['exId']), intent: j['intent'] ?? 'working', workingSets: j['workingSets'] ?? (j['sets'] as List).length,
-        why: j['why'] ?? '', fresh: j['fresh'] ?? false, asked: j['asked'] ?? false,
+        why: j['why'] ?? '', fresh: j['fresh'] ?? false, asked: j['asked'] ?? false, calibrating: j['calibrating'] ?? false,
         rung: j['rung'], rungLabel: j['rungLabel'], target: j['target'],
         lo: j['lo'], hi: j['hi'], atCeiling: j['atCeiling'] ?? false, bestTotal: j['bestTotal'] ?? 0,
         difficulty: j['difficulty'] ?? foldDifficulty(j['cost'] ?? 3),

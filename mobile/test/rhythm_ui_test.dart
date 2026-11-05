@@ -23,11 +23,15 @@ void main() {
     expect(find.text('Start workout'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    await tester.ensureVisible(find.byTooltip('Shuffle'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Shuffle'));
     await tester.pumpAndSettle();
     expect(find.text('Shuffle exercises'), findsOneWidget);
     expect(find.text('Shuffle muscles'), findsOneWidget);
     await tester.tap(find.text('Shuffle exercises'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byTooltip('Shuffle'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Shuffle'));
     await tester.pumpAndSettle();
@@ -38,6 +42,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
+    await tester.ensureVisible(find.byTooltip('Muscles'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Muscles'));
     await tester.pumpAndSettle();
     expect(find.text('Manual'), findsOneWidget);

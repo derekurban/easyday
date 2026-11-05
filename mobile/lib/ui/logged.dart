@@ -8,16 +8,20 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
+import '../logic/calibrate.dart';
 import '../logic/ladder.dart';
 import '../logic/rating.dart';
 import '../logic/score.dart';
 import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
+import 'fresh.dart';
+import 'palette.dart';
 import 'edit_drawer.dart';
 import 'motion.dart';
 import 'rank.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 class LoggedView extends StatefulWidget {
   const LoggedView({super.key, required this.session, required this.onDone, required this.onReopen});
@@ -32,7 +36,8 @@ class _LoggedViewState extends State<LoggedView> {
   final _open = <String>{};
   final _painKey = GlobalKey(); // the pain panel, scrolled into view as it opens
   bool _details = false;
-  ({List<int> ups, List<int> rows, bool early, bool celebrate})? _shape; // the finish's layout, fixed when it opens // the table and its drawer, behind Check or fix details
+  ({List<int> ups, List<int> rows, bool early, bool celebrate})? _shape; // the finish's layout, fixed when it opens
+  int? _headline; // the day's biggest moment: the first level earned, else the first push made good // the table and its drawer, behind Check or fix details
   void _toggle(String k) {
     HapticFeedback.selectionClick();
     setState(() => _open.contains(k) ? _open.remove(k) : _open.add(k));
@@ -55,6 +60,7 @@ class _LoggedViewState extends State<LoggedView> {
     final w = readWorkout(s, x, store.now);
     final dotted = TextStyle(decoration: TextDecoration.underline, decorationStyle: TextDecorationStyle.dotted, decorationColor: du.inkTertiary, decorationThickness: 2);
     final moments = momentsOf(s, x, w);
+    _headline = moments.where((v) => v.moment == Moment.levelUp).firstOrNull?.index ?? moments.where((v) => v.moment == Moment.pushed).firstOrNull?.index;
     final tone = toneOf(moments, w);
     // the page's shape is fixed when it opens: what levelled up, the rows, whether it ended early, whether it
     // celebrates. Changes made here then animate inside their own card or row, and nothing else moves or replays.
@@ -133,25 +139,39 @@ class _LoggedViewState extends State<LoggedView> {
   }
 
   /// The overall strength rating as one centred line: its rank, the number, and the change today made, when it made one.
-  /// A new overall rank pops in.
-  Widget _overall(BuildContext context, ({double rating, double? change}) o) {
+  /// A new overall rank, or the first one, pops in. Unranked until enough lifts have found their level: how many to go.
+  Widget _overall(BuildContext context, OverallPoint o) {
     final t = Theme.of(context).textTheme;
-    final before = o.change == null ? null : o.rating - o.change!;
+    final du = context.du;
+    final rating = o.rating;
+    if (o.stage == RankStage.unranked || rating == null) {
+      return Text('Unranked · ${o.toGo} more ${o.toGo == 1 ? 'exercise' : 'exercises'} to calibrate for your first rank',
+          style: t.bodyMedium?.copyWith(color: du.inkSecondary), textAlign: TextAlign.center);
+    }
+    final before = o.change == null ? null : rating - o.change!;
+    final pop = o.firstRank || (before != null && rankOf(rating).index > rankOf(before).index);
     return Wrap(alignment: WrapAlignment.center, crossAxisAlignment: WrapCrossAlignment.center, runSpacing: 4, children: [
-      before != null && rankOf(o.rating).index > rankOf(before).index
+      pop
           ? TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.6, end: 1),
               duration: m(context, const Duration(milliseconds: 800)),
               curve: Curves.elasticOut,
               builder: (context, v, child) => Transform.scale(scale: v, child: child),
-              child: RankBadge(rankOf(o.rating).index),
+              child: RankBadge(rankOf(rating).index, provisional: o.stage == RankStage.provisional),
             )
-          : RankBadge(rankOf(o.rating).index),
+          : RankBadge(rankOf(rating).index, provisional: o.stage == RankStage.provisional),
       const SizedBox(width: 10),
-      Text('Strength ${o.rating.round()}', style: t.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+      Text('Strength ${rating.round()}', style: t.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
       if (before != null) ...[
         const SizedBox(width: 8),
-        RatingDelta(rating: o.rating, before: before, withRank: false),
+        RatingDelta(rating: rating, before: before, withRank: false),
+      ],
+      if (o.firstRank) ...[
+        const SizedBox(width: 8),
+        Text('your first rank', style: t.bodyMedium?.copyWith(color: du.accentText)),
+      ] else if (o.stage == RankStage.provisional) ...[
+        const SizedBox(width: 8),
+        Text('provisional', style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
       ],
     ]);
   }
@@ -161,12 +181,12 @@ class _LoggedViewState extends State<LoggedView> {
         _ => switch (n % 10) { 1 => '${n}st', 2 => '${n}nd', 3 => '${n}rd', _ => '${n}th' },
       };
 
-  /// The colours for where an exercise goes next time: harder in the level-up magenta, easier in a calm sky blue
-  /// (the app taking it easy, not a warning), the same in quiet ink.
-  static const _up = Color(0xFFC844E8);
-  static const _easy = Color(0xFF2D9CDB);
-
-  Color _callColor(BuildContext context, Call c) => switch (c) { Call.up => _up, Call.down => _easy, Call.hold => context.du.inkSecondary };
+  /// The colours for where an exercise goes next time: harder in the earned ink, easier in the calm one (the app taking
+  /// it easy, not a warning), the same in quiet ink. From the palette in use (palette.dart).
+  Color _callColor(BuildContext context, Call c) {
+    final p = StatePalette.of(context);
+    return switch (c) { Call.up => p.earnedInk.of(context), Call.down => p.gentleInk.of(context), Call.hold => context.du.inkSecondary };
+  }
 
   /// The same, picked among the three: the accent, so it reads as chosen rather than switched off.
   Color _segColor(BuildContext context, Call c) => c == Call.hold ? context.du.accentText : _callColor(context, c);
@@ -175,17 +195,20 @@ class _LoggedViewState extends State<LoggedView> {
   /// user changes where it lands.
   (IconData, Color) _markOf(BuildContext context, ExerciseMoment v, ExerciseRead r) {
     final du = context.du;
-    if (v.moment == Moment.hurt) return (LucideIcons.bandage, du.warning);
-    if (r.judged && r.call == Call.down) return (LucideIcons.arrowDown, _easy);
-    if (r.judged && r.call == Call.up && v.moment != Moment.pushed) return (LucideIcons.arrowUp, _up);
+    final p = StatePalette.of(context);
+    final up = p.earnedInk.of(context), easy = p.gentleInk.of(context);
+    if (v.moment == Moment.hurt) return (LucideIcons.bandage, p.hurtInk.of(context));
+    if (r.judged && r.call == Call.down) return (LucideIcons.arrowDown, easy);
+    if (r.judged && r.call == Call.up && v.moment != Moment.pushed) return (LucideIcons.arrowUp, up);
     return switch (v.moment) {
-      Moment.pushed => (LucideIcons.flame, _up),
-      Moment.levelUp => (LucideIcons.arrowUp, _up),
+      Moment.pushed => (LucideIcons.flame, p.pushInk.of(context)),
+      Moment.levelUp => (LucideIcons.arrowUp, up),
       Moment.better => (LucideIcons.trendingUp, du.accentText),
-      Moment.reached => (LucideIcons.mountain, du.warning),
-      Moment.short => (LucideIcons.sprout, du.warning),
-      Moment.eased => (LucideIcons.feather, _easy),
-      Moment.first => (LucideIcons.compass, du.accentText),
+      // reaching for more is effort, said in the push's colour; short of the range is the calm one
+      Moment.reached => (LucideIcons.mountain, p.pushInk.of(context)),
+      Moment.short => (LucideIcons.sprout, easy),
+      Moment.eased => (LucideIcons.feather, easy),
+      Moment.first => (LucideIcons.compass, freshInk(context)),
       _ => (LucideIcons.equal, du.inkSecondary),
     };
   }
@@ -206,9 +229,19 @@ class _LoggedViewState extends State<LoggedView> {
     final st = ensureState(s, ex);
     final judged = r.judged && x.painAt != v.index;
     final first = judged && st.appearances == 0;
-    // a level earned and the user's own push made good are the two the sweep fills
-    final magic = v.moment == Moment.levelUp || v.moment == Moment.pushed;
-    final kind = magic ? _Kind.magic : first ? _Kind.first : _Kind.plain;
+    final tested = e.sets.any((l) => l.test);
+    // a level earned and the user's own push made good: the wins. How much colour they take is the finish's restraint
+    // (palette.dart): the sweep fills every win, or only the day's headline, or none; the others wear an edge, or nothing
+    final style = PaletteScope.finishOf(context);
+    final stepped = judged && r.call == Call.up && v.moment != Moment.levelUp && v.moment != Moment.pushed && !first;
+    final win = v.moment == Moment.levelUp || v.moment == Moment.pushed || stepped;
+    final magic = win && (style == FinishColour.sweep || (style == FinishColour.oneMoment && v.index == _headline));
+    final edged = win && !magic && style != FinishColour.marks;
+    final kind = magic ? _Kind.magic : edged ? _Kind.edge : first && style != FinishColour.marks ? _Kind.first : _Kind.plain;
+    // a win's own ink, for its label when its tile is not filled
+    final winInk = v.moment == Moment.pushed ? StatePalette.of(context).pushInk.of(context) : StatePalette.of(context).earnedInk.of(context);
+    // your own push in its sweep, a level earned in the earned one
+    final sweep = v.moment == Moment.pushed ? StatePalette.of(context).push : StatePalette.of(context).earned;
     final open = _open.contains('v${v.index}');
     final dur = m(context, const Duration(milliseconds: 340));
     const white = Color(0xFFFFFFFF);
@@ -244,16 +277,42 @@ class _LoggedViewState extends State<LoggedView> {
     // the rating through every logged workout and this one; nothing when this one does not rate (it hurt)
     final history = x.painAt == v.index ? const <RatedWorkout>[] : ratingHistory(s, ex, store.now, plus: x);
     final rated = history.isNotEmpty && history.last.at == (x.startedAt ?? store.now) ? history : const <RatedWorkout>[];
-    final label = v.moment == Moment.pushed ? 'YOUR PUSH' : magic ? 'LEVELLED UP' : first ? 'FIRST TIME' : null;
-    final labelStyle = t.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w600, color: white.withValues(alpha: 0.88));
-    return _frame(context, kind, onTap: judged && !first ? () => _toggle('v${v.index}') : null, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    final label = v.moment == Moment.pushed ? 'YOUR PUSH' : stepped ? 'STEPPING UP' : win ? 'LEVELLED UP' : first ? 'FIRST TIME' : null;
+    final labelStyle = t.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w600, color: magic ? white.withValues(alpha: 0.88) : win ? winInk : white.withValues(alpha: 0.88));
+    final p = StatePalette.of(context);
+    // next time as a weight at the right: the level it lands on, an arrow and the step's colour when it moves. A tap opens
+    // easier, the same and harder as pills; a first time without calibration sets keeps its question instead
+    final chip = judged && !(first && !tested);
+    final moving = r.call != Call.hold;
+    final chipInk = r.call == Call.up ? winInk : r.call == Call.down ? p.gentleInk.of(context) : first ? freshInk(context) : du.inkSecondary;
+    // at most a third of the tile, so a long version name never pushes the exercise's own name out
+    final weightChip = !chip ? null : ConstrainedBox(constraints: const BoxConstraints(maxWidth: 132), child: Pressable(borderRadius: 999, onTap: () => _toggle('v${v.index}'), child: AnimatedContainer(
+      duration: dur,
+      padding: const EdgeInsets.fromLTRB(8, 5, 10, 5),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: moving ? (magic ? white.withValues(alpha: 0.2) : chipInk.withValues(alpha: 0.12)) : Colors.transparent,
+        border: Border.all(color: moving ? Colors.transparent : (magic ? white.withValues(alpha: 0.5) : du.line), width: 0.8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (moving) Icon(r.call == Call.up ? LucideIcons.arrowUp : LucideIcons.arrowDown, size: 14, color: magic ? white : chipInk),
+        if (moving) const SizedBox(width: 4),
+        // the new weight rolls up into place
+        Flexible(child: AnimatedSwitcher(
+          duration: dur,
+          transitionBuilder: (c, a) => ClipRect(child: SlideTransition(position: Tween(begin: Offset(0, r.call == Call.down ? -0.8 : 0.8), end: Offset.zero).animate(a), child: FadeTransition(opacity: a, child: c))),
+          child: Text(r.outcome, key: ValueKey(r.outcome), maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleSmall?.copyWith(color: magic ? white : chipInk, fontWeight: FontWeight.w600)),
+        )),
+      ]),
+    )));
+    return _StepUp(up: judged && r.call == Call.up && !first, down: judged && r.call == Call.down, colors: sweep, calm: p.gentleInk.of(context), child: _frame(context, kind, sweep: sweep, onTap: chip ? () => _toggle('v${v.index}') : null, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         AnimatedSwitcher(duration: dur, transitionBuilder: (c, a) => ScaleTransition(scale: a, child: FadeTransition(opacity: a, child: c)), child: mark),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           AnimatedSize(duration: dur, curve: Curves.easeOutCubic, alignment: Alignment.topLeft, child: label == null
               ? const SizedBox(width: double.infinity)
-              : Padding(padding: const EdgeInsets.only(bottom: 2), child: magic
+              : Padding(padding: const EdgeInsets.only(bottom: 2), child: win
                   ? Text(label, style: labelStyle)
                   : _FreshText(child: Row(mainAxisSize: MainAxisSize.min, children: [
                       const Icon(LucideIcons.sparkle, size: 11),
@@ -266,24 +325,23 @@ class _LoggedViewState extends State<LoggedView> {
             layoutBuilder: (c, p) => Stack(alignment: Alignment.topLeft, children: [...p, ?c]),
             child: Text(v.text, key: ValueKey(v.text), style: t.bodyMedium?.copyWith(color: magic ? white.withValues(alpha: 0.9) : du.inkSecondary)),
           ),
-          // where next time lands, whenever it moves: a level earned says it in its line, a first time on its wheel
-          if (judged && !first && r.call != Call.hold && v.moment != Moment.levelUp)
-            Text('Next time ${r.outcome}', style: t.bodyMedium?.copyWith(color: magic ? white : _callColor(context, r.call), fontWeight: FontWeight.w600)),
         ])),
-        if (judged) Padding(padding: EdgeInsets.only(left: 8, top: label == null ? 2 : 18), child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Row(mainAxisSize: MainAxisSize.min, children: [
-            AnimatedSwitcher(duration: dur, child: Text(callWord[r.call]!, key: ValueKey(r.call),
-                style: t.labelLarge?.copyWith(color: magic ? white : _callColor(context, r.call), fontWeight: r.call == Call.hold && !magic ? null : FontWeight.w600))),
-            if (!first) Padding(padding: const EdgeInsets.only(left: 2),
-                child: AnimatedRotation(turns: open ? 0.5 : 0, duration: dur, child: Icon(LucideIcons.chevronDown, size: 16, color: magic ? white.withValues(alpha: 0.85) : du.inkTertiary))),
-          ]),
+        // the word for next time only when next time moves, or the user chose it: Same on every row was noise. A first
+        // time has none: its question (or its calibration) decides. Any other tile still opens the three words on a tap
+        if (judged) Padding(padding: const EdgeInsets.only(left: 8), child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          ?weightChip,
           // how today moved the strength rating, only when it did
-          if (rated.length > 1) Padding(padding: const EdgeInsets.only(top: 4),
+          // a level still being found, or found today, moves nothing worth a delta
+          if (rated.length > 1 && rated[rated.length - 2].stage != LiftStage.calibrating) Padding(padding: const EdgeInsets.only(top: 4),
               child: RatingDelta(rating: rated.last.rating, before: rated[rated.length - 2].rating, onMagic: magic)),
         ])),
       ]),
+      // calibration sets found the weight: the chip says it. Still looking: said once, the chip has where it starts
+      if (first && tested && !calibratedToday(e)) Padding(padding: const EdgeInsets.only(top: 10), child: Text('Still finding your weight',
+          style: t.bodyMedium?.copyWith(color: freshInk(context), fontWeight: FontWeight.w600))),
+      if (first && tested) _rating(context, st),
       // a first time: how the level was, Right unless the reps said plainly otherwise
-      if (first) ...[
+      if (first && !tested) ...[
         _ask(context, ex.loaded ? 'How was $level?' : 'How was it?', _segments(context, [
           for (final (c, word) in [(Call.up, ex.loaded ? 'Too light' : 'Too easy'), (Call.hold, 'Right'), (Call.down, ex.loaded ? 'Too heavy' : 'Too hard')])
             if (r.levels.containsKey(c)) (word, null, r.call == c, _segColor(context, c), () => call(c, feel: c.name)),
@@ -296,39 +354,46 @@ class _LoggedViewState extends State<LoggedView> {
         ))),
         _rating(context, st),
       ],
-      // customising: next time, opened by a tap on the tile
-      if (open) _ask(context, 'Next time', onMagic: magic, _segments(context, [
-        for (final c in [Call.down, Call.hold, Call.up])
-          if (r.levels.containsKey(c)) (callWord[c]!, null, r.call == c, _segColor(context, c), () { call(c); setState(() => _open.remove('v${v.index}')); }),
-      ], onMagic: magic)),
-    ]));
+      // next time, opened from the chip or the tile: easier, the same, harder, as the take's pills
+      if (open && chip) Padding(padding: const EdgeInsets.only(left: 52, top: 12), child: ChoicePills<Call>(
+        label: 'Next time',
+        value: r.call,
+        onPick: (c) => call(c),
+        options: [
+          if (r.levels.containsKey(Call.down)) (value: Call.down, icon: LucideIcons.minus, word: 'Easier', color: magic ? white : p.gentleInk.of(context)),
+          (value: Call.hold, icon: LucideIcons.equal, word: 'Same', color: magic ? white : du.accentText),
+          if (r.levels.containsKey(Call.up)) (value: Call.up, icon: LucideIcons.plus, word: 'Harder', color: magic ? white : (v.moment == Moment.pushed ? p.pushInk : p.earnedInk).of(context)),
+        ],
+      )),
+    ])));
   }
-
-  /// The pop colours for levelling up: a violet to magenta to gold sweep, the same in light and dark.
-  static const _magic = [Color(0xFF6D5BFF), Color(0xFFC844E8), Color(0xFFF59E0B)];
-
-  /// The colours of a first time: fresh mint to teal to blue. Its own, and quieter than the level-up sweep: drawn as
-  /// the tile's edge and its label, never filling it.
-  static const _fresh = [Color(0xFF34B27D), Color(0xFF22A6B8), Color(0xFF4C7FF0)];
 
   /// The one frame every tile on the finish shares, so a level earned, a first time, an ordinary exercise and the early
   /// ending read as one family: the level-up sweep fills it, a first time draws its edge in the fresh colours over a
   /// faint wash, the rest are plain. It changes between them in one motion.
-  Widget _frame(BuildContext context, _Kind kind, {required Widget child, VoidCallback? onTap}) {
+  Widget _frame(BuildContext context, _Kind kind, {required Widget child, VoidCallback? onTap, List<Color>? sweep}) {
     final du = context.du;
     final dur = m(context, const Duration(milliseconds: 380));
     const ease = Curves.easeOutCubic;
-    final edge = switch (kind) { _Kind.magic => _magic, _Kind.first => _fresh, _Kind.plain => [du.line, du.line, du.line] };
+    final fresh = freshColorsOf(context);
+    final magic = sweep ?? StatePalette.of(context).earned;
+    final edge = switch (kind) { _Kind.magic || _Kind.edge => magic, _Kind.first => fresh, _Kind.plain => [du.line, du.line, du.line] };
     final fill = switch (kind) {
       _Kind.magic => du.surface.withValues(alpha: 0),
-      _Kind.first => Color.alphaBlend(_fresh[1].withValues(alpha: 0.06), du.surface),
+      _Kind.edge => Color.alphaBlend(magic[1].withValues(alpha: 0.04), du.surface),
+      _Kind.first => Color.alphaBlend(fresh[1].withValues(alpha: 0.04), du.surface),
       _Kind.plain => du.surface,
     };
-    final glow = switch (kind) { _Kind.magic => const Color(0x33C844E8), _Kind.first => const Color(0x2622A6B8), _Kind.plain => const Color(0x0F000000) };
+    final glow = switch (kind) {
+      _Kind.magic => magic[1].withValues(alpha: 0.2),
+      _Kind.edge => magic[1].withValues(alpha: 0.1),
+      _Kind.first => fresh[1].withValues(alpha: 0.1),
+      _Kind.plain => const Color(0x0F000000),
+    };
     return Pressable(borderRadius: 14, onTap: onTap, child: AnimatedContainer(
       duration: dur,
       curve: ease,
-      padding: EdgeInsets.all(switch (kind) { _Kind.magic => 0, _Kind.first => 1.6, _Kind.plain => 0.6 }),
+      padding: EdgeInsets.all(switch (kind) { _Kind.magic => 0, _Kind.first || _Kind.edge => 1.4, _Kind.plain => 0.6 }),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         gradient: LinearGradient(colors: edge, begin: Alignment.topLeft, end: Alignment.bottomRight),
@@ -356,7 +421,7 @@ class _LoggedViewState extends State<LoggedView> {
 
   /// A row of equal segments, one picked: a word and, under it, what it means. The picked one fills in its own colour.
   /// [onMagic] draws them in white over the level-up sweep.
-  Widget _segments(BuildContext context, List<(String, String?, bool, Color, VoidCallback)> options, {bool onMagic = false}) {
+  Widget _segments(BuildContext context, List<(String, String?, bool, Color, VoidCallback)> options, {bool onMagic = false, Color? magicInk}) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     const white = Color(0xFFFFFFFF);
@@ -366,7 +431,7 @@ class _LoggedViewState extends State<LoggedView> {
         if (k > 0) const SizedBox(width: 6),
         Expanded(child: Builder(builder: (context) {
           final (word, sub, on, color, onTap) = options[k];
-          final ink = onMagic ? (on ? _magic.first : white) : (on ? color : du.ink);
+          final ink = onMagic ? (on ? magicInk ?? StatePalette.of(context).earned.first : white) : (on ? color : du.ink);
           return Pressable(borderRadius: 12, onTap: on ? () {} : onTap, child: AnimatedContainer(
             duration: dur,
             padding: EdgeInsets.symmetric(horizontal: 6, vertical: sub == null ? 9 : 7),
@@ -393,52 +458,25 @@ class _LoggedViewState extends State<LoggedView> {
     final t = Theme.of(context).textTheme;
     final du = context.du;
     final store = context.store;
-    final p = st.preference ?? prefFine;
     final dur = m(context, const Duration(milliseconds: 300));
     const ease = Curves.easeOutCubic;
     const love = Color(0xFFE5484D);
-    void pick(String to) {
-      if (p == to) return;
-      HapticFeedback.selectionClick();
-      store.update((_) => st.preference = to);
-      setState(() {});
-    }
-    Widget option(String v, IconData icon, String word, Color c) {
-      final on = p == v;
-      return Tooltip(message: word, child: Pressable(borderRadius: 999, onTap: () => pick(v), child: AnimatedContainer(
-        duration: dur,
-        curve: ease,
-        height: 38,
-        constraints: const BoxConstraints(minWidth: 38),
-        padding: EdgeInsets.symmetric(horizontal: on ? 13 : 10),
-        decoration: BoxDecoration(
-          color: on ? c.withValues(alpha: 0.13) : du.bg,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: on ? c : du.line, width: on ? 1.5 : 0.6),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          AnimatedScale(scale: on ? 1.1 : 1, duration: dur, curve: Curves.easeOutBack, child: Icon(icon, size: 17, color: on ? c : du.inkSecondary)),
-          AnimatedSize(duration: dur, curve: ease, child: on
-              ? Padding(padding: const EdgeInsets.only(left: 7),
-                  child: Text(word, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: t.labelLarge?.copyWith(color: c, fontWeight: FontWeight.w600)))
-              : const SizedBox(height: 17)),
-        ]),
-      )));
-    }
     final effect = switch (st.preference) {
       prefLiked => 'It comes up first whenever it fits.',
       prefNo => 'It comes up only when nothing else fits.',
       _ => null,
     };
     return Padding(padding: const EdgeInsets.only(left: 52, top: 12), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Row(children: [
-        Expanded(child: Text('Your take', style: t.labelMedium)),
-        option(prefLiked, LucideIcons.heart, 'Love it', love),
-        const SizedBox(width: 6),
-        option(prefFine, LucideIcons.thumbsUp, 'It\'s fine', du.accentText),
-        const SizedBox(width: 6),
-        option(prefNo, LucideIcons.thumbsDown, 'Not for me', du.warning),
-      ]),
+      ChoicePills<String>(
+        label: 'Your take',
+        value: st.preference ?? prefFine,
+        onPick: (v) { store.update((_) => st.preference = v); setState(() {}); },
+        options: [
+          (value: prefLiked, icon: LucideIcons.heart, word: 'Love it', color: love),
+          (value: prefFine, icon: LucideIcons.thumbsUp, word: "It's fine", color: du.accentText),
+          (value: prefNo, icon: LucideIcons.thumbsDown, word: 'Not for me', color: du.warning),
+        ],
+      ),
       AnimatedSize(duration: dur, curve: ease, alignment: Alignment.topLeft, child: effect == null
           ? const SizedBox(width: double.infinity)
           : Padding(padding: const EdgeInsets.only(top: 6), child: Text(effect, textAlign: TextAlign.right, style: t.bodySmall?.copyWith(color: du.inkSecondary)))),
@@ -683,8 +721,118 @@ class _LevelStripState extends State<_LevelStrip> {
   }
 }
 
-/// What a tile on the finish is: a level earned, a first time, or the rest.
-enum _Kind { plain, first, magic }
+/// A step up on the finish is an event, a step down a quiet one (the Playground's tile lab, 2026-11-04). When next time
+/// goes up, the tile's edge sweeps round once in the win's colours, a wash of them swells and fades, the tile pops a
+/// little, sparks burst from the mark, with a firm haptic and a second tick as it lands; a step up the app earned
+/// arrives the same way, without the haptics. Going down, a short mist wash and a light tick. Still when the system asks
+/// for less motion.
+class _StepUp extends StatefulWidget {
+  const _StepUp({required this.up, required this.down, required this.colors, required this.calm, required this.child});
+  final bool up, down;
+  final List<Color> colors;
+  final Color calm;
+  final Widget child;
+  @override
+  State<_StepUp> createState() => _StepUpState();
+}
+
+class _StepUpState extends State<_StepUp> with TickerProviderStateMixin {
+  late final AnimationController burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+  late final AnimationController settle = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+
+  bool get _still => MediaQuery.of(context).disableAnimations;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.up) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted && !_still) burst.forward(from: 0); });
+  }
+
+  @override
+  void didUpdateWidget(_StepUp old) {
+    super.didUpdateWidget(old);
+    if (widget.up && !old.up) {
+      HapticFeedback.heavyImpact();
+      Future<void>.delayed(const Duration(milliseconds: 420), () { if (mounted) HapticFeedback.lightImpact(); });
+      if (!_still) burst.forward(from: 0);
+    } else if (widget.down && !old.down) {
+      HapticFeedback.lightImpact();
+      if (!_still) settle.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    burst.dispose();
+    settle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+        animation: Listenable.merge([burst, settle]),
+        child: widget.child,
+        builder: (context, child) {
+          final spin = burst.isAnimating ? burst.value : 0.0;
+          final swell = sin(pi * spin);
+          final calm = settle.isAnimating ? sin(pi * settle.value) : 0.0;
+          return Transform.scale(scale: 1 + 0.025 * swell, child: Stack(clipBehavior: Clip.none, children: [
+            child!,
+            if (spin > 0 || calm > 0) Positioned.fill(child: IgnorePointer(child: CustomPaint(painter: _StepPainter(spin, swell, calm, widget.colors, widget.calm)))),
+            // the sparks, from the mark at the tile's top left
+            if (spin > 0) Positioned(left: -25, top: -25, width: 120, height: 120, child: IgnorePointer(child: CustomPaint(painter: _StepSparks(spin, widget.colors)))),
+          ]));
+        },
+      );
+}
+
+/// The ceremony over the tile: a wash of the win's colours and the edge sweeping round; going down, a mist wash.
+class _StepPainter extends CustomPainter {
+  _StepPainter(this.spin, this.swell, this.calm, this.colors, this.mist);
+  final double spin, swell, calm;
+  final List<Color> colors;
+  final Color mist;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rr = RRect.fromRectAndRadius(rect, const Radius.circular(14));
+    if (swell > 0) {
+      canvas.drawRRect(rr, Paint()..color = colors[colors.length ~/ 2].withValues(alpha: 0.13 * swell));
+      canvas.drawRRect(rr.deflate(0.8), Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2 + 1.6 * swell
+        ..shader = SweepGradient(colors: [...colors, colors.first], transform: GradientRotation(2 * pi * Curves.easeOutCubic.transform(spin))).createShader(rect));
+    }
+    if (calm > 0) canvas.drawRRect(rr, Paint()..color = mist.withValues(alpha: 0.12 * calm));
+  }
+
+  @override
+  bool shouldRepaint(_StepPainter old) => old.spin != spin || old.calm != calm;
+}
+
+/// Sparks thrown from the mark: twelve, out and fading, in the win's colours.
+class _StepSparks extends CustomPainter {
+  _StepSparks(this.t, this.colors);
+  final double t;
+  final List<Color> colors;
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (t <= 0 || t >= 1) return;
+    final c = size.center(Offset.zero);
+    final e = Curves.easeOutCubic.transform(t);
+    for (var k = 0; k < 12; k++) {
+      final a = k * pi / 6 + (k.isEven ? 0.15 : -0.1);
+      final r = 18 + (k.isEven ? 34 : 24) * e;
+      canvas.drawCircle(c + Offset(cos(a), sin(a)) * r, (k.isEven ? 3.6 : 2.6) * (1 - t) + 0.6, Paint()..color = colors[k % colors.length].withValues(alpha: 1 - t * t));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_StepSparks old) => old.t != t;
+}
+
+/// What a tile on the finish is: a win filled with its sweep, a win with its edge, a first time, or the rest.
+enum _Kind { plain, first, edge, magic }
 
 /// Text or an icon painted in the first-time colours.
 class _FreshText extends StatelessWidget {
@@ -693,7 +841,7 @@ class _FreshText extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ShaderMask(
         blendMode: BlendMode.srcIn,
-        shaderCallback: (b) => const LinearGradient(colors: _LoggedViewState._fresh).createShader(b),
+        shaderCallback: (b) => LinearGradient(colors: freshColorsOf(context)).createShader(b),
         child: child,
       );
 }
@@ -704,7 +852,7 @@ class _FirstMark extends StatelessWidget {
   const _FirstMark({super.key});
   @override
   Widget build(BuildContext context) {
-    const c = _LoggedViewState._fresh;
+    final c = freshColorsOf(context);
     return Container(
       width: 40,
       height: 40,
@@ -787,7 +935,10 @@ class _BadgeState extends State<_Badge> with SingleTickerProviderStateMixin {
     final du = context.du;
     // celebrate in the level-up sweep; proud and encourage in a warm amber; the calm ones in the accent
     final warm = widget.tone == Tone.proud || widget.tone == Tone.encourage;
-    final colors = widget.magic ? _LoggedViewState._magic : widget.tone == Tone.curious ? _LoggedViewState._fresh : warm ? [du.warning, du.warning] : [du.accentStrong, du.accentStrong];
+    final p = StatePalette.of(context);
+    final colors = widget.magic ? p.earned : widget.tone == Tone.curious ? p.fresh
+        : widget.tone == Tone.proud ? [p.pushInk.of(context), p.pushInk.of(context)]
+        : warm ? [p.gentleInk.of(context), p.gentleInk.of(context)] : [du.accentStrong, du.accentStrong];
     final icon = switch (widget.tone) {
       Tone.celebrate => LucideIcons.sparkles,
       Tone.pleased => LucideIcons.trendingUp,
@@ -844,11 +995,9 @@ class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixi
   late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2600));
   final _bits = <({double x, double vx, double vy, double spin, double size, Color color, bool round})>[];
 
-  @override
-  void initState() {
-    super.initState();
+  void _make(List<Color> colors) {
+    _bits.clear();
     final r = Random(7);
-    const colors = [Color(0xFF6D5BFF), Color(0xFFC844E8), Color(0xFFF59E0B), Color(0xFF86AB7A), Color(0xFF3FB8E8)];
     for (var i = 0; i < 70; i++) {
       _bits.add((x: 0.5 + (r.nextDouble() - 0.5) * 0.3, vx: (r.nextDouble() - 0.5) * 1.6, vy: -0.6 - r.nextDouble() * 0.9,
           spin: (r.nextDouble() - 0.5) * 18, size: 5 + r.nextDouble() * 5, color: colors[i % colors.length], round: r.nextBool()));
@@ -858,6 +1007,7 @@ class _ConfettiState extends State<_Confetti> with SingleTickerProviderStateMixi
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _make(StatePalette.of(context).confetti);
     if (!MediaQuery.of(context).disableAnimations && _c.value == 0 && !_c.isAnimating) _c.forward();
   }
 

@@ -9,6 +9,7 @@ import 'dart:math';
 
 import '../data/library.dart';
 import '../data/model.dart';
+import 'calibrate.dart' show calibrationCap;
 import 'ladder.dart';
 import 'workout.dart';
 
@@ -136,7 +137,8 @@ int elapsedOf(Session x, DateTime now) => max(1, ((x.endedAt ?? now).difference(
 /// The read of a workout as it stands: each exercise's score and what it means, and how it ended.
 WorkoutRead readWorkout(AppState s, Session x, DateTime now) {
   final reads = [for (var i = 0; i < x.exercises.length; i++) _readExercise(s, x, i)];
-  final judged = reads.where((r) => r.judged && !r.ceiling).toList();
+  // calibration sets go to failure on purpose: they say nothing about how the day went
+  final judged = reads.where((r) => r.judged && !r.ceiling && !x.exercises[r.index].sets.any((l) => l.test)).toList();
   final energy = judged.any((r) => r.fade >= 0.15 || r.short);
   final EndRead guess;
   if (finishedPlan(x)) {
@@ -156,11 +158,17 @@ WorkoutRead readWorkout(AppState s, Session x, DateTime now) {
     final st = ensureState(s, e.exercise);
     final downs = downsCount(end) && !easyDay && e.atWorkingLevel;
     final signal = st.appearances == 0 ? repSignalOf(e) : null;
-    if (r.ceiling) {
+    // still finding the level: reps over the top go straight to the level they are worth
+    final tested = e.sets.any((l) => l.test);
+    final jump = st.calibrating && !tested && !r.ceiling && !e.atCeiling ? impliedRung(s, x, e, st, r.avg) : null;
+    if (r.ceiling || tested) {
+      // calibration sets have already put the level where the reps said
       r.auto = Call.hold;
     } else if (st.appearances == 0 && !r.proven) {
       // a first time is taken as the right level unless the reps say plainly otherwise
-      r.auto = signal == 'high' && !e.atCeiling ? Call.up : signal == 'low' ? Call.down : Call.hold;
+      r.auto = (jump != null || signal == 'high') && !e.atCeiling ? Call.up : signal == 'low' ? Call.down : Call.hold;
+    } else if (jump != null) {
+      r.auto = Call.up;
     } else if (r.proven || (r.worthUp && (st.calibrating || st.decayedBy > 0 || st.topRun + 1 >= s.settings.stepUp))) {
       r.auto = Call.up;
     } else if (r.short && downs && st.shortRun + 1 >= s.settings.stepDown) {
@@ -168,7 +176,7 @@ WorkoutRead readWorkout(AppState s, Session x, DateTime now) {
     } else {
       r.auto = Call.hold;
     }
-    r.levels = _levels(s, x, e, st);
+    r.levels = _levels(s, x, e, st, jump: jump);
     if (!r.levels.containsKey(r.auto)) r.auto = Call.hold;
     r.call = switch (e.call) { 'up' => Call.up, 'hold' => Call.hold, 'down' => Call.down, _ => r.auto };
     if (!r.levels.containsKey(r.call)) r.call = Call.hold;
@@ -207,12 +215,13 @@ ExerciseRead _readExercise(AppState s, Session x, int i) {
   return r;
 }
 
-/// Each call as the rung it lands on next time: one step either way, or the level the user picked for it.
-Map<Call, int> _levels(AppState s, Session x, SessionExercise e, ExerciseState st) {
+/// Each call as the rung it lands on next time: one step either way, the level the reps were worth while calibrating
+/// ([jump]), or the level the user picked for it.
+Map<Call, int> _levels(AppState s, Session x, SessionExercise e, ExerciseState st, {int? jump}) {
   final range = nextRange(s, x, e);
   final picked = e.next;
   return {
-    if (range.hi > st.rung) Call.up: picked != null && picked > st.rung && picked <= range.hi ? picked : st.rung + 1,
+    if (range.hi > st.rung) Call.up: picked != null && picked > st.rung && picked <= range.hi ? picked : min(jump ?? st.rung + 1, range.hi),
     Call.hold: st.rung,
     if (range.lo < st.rung) Call.down: picked != null && picked < st.rung && picked >= range.lo ? picked : st.rung - 1,
   };
@@ -226,6 +235,31 @@ Map<Call, int> _levels(AppState s, Session x, SessionExercise e, ExerciseState s
   final lo = ex.loaded ? floorRung(s, ex, st) : 0;
   final top = ceilingFor(ex, s.location(x.locationId)?.equipment ?? const <String>[]);
   return (lo: min(lo, st.rung), hi: max(st.rung, top ?? st.rung + 8));
+}
+
+/// The reps went over the top of the range: the average of the sets is more than [SessionExercise.hi]. Saying the level
+/// was right settles it all the same.
+bool overTop(SessionExercise e) {
+  final sets = e.attempted.toList();
+  if (sets.isEmpty || e.feel == Call.hold.name) return false;
+  return sets.fold(0, (a, l) => a + (l.reps ?? 0)) / sets.length > e.hi;
+}
+
+/// Whether a workout found this exercise's level: the reps landed in the range or under it, the user said it was right,
+/// or it is at the top of what this place can do, where the reps carry it. Until one does the exercise is calibrating.
+bool foundLevel(SessionExercise e) => e.attempted.isNotEmpty && (e.atCeiling || !overTop(e));
+
+/// While calibrating, the level a workout with reps over the top was worth: the heaviest level whose middle of the range
+/// today's average still reaches. Null when the reps were not over the top or are not worth a level more.
+int? impliedRung(AppState s, Session x, SessionExercise e, ExerciseState st, double avg) {
+  if (!overTop(e)) return null;
+  final hi = nextRange(s, x, e).hi;
+  int? best;
+  for (var k = st.rung + 1; k <= hi; k++) {
+    if (levelLoad(s, e, k) * epley(_mid(e)) > avg + 1e-9) break;
+    best = k;
+  }
+  return best;
 }
 
 /// What would move it, or why it moved, in one short sentence a newcomer can read. Empty when the outcome says it all.
@@ -511,6 +545,15 @@ List<ExerciseMoment> momentsOf(AppState s, Session x, WorkoutRead w) {
     final unit = ex.repLabel == 'seconds' ? 'seconds' : 'reps';
     String label(SetLog l) => ex.loaded ? fmtLoad(s, ex, l.kg ?? e.loadKg ?? 0, equipment: eq) : rungLabel(s, ex, st, l.rung ?? e.rung, e.range, eq);
     if (x.painAt == r.index) { out.add(ExerciseMoment(r.index, Moment.hurt, 'Something hurt. It rests a week.')); continue; }
+    // calibration sets moved the weight, not the user: what found it, said plainly, never celebrated as a push
+    final tests = [for (final l in e.attempted) if (l.test) l];
+    if (tests.isNotEmpty) {
+      final found = tests.where((l) => (l.reps ?? 0) > 0 && l.reps! < calibrationCap).firstOrNull;
+      out.add(ExerciseMoment(r.index, Moment.first, found != null
+          ? '${found.reps} ${found.reps == 1 ? 'rep' : 'reps'} at ${label(found)} found it.'
+          : '$calibrationCap reps at ${label(tests.last)}, still more to find.'));
+      continue;
+    }
     // the plan's level against what was done: above it is the user's own choice, below it easing off
     final planned = ex.loaded ? (e.plannedKg ?? e.loadKg ?? 0) : (e.plannedRung ?? e.rung).toDouble();
     double levelOf(SetLog l) => ex.loaded ? (l.kg ?? e.loadKg ?? 0) : (l.rung ?? e.rung).toDouble();
@@ -533,7 +576,8 @@ List<ExerciseMoment> momentsOf(AppState s, Session x, WorkoutRead w) {
       continue;
     }
     // a level the app earned; one the user asked for is their call, said by the row's word, not celebrated
-    if (r.judged && r.call == Call.up && !r.changed) { out.add(ExerciseMoment(r.index, Moment.levelUp, 'Next time ${r.outcome}.')); continue; }
+    // where it lands is next time's chip; the line says what earned it
+    if (r.judged && r.call == Call.up && !r.changed) { out.add(ExerciseMoment(r.index, Moment.levelUp, 'Every set at the top: ${sets.map((l) => l.reps ?? 0).join(', ')}.')); continue; }
     final win = wins[r.index];
     // easing off is the user's own choice: said before anything else about the exercise
     if (below.isNotEmpty) { out.add(ExerciseMoment(r.index, Moment.eased, 'Eased to ${label(below.first)} partway through.')); continue; }

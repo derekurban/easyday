@@ -6,6 +6,7 @@ import 'dart:math';
 
 import '../data/model.dart';
 import 'after.dart';
+import 'calibrate.dart' show isTestSet;
 import 'ladder.dart';
 
 enum ItemKind { warmup, exercise, circuit, free, cardio, stretch }
@@ -161,6 +162,7 @@ void enterReps(Session s, int reps, DateTime now) {
     x.at = now;
     x.rung = e.rung;
     x.kg = e.loadKg;
+    x.test = isTestSet(e, r.set);
     return;
   }
   final last = lastLogged(s, cur);

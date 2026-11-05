@@ -7,6 +7,7 @@ import 'dart:math';
 import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
+import 'calibrate.dart' show calibrates;
 import 'ladder.dart';
 import 'muscle_map.dart';
 import 'muscle_plan.dart';
@@ -731,6 +732,7 @@ Session buildSession(AppState s, BuildOptions o, DateTime now) {
       target: target, lo: range.lo, hi: range.hi, atCeiling: ceilingToday, bestTotal: st.bestTotal, difficulty: difficulty, loadKg: load,
       secPerSet: st.secPerSet, sets: List.generate(sl.sets, (_) => SetLog()), warmups: ex.loaded && difficulty >= 3 ? warmupsFor(s, ex, load!) : const [],
       edited: edited, lightened: lightened, why: why, fresh: fresh, asked: sl.asked,
+      calibrating: st.calibrating && calibrates(ex) && sl.intent == intentWorking && !light && !edited && !ceilingToday,
     )..relative = relative..nextLevel = nextLevel..usualLoadKg = usual);
   }
   final weight = out.fold(0, (a, e) => a + e.difficulty);

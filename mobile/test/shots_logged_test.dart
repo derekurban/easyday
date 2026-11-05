@@ -8,6 +8,7 @@ library;
 import 'package:easyday/data/model.dart';
 import 'package:easyday/data/store.dart';
 import 'package:easyday/logic/after.dart';
+import 'package:easyday/logic/calibrate.dart';
 import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/score.dart';
 import 'package:easyday/logic/workout.dart';
@@ -21,12 +22,12 @@ import 'workout_test.dart' as w;
 /// Play a workout through the workout logic: every set takes [lift] seconds, then [rest] before the next. [reps] gives
 /// each exercise's reps by set; an exercise with none is never started. Ends [endAfter] minutes in when given. With
 /// [before], a first workout is played and logged two days earlier, so this one can be read against it.
-Store play(List<List<int>> Function(Session x) reps, {bool first = false, int lift = 35, int rest = 90, int? endAfter, int minutes = 45, int warmup = 0,
+Store play(List<List<int>> Function(Session x) reps, {bool first = false, bool calibrating = false, int lift = 35, int rest = 90, int? endAfter, int minutes = 45, int warmup = 0,
     List<List<int>> Function(Session x)? before}) {
   final s = w.fresh(template: 'gym');
   Session run(List<List<int>> Function(Session x) plan, DateTime at, int? end) {
     final x = w.build(s, warmup: warmup, minutes: minutes);
-    if (!first && before == null) {
+    if (!first && !calibrating && before == null) {
       for (final e in x.exercises) { ensureState(s, e.exercise)..appearances = 3..calibrating = false; }
     }
     startWorkout(s, x, at);
@@ -37,7 +38,7 @@ Store play(List<List<int>> Function(Session x) reps, {bool first = false, int li
       if (want[i].isEmpty) break;
       for (final r in want[i]) {
         t = t.add(Duration(seconds: lift));
-        enterReps(x, r, t);
+        if (calibrating) { logReps(s, x, r, t); } else { enterReps(x, r, t); }
         t = t.add(Duration(seconds: rest));
         ready(x, t);
       }
@@ -69,6 +70,10 @@ void main() {
     // a first workout: every exercise new, the first ones levelling up
     await fresh();
     await snap(tester, play((x) => [for (final e in x.exercises) top(e)], first: true, warmup: 5, minutes: 60), 'f1-first');
+
+    // a first workout with calibration sets: one found at once, one after the cap, one still looking
+    await fresh();
+    await snap(tester, play((x) => [[14, 10, 10], [calibrationCap, 9, 9], [calibrationCap, calibrationCap, calibrationCap]], calibrating: true, minutes: 60), 'f0-calibrated');
 
     // the second workout, stronger than the first: one level earned, more reps on the others
     await fresh();

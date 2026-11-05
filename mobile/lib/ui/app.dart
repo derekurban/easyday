@@ -43,13 +43,15 @@ class EasydayApp extends StatelessWidget {
 }
 
 class Shell extends StatefulWidget {
-  const Shell({super.key});
+  const Shell({super.key, this.initialTab = 0, this.sample = false});
+  final int initialTab;
+  final bool sample; // over the Playground's sample data: no Playground tab inside it
   @override
   State<Shell> createState() => _ShellState();
 }
 
 class _ShellState extends State<Shell> {
-  int tab = 0;
+  late int tab = widget.initialTab;
   @override
   Widget build(BuildContext context) {
     final store = context.store;
@@ -57,7 +59,7 @@ class _ShellState extends State<Shell> {
     if (s.profile == null || s.plan == null) { tab = 0; return const OnboardingScreen(); }
     if (s.active != null) return const SessionScreen();
     // staging builds carry a Playground tab: the finish screen on sample workouts
-    final pages = [const TodayScreen(), const ProgressScreen(), const CatalogScreen(), const SettingsScreen(), if (playgroundTab) const PlaygroundScreen()];
+    final pages = [const TodayScreen(), const ProgressScreen(), const CatalogScreen(), const SettingsScreen(), if (playgroundTab && !widget.sample) const PlaygroundScreen()];
     if (tab >= pages.length) tab = 0;
     return Scaffold(
       body: IndexedStack(index: tab, children: pages),
@@ -74,7 +76,7 @@ class _ShellState extends State<Shell> {
                 const Icon(LucideIcons.slidersHorizontal),
                 if (r != null) const Positioned(top: -4, right: -6, child: UpdateDot()),
               ]))),
-          if (playgroundTab) const NavigationDestination(icon: Icon(LucideIcons.flaskConical), label: 'Playground'),
+          if (playgroundTab && !widget.sample) const NavigationDestination(icon: Icon(LucideIcons.flaskConical), label: 'Playground'),
         ],
       ),
     );
