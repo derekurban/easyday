@@ -1,273 +1,302 @@
-// Playground: staging builds only. The finish screen on sample workouts, each played through the real workout logic
-// into its own throwaway data, so the kinds of day it reads (a first time, a level earned, stronger than last time, a
-// low-energy day, an early end) can be opened and tried as often as wanted. Nothing here touches the user's data.
-import 'dart:convert';
+// Playground: debug builds only. The finish screen's tiles, rethought (2026-11-04), and since built into the real
+// finish (logged.dart); kept here to try the next variations on: fewer words, and a step up that feels like one. Next time is a weight chip that opens Easier, Same and Harder as the same pills as the take (love it,
+// it's fine, not for me): icons, the picked one with its word. Tried and set aside: a heart in the corner, three bare
+// marks and a swipe for the take; arrows and hold-to-step-up for next time.
+// Prototype tiles over a made-up workout, in the app's colours (palette.dart) and the Edges restraint; nothing here
+// touches the user's data. The variations chosen move into the real finish (logged.dart), then leave. The sections
+// explored before (the colour lab, ranks and calibration, the strength lab, the finish samples) were archived when
+// this replaced them.
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../data/library.dart';
-import '../data/model.dart';
-import '../data/store.dart';
-import '../logic/after.dart';
-import '../logic/builder.dart';
-import '../logic/ladder.dart';
-import '../logic/rating.dart';
-import '../logic/score.dart';
-import '../logic/workout.dart';
-import 'app.dart';
-import 'logged.dart';
+import 'fresh.dart';
 import 'motion.dart';
-import 'strength_lab.dart';
+import 'palette.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-typedef _Plan = List<List<int>> Function(Session x);
+enum _K { levelUp, push, first, better, short, eased }
 
-/// One sample: what it shows, and how its workout (and any earlier one) is played.
+/// One exercise of the made-up workout: what happened, today's level, the step a level is, and where the app puts
+/// next time (+1 a step up, 0 the same).
 class _Sample {
-  const _Sample(this.title, this.blurb, this.icon, this.today, {this.before, this.template = 'gym', this.minutes = 60, this.endAfter, this.heavierToday = false, this.fresh = false, this.change = const {}});
-  final String title;
-  final String blurb;
-  final IconData icon;
-  final _Plan today;
-  final _Plan? before;      // an earlier workout, logged two days before, so today reads against it
-  final String template;    // the place: gym, or home_full for bodyweight
-  int get warmup => 5;      // every sample starts with a five-minute warm-up
-  final int minutes;
-  final int? endAfter;      // minutes in: ended early
-  final bool heavierToday;  // the earlier workout's weights a step lighter
-  final bool fresh;         // every exercise new (no appearances)
-  final Map<int, int> change; // exercise index -> steps the user moved the weight or version mid-workout (+ heavier, - lighter)
+  const _Sample(this.name, this.line, this.kind, this.now, this.step, {this.auto = 0, this.delta, this.unit = 'kg'});
+  final String name, line;
+  final _K kind;
+  final double now, step;
+  final int auto;
+  final int? delta;
+  final String unit;
 }
 
-List<int> _top(SessionExercise e) => List.filled(e.sets.length, e.hi);
-List<int> _under(SessionExercise e, [int by = 2]) => List.filled(e.sets.length, e.hi - by);
-List<int> _fade(SessionExercise e) => [for (var k = 0; k < e.sets.length; k++) e.hi - 2 * k];
-List<List<int>> _all(Session x, List<int> Function(SessionExercise) f, [Map<int, List<int> Function(SessionExercise)> but = const {}]) =>
-    [for (var i = 0; i < x.exercises.length; i++) (but[i] ?? f)(x.exercises[i])];
-
-final _samples = <_Sample>[
-  _Sample('Chose heavier, made it', 'Put a plate on the squat yourself and got every set.', LucideIcons.flame,
-      (x) => _all(x, _under, {0: (e) => [e.lo + 1, e.lo + 1, e.lo]}),
-      before: (x) => _all(x, _under), change: const {0: 1}),
-  _Sample('Reached for more', 'Went two plates up on the squat; not there yet.', LucideIcons.mountain,
-      (x) => _all(x, _under, {0: (e) => [e.lo - 1, e.lo - 2, e.lo - 3]}),
-      before: (x) => _all(x, _under), change: const {0: 2}),
-  _Sample('Fell short', 'An ordinary day, the reps under the range on most lifts.', LucideIcons.sprout,
-      (x) => _all(x, (e) => _under(e, e.hi - e.lo + 2)), before: (x) => _all(x, _under)),
-  _Sample('Eased off', 'Dropped the weight on the row partway; the rest held.', LucideIcons.feather,
-      (x) => _all(x, _under), before: (x) => _all(x, _under), change: const {1: -1}),
-  _Sample('First workout', 'Everything is new: levels found at once, and a face for each.', LucideIcons.sparkles, (x) => _all(x, _top), fresh: true),
-  _Sample('One level up', 'Squat earns its step; the rest beat last time by a few reps.', LucideIcons.trendingUp,
-      (x) => _all(x, _under, {0: _top, 1: (e) => _under(e, 1)}),
-      before: (x) => _all(x, _under, {2: (e) => _under(e, 4)})),
-  _Sample('Big day', 'Three levels at once, after a week of steady work.', LucideIcons.partyPopper, (x) => _all(x, _top),
-      before: (x) => _all(x, _under)),
-  _Sample('Heavier than last time', 'Same reps as last time, a plate heavier.', LucideIcons.dumbbell, (x) => _all(x, (e) => _under(e, 3)),
-      before: (x) => _all(x, (e) => _under(e, 3)), heavierToday: true),
-  _Sample('Steady day', 'Just like last time. Nothing up, nothing down.', LucideIcons.equal, (x) => _all(x, _under),
-      before: (x) => _all(x, _under)),
-  _Sample('Low-energy day', 'Finished, but every exercise faded.', LucideIcons.batteryLow, (x) => _all(x, _fade),
-      before: (x) => _all(x, _under)),
-  _Sample('Out of time', 'Two exercises in, the clock ran out.', LucideIcons.clock, (x) => [_top(x.exercises[0]), _top(x.exercises[1])],
-      before: (x) => _all(x, _under), minutes: 60, endAfter: 45),
-  _Sample('It has to ask', 'Ended early, and time and a fade both fit.', LucideIcons.circleHelp, (x) => [_top(x.exercises[0]), _fade(x.exercises[1])],
-      before: (x) => _all(x, _under), endAfter: 44),
-  _Sample('Bodyweight at home', 'Push-ups and friends: a harder version earned on each.', LucideIcons.house, (x) => _all(x, (e) => [e.hi + 8, e.hi + 8, e.hi + 7]),
-      before: (x) => _all(x, _top), template: 'none'),
+const _samples = [
+  _Sample('Barbell back squat', 'Every set at the top: 12, 12, 12.', _K.levelUp, 60, 2.5, auto: 1, delta: 18),
+  _Sample('Barbell row', 'Went up to 42.5 kg yourself and made every set.', _K.push, 42.5, 2.5, auto: 1, delta: 13),
+  _Sample('Barbell bench press', '14 reps at 47.5 kg found your weight.', _K.first, 52.5, 2.5),
+  _Sample('Dumbbell curl', '3 more reps than last time.', _K.better, 12, 1, delta: 7),
+  _Sample('Hanging knee raise', '11 a set, aiming for 13.', _K.short, 0, 1, unit: 'version'),
+  _Sample('Upright row', 'Eased to 15 kg partway through.', _K.eased, 17.5, 2.5),
 ];
 
-/// The samples' titles, in order, for the tests.
-@visibleForTesting
-List<String> get playgroundSampleTitles => [for (final p in _samples) p.title];
-
-/// Play a sample into its own state: an earlier workout first when it has one, then today's, ended and waiting on the
-/// finish screen.
-Store _build(_Sample p) {
-  final t0 = DateTime.now();
-  final s = AppState()
-    ..profile = Profile(experience: 'some', daysPerWeek: 3, createdAt: t0.subtract(const Duration(days: 30)))
-    ..goal = GoalConfig.fromTemplate(goals['muscle']!);
-  final tpl = templates.firstWhere((t) => t.id == p.template);
-  s.locations = [Location(id: 'l1', name: tpl.name, template: tpl.id, equipment: tpl.equipment.toList())];
-  s.lastLocationId = 'l1';
-  s.plan = Plan();
-  Session run(_Plan plan, DateTime at, int? endAfter, {Session? again}) {
-    final x = again ?? buildSession(s, BuildOptions(energy: Energy.normal, minutes: p.minutes, warmupMinutes: p.warmup), at);
-    if (!p.fresh && p.before == null) {
-      for (final e in x.exercises) { ensureState(s, e.exercise)..appearances = 3..calibrating = false; }
-    }
-    // the user's own changes, as the weight drawer makes them: the plan's level is kept, the sets are done at the new one
-    if (again != null || p.before == null) {
-      for (final c in p.change.entries) {
-        if (c.key >= x.exercises.length) continue;
-        final e = x.exercises[c.key];
-        if (e.exercise.loaded) {
-          changeLevel(s, x, c.key, kg: (e.loadKg ?? 0) + c.value * stepKg(s, e.exercise));
-        } else {
-          changeLevel(s, x, c.key, rung: (e.rung + c.value).clamp(0, 99));
-        }
-      }
-    }
-    startWorkout(s, x, at);
-    var t = at;
-    if (p.warmup > 0) { t = t.add(Duration(minutes: p.warmup)); ready(x, t); }
-    final want = plan(x);
-    for (var i = 0; i < x.exercises.length && i < want.length; i++) {
-      if (want[i].isEmpty) break;
-      for (final r in want[i]) {
-        t = t.add(const Duration(seconds: 40));
-        enterReps(x, r < 0 ? 0 : r, t);
-        t = t.add(const Duration(seconds: 90));
-        ready(x, t);
-      }
-    }
-    endWorkout(x, endAfter == null ? t : at.add(Duration(minutes: endAfter)));
-    return x;
-  }
-  Session? earlier;
-  if (p.before != null) {
-    final x0 = run(p.before!, t0.subtract(const Duration(days: 2, hours: 1)), null);
-    earlier = _fresh(x0); // today repeats the earlier workout's exercises, so there is a last time to read against
-    if (p.heavierToday) {
-      for (final e in x0.exercises) {
-        if (!e.exercise.loaded) continue;
-        final step = stepKg(s, e.exercise);
-        for (final l in e.sets) { if (l.kg != null) l.kg = l.kg! - step; }
-      }
-    }
-    finishSession(s, x0, Finish(endRead: EndRead.done), x0.endedAt!);
-  }
-  s.active = run(p.today, t0.subtract(const Duration(hours: 1)), p.endAfter, again: earlier);
-  return Store(s, null, shiftClock: false);
-}
-
-/// A copy of a workout as it was planned, nothing done yet: the same exercises, levels and sets, ready to play again.
-Session _fresh(Session done) {
-  final x = Session.fromJson(jsonDecode(jsonEncode(done.toJson())) as Map<String, dynamic>)
-    ..startedAt = null
-    ..endedAt = null
-    ..pausedAt = null
-    ..pausedSeconds = 0
-    ..itemStarts = {}
-    ..skipped = []
-    ..reviewing = false
-    ..endRead = null
-    ..painAt = null
-    ..stopReason = null
-    ..stopAt = null
-    ..note = '';
-  for (final e in x.exercises) {
-    e.call = null;
-    for (final l in e.sets) { l..reps = null..at = null..start = null..rung = null..kg = null; }
-  }
-  return x;
-}
-
-class PlaygroundScreen extends StatelessWidget {
+class PlaygroundScreen extends StatefulWidget {
   const PlaygroundScreen({super.key});
+  @override
+  State<PlaygroundScreen> createState() => _PlaygroundScreenState();
+}
+
+class _PlaygroundScreenState extends State<PlaygroundScreen> {
+  bool dark = true;
+  int replay = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: buildTheme(dark ? Brightness.dark : Brightness.light),
+      child: Builder(builder: (context) {
+        final t = Theme.of(context).textTheme;
+        final du = context.du;
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Playground'),
+            actions: [
+              IconButton(tooltip: 'Play again', icon: const Icon(LucideIcons.rotateCcw), onPressed: () => setState(() => replay++)),
+              IconButton(tooltip: dark ? 'Light' : 'Dark', icon: Icon(dark ? LucideIcons.sun : LucideIcons.moon), onPressed: () => setState(() => dark = !dark)),
+            ],
+          ),
+          body: Column(children: [
+            Expanded(child: ListView(key: ValueKey('tiles$replay'), padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+              Text('The finish screen\'s tiles, rethought: fewer words, and a step up that feels like one. Try them; nothing here touches your workouts.',
+                  style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
+              const SizedBox(height: 14),
+              for (final (i, x) in _samples.indexed) Padding(padding: const EdgeInsets.only(bottom: 10),
+                  child: Reveal(delay: Duration(milliseconds: 90 * i), child: _ProtoTile(sample: x))),
+              const SizedBox(height: 6),
+              Text('Tap a weight for easier, the same or harder. A step up is an event; ↺ plays the arrivals again.',
+                  style: t.bodySmall?.copyWith(color: du.inkTertiary)),
+            ])),
+          ]),
+        );
+      }),
+    );
+  }
+}
+
+/// One prototype tile. Its look is the Edges restraint: plain, a thin edge in a win's colour, one accent. Next time moves
+/// in steps; a step up is an event (the edge sweeps round, the weight counts up, a burst at the mark, a firm haptic), a
+/// step down a quiet one.
+class _ProtoTile extends StatefulWidget {
+  const _ProtoTile({required this.sample});
+  final _Sample sample;
+  @override
+  State<_ProtoTile> createState() => _ProtoTileState();
+}
+
+class _ProtoTileState extends State<_ProtoTile> with TickerProviderStateMixin {
+  late int next = widget.sample.auto;
+  String take = 'fine'; // love, fine, no
+  bool open = false; // the chip's choices
+  late final AnimationController burst = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+  late final AnimationController settle = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+
+  _Sample get x => widget.sample;
+  bool get offered => x.auto > 0; // the app offers a step up
+
+  @override
+  void initState() {
+    super.initState();
+    // an earned step up arrives as an event
+    if (next > 0) WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _celebrate(quiet: true); });
+  }
+
+  @override
+  void dispose() {
+    burst.dispose();
+    settle.dispose();
+    super.dispose();
+  }
+
+  void _celebrate({bool quiet = false}) {
+    if (MediaQuery.of(context).disableAnimations) return;
+    if (!quiet) {
+      HapticFeedback.heavyImpact();
+      Future<void>.delayed(const Duration(milliseconds: 420), () { if (mounted) HapticFeedback.lightImpact(); });
+    }
+    burst.forward(from: 0);
+  }
+
+  void _set(int to) {
+    to = to.clamp(-1, 1);
+    if (to == next) return;
+    final up = to > next && to == 1;
+    setState(() => next = to);
+    if (up) {
+      _celebrate();
+    } else {
+      HapticFeedback.lightImpact();
+      if (to < 0 && !MediaQuery.of(context).disableAnimations) settle.forward(from: 0);
+    }
+  }
+
+  String _weight(double v) => x.unit == 'version' ? (v <= 0 ? 'Knees bent' : v == 1 ? 'Knees to chest' : 'Toes to bar') : '${v % 1 == 0 ? v.toInt() : v} ${x.unit}';
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final du = context.du;
-    startLabPerson(context.store.state, context.store.now);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Playground')),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 24), children: [
-        Text('Ideas to try before they reach the app. Nothing here touches your workouts or levels.',
-            style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
-        const SizedBox(height: 16),
-        const Subhead('Strength rating', icon: LucideIcons.gauge),
-        const SizedBox(height: 10),
-        // the lines follow who the lab rates against, set inside any exercise
-        ValueListenableBuilder(valueListenable: labPerson, builder: (context, _, _) => Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
-          // the rank across every lift: the ratings averaged
-          Builder(builder: (context) {
-            final all = [for (final (id, _) in strengthLabExercises) strengthLabRating(id)];
-            final mean = all.reduce((a, b) => a + b) / all.length;
-            return ListTile(
-              leading: IconBadge(LucideIcons.trophy, size: 38, accent: true),
-              title: Text('Overall: ${rankOf(mean).name} · ${mean.round()}'),
-              subtitle: const Text('The ratings of the lifts below, averaged: one rank for all of you'),
-            );
-          }),
-          Divider(height: 1, color: du.line),
-          for (var i = 0; i < strengthLabExercises.length; i++) ...[
-            if (i > 0) Divider(height: 1, indent: 64, color: du.line),
-            Builder(builder: (context) {
-              final ex = exerciseById[strengthLabExercises[i].$1]!;
-              return ListTile(
-                leading: IconBadge(ex.loaded ? LucideIcons.dumbbell : LucideIcons.personStanding, size: 38),
-                title: Text(ex.name),
-                subtitle: Text(strengthLabSummary(ex.id)),
-                trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => StrengthLabScreen(exerciseId: ex.id))),
-              );
-            }),
-          ],
-        ]))),
-        const SizedBox(height: 20),
-        _Collapsible(title: 'Finish screen', icon: LucideIcons.flag, child: Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
-          for (var i = 0; i < _samples.length; i++) ...[
-            if (i > 0) Divider(height: 1, indent: 64, color: du.line),
-            ListTile(
-              leading: IconBadge(_samples[i].icon, size: 38),
-              title: Text(_samples[i].title),
-              subtitle: Text(_samples[i].blurb),
-              trailing: Icon(LucideIcons.chevronRight, size: 18, color: du.inkTertiary),
-              onTap: () => _open(context, _samples[i]),
-            ),
-          ],
-        ]))),
-      ]),
-    );
-  }
-
-  /// The finish screen over its own sample data, with its own navigator so its drawers read the sample too.
-  void _open(BuildContext context, _Sample p) {
-    final store = _build(p);
-    Navigator.of(context).push(MaterialPageRoute<void>(builder: (outer) => StoreScope(store: store, child: Navigator(
-      onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => LoggedView(
-        session: store.state.active!,
-        onDone: () => Navigator.of(outer).pop(),
-        onReopen: () {
-          Navigator.of(outer).pop();
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('In the app this goes back to the workout.')));
-        },
-      )),
-    ))));
-  }
-}
-
-/// A section that opens and closes under its heading: for what is kept to revisit, out of the way until then.
-class _Collapsible extends StatefulWidget {
-  const _Collapsible({required this.title, required this.icon, required this.child});
-  final String title;
-  final IconData icon;
-  final Widget child;
-  @override
-  State<_Collapsible> createState() => _CollapsibleState();
-}
-
-class _CollapsibleState extends State<_Collapsible> {
-  bool open = false;
-  @override
-  Widget build(BuildContext context) {
-    final du = context.du;
+    final p = StatePalette.of(context);
+    final up = next > 0;
+    final down = next < 0;
+    // the tile's colour: a step up in the win's (your push ember, else the earned dusk), a first time fresh, the rest none
+    final sweep = x.kind == _K.push ? p.push : p.earned;
+    final ink = x.kind == _K.push ? p.pushInk.of(context) : p.earnedInk.of(context);
+    final edge = up ? sweep : x.kind == _K.first ? p.fresh : null;
+    final calm = p.gentleInk.of(context);
+    final (icon, markColor) = up
+        ? (x.kind == _K.push ? LucideIcons.flame : LucideIcons.arrowUp, ink)
+        : down ? (LucideIcons.arrowDown, calm)
+        : switch (x.kind) {
+            _K.first => (freshIcon, freshInk(context)),
+            _K.better => (LucideIcons.trendingUp, du.accentText),
+            _K.short => (LucideIcons.sprout, calm),
+            _K.eased => (LucideIcons.feather, calm),
+            _ => (LucideIcons.equal, du.inkSecondary),
+          };
+    final label = up ? (x.kind == _K.push ? 'YOUR PUSH' : offered ? 'LEVELLED UP' : 'STEPPING UP') : x.kind == _K.first ? 'FIRST TIME' : null;
+    final target = x.now + next * x.step;
     final dur = m(context, durSlow);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => setState(() => open = !open),
-        child: Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(children: [
-          Expanded(child: Subhead(widget.title, icon: widget.icon)),
-          AnimatedRotation(turns: open ? 0.5 : 0, duration: dur, child: Icon(LucideIcons.chevronDown, size: 18, color: du.inkTertiary)),
-        ])),
+
+    // the mark: its icon pops in as it changes, and a step up throws a burst of sparks
+    final mark = SizedBox(width: 40, height: 40, child: Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
+      Positioned(left: -40, top: -40, right: -40, bottom: -40, child: IgnorePointer(child: AnimatedBuilder(animation: burst,
+          builder: (context, _) => CustomPaint(painter: _Sparks(burst.value, sweep))))),
+      AnimatedContainer(duration: dur, width: 40, height: 40, decoration: BoxDecoration(shape: BoxShape.circle, color: markColor.withValues(alpha: 0.13))),
+      AnimatedSwitcher(
+        duration: dur,
+        transitionBuilder: (c, a) => ScaleTransition(scale: CurvedAnimation(parent: a, curve: Curves.elasticOut), child: FadeTransition(opacity: a, child: c)),
+        child: Icon(icon, key: ValueKey('$icon$markColor'), size: 18, color: markColor),
       ),
-      AnimatedSize(duration: dur, curve: Curves.easeOutCubic, alignment: Alignment.topCenter,
-          child: open ? Padding(padding: const EdgeInsets.only(top: 8), child: widget.child) : const SizedBox(width: double.infinity)),
+    ]));
+
+    // next time, by the chosen control
+    final weightStyle = t.titleSmall?.copyWith(color: up ? ink : down ? calm : x.kind == _K.first ? freshInk(context) : du.inkSecondary, fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]);
+    Widget weight() => TweenAnimationBuilder<double>(
+          tween: Tween(end: target),
+          duration: m(context, const Duration(milliseconds: 700)),
+          curve: Curves.easeOutCubic,
+          builder: (context, v, _) => Text(_weight(x.unit == 'version' ? target : (v / (x.step / 2)).round() * (x.step / 2)), style: weightStyle),
+        );
+    final right = InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () { HapticFeedback.selectionClick(); setState(() => open = !open); },
+      child: AnimatedContainer(duration: dur, padding: const EdgeInsets.fromLTRB(8, 5, 10, 5), decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: up || down ? (up ? ink : calm).withValues(alpha: 0.12) : Colors.transparent,
+        border: Border.all(color: up || down ? Colors.transparent : du.line, width: 0.8),
+      ), child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (up || down) Icon(up ? LucideIcons.arrowUp : LucideIcons.arrowDown, size: 14, color: weightStyle?.color),
+        if (up || down) const SizedBox(width: 4),
+        weight(),
+      ])),
+    );
+    // the chip opened: easier, the same or harder, as the take's pills, the picked one with its word
+    final below = !open ? null : Padding(padding: const EdgeInsets.only(left: 52, top: 12), child: ChoicePills<int>(
+      label: 'Next time',
+      value: next,
+      onPick: _set,
+      options: [
+        (value: -1, icon: LucideIcons.minus, word: 'Easier', color: calm),
+        (value: 0, icon: LucideIcons.equal, word: 'Same', color: du.accentText),
+        (value: 1, icon: LucideIcons.plus, word: 'Harder', color: ink),
+      ],
+    ));
+
+    // what the user thinks of it: only a first time asks, in the finish's own pills
+    final takeRow = x.kind != _K.first ? null : Padding(padding: const EdgeInsets.only(left: 52, top: 12), child: ChoicePills<String>(
+      label: 'Your take',
+      value: take,
+      onPick: (v) => setState(() => take = v),
+      options: [
+        (value: 'love', icon: LucideIcons.heart, word: 'Love it', color: const Color(0xFFE5484D)),
+        (value: 'fine', icon: LucideIcons.thumbsUp, word: "It's fine", color: du.accentText),
+        (value: 'no', icon: LucideIcons.thumbsDown, word: 'Not for me', color: du.warning),
+      ],
+    ));
+
+    final body = Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        mark,
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          AnimatedSize(duration: dur, curve: Curves.easeOutCubic, alignment: Alignment.topLeft, child: label == null
+              ? const SizedBox(width: double.infinity)
+              : Padding(padding: const EdgeInsets.only(bottom: 2), child: AnimatedSwitcher(duration: dur, child: x.kind == _K.first && !up
+                  ? FreshText(key: const ValueKey('fresh'), child: Text(label, style: t.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w600)))
+                  : Text(label, key: ValueKey(label), style: t.labelSmall?.copyWith(letterSpacing: 1.2, fontWeight: FontWeight.w600, color: ink))))),
+          Text(x.name, style: t.titleMedium),
+          Text(x.line, style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
+        ])),
+        const SizedBox(width: 8),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          right,
+          if (x.delta != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text('↑${x.delta}', style: t.labelMedium?.copyWith(color: du.accentText))),
+        ]),
+      ]),
+      ?below,
+      ?takeRow,
     ]);
+
+    // the frame: plain, a thin edge in its colour; a step up sweeps the edge round once
+    final framed = AnimatedBuilder(animation: Listenable.merge([burst, settle]), builder: (context, child) {
+      final colors = edge ?? [du.line, du.line];
+      final spin = burst.isAnimating ? burst.value : 0.0;
+      final swell = sin(pi * spin);                                      // 0 → 1 → 0 over the burst
+      final calmWash = settle.isAnimating ? sin(pi * settle.value) : 0.0;
+      final wash = up ? 0.04 + 0.16 * swell : edge != null ? 0.04 : 0.0;
+      final tint = up ? sweep[1] : colors[1 % colors.length];
+      return Transform.scale(scale: 1 + 0.025 * swell, child: Container(
+        padding: EdgeInsets.all(edge == null ? 0.6 : 1.4 + 0.8 * swell),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: spin > 0
+              ? SweepGradient(colors: [...colors, colors.first], transform: GradientRotation(2 * pi * Curves.easeOutCubic.transform(spin)))
+              : LinearGradient(colors: colors.length == 1 ? [colors.first, colors.first] : colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+          boxShadow: [BoxShadow(color: edge == null ? const Color(0x0F000000) : colors[colors.length ~/ 2].withValues(alpha: 0.10 + 0.35 * swell), blurRadius: 14 + 26 * swell, offset: const Offset(0, 2))],
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Color.alphaBlend(calm.withValues(alpha: 0.14 * calmWash), Color.alphaBlend(tint.withValues(alpha: wash), du.surface)),
+            borderRadius: BorderRadius.circular(13.4),
+          ),
+          child: child,
+        ),
+      ));
+    }, child: AnimatedSize(duration: dur, curve: Curves.easeOutCubic, alignment: Alignment.topCenter, child: body));
+
+    return framed;
   }
+}
+
+/// A burst of sparks from the mark: eight, thrown out and fading, in the win's colours.
+class _Sparks extends CustomPainter {
+  _Sparks(this.t, this.colors);
+  final double t;
+  final List<Color> colors;
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (t <= 0 || t >= 1) return;
+    final c = size.center(Offset.zero);
+    final e = Curves.easeOutCubic.transform(t);
+    for (var k = 0; k < 12; k++) {
+      final a = k * pi / 6 + (k.isEven ? 0.15 : -0.1);
+      final r = 18 + (k.isEven ? 34 : 24) * e;
+      canvas.drawCircle(c + Offset(cos(a), sin(a)) * r, (k.isEven ? 3.6 : 2.6) * (1 - t) + 0.6, Paint()..color = colors[k % colors.length].withValues(alpha: 1 - t * t));
+    }
+  }
+
+  @override
+  bool shouldRepaint(_Sparks old) => old.t != t;
 }
