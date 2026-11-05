@@ -11,7 +11,7 @@ import 'workout_test.dart' as w;
 /// A workout played through the workout logic: [reps] per exercise, each set [lift] s, [rest] s before the next.
 Session play(AppState s, List<List<int>> reps, {int lift = 35, int rest = 90, int? endAfter, int minutes = 45, Map<int, int> change = const {}}) {
   final x = w.build(s, warmup: 0, minutes: minutes);
-  for (final e in x.exercises) { ensureState(s, e.exercise)..appearances = 3..calibrating = false; }
+  for (final e in x.exercises) { ensureState(s, e.exercise)..appearances = 3..calibrating = false; e.calibrating = false; }
   // the user moving the weight mid-workout, as the drawer does: + heavier, - lighter, in plate steps
   for (final c in change.entries) { changeLevel(s, x, c.key, kg: x.exercises[c.key].loadKg! + c.value * stepKg(s, x.exercises[c.key].exercise)); }
   startWorkout(s, x, w.t0);

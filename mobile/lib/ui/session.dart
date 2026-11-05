@@ -13,11 +13,13 @@ import '../data/store.dart';
 import '../integrations.dart';
 import '../logic/after.dart';
 import '../logic/builder.dart';
+import '../logic/calibrate.dart';
 import '../logic/calendar.dart';
 import '../logic/ladder.dart';
 import '../logic/score.dart';
 import '../logic/workout.dart';
 import 'app.dart';
+import 'fresh.dart';
 import 'logged.dart';
 import 'motion.dart';
 import 'stage_art.dart';
@@ -291,6 +293,16 @@ class _SessionScreenState extends State<SessionScreen> {
     final du = context.du;
     final cur = items[curIdx];
     final label = _view != null ? _viewLabel(x, items, view.blocks[_view!]) : view.between ? 'Resting' : _nowName(x, cur);
+    // a calibration set under way: the label says so, in fresh
+    final lifting = liftingSet(x, cur);
+    final testing = _view == null && lifting != null && isTestSet(x.exercises[lifting.ex], lifting.set);
+    // the blocks of calibration sets: the ones done, and the one under way or next while it is still looking
+    bool fresh(StripBlock b) {
+      final r = b.set;
+      if (r == null) return false;
+      final l = setOf(x, r);
+      return l.attempted ? l.test : isTestSet(x.exercises[r.ex], r.set);
+    }
     final upNext = _nextName(x, items, curIdx);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -301,7 +313,11 @@ class _SessionScreenState extends State<SessionScreen> {
           final bl = view.blocks;
           // done is a clear green short of the one under way; skipped is hollow, a ring with nothing in it
           final done = Color.lerp(du.accentLine, du.accentStrong, 0.5)!;
-          BoxDecoration deco(StripBlock b, double r) => switch (b.state) {
+          BoxDecoration deco(StripBlock b, double r) => fresh(b) && b.state != BlockState.skipped ? BoxDecoration(color: switch (b.state) {
+                BlockState.now => freshFillOf(context),
+                BlockState.done => Color.lerp(freshFillOf(context), du.line, 0.35)!,
+                _ => Color.lerp(freshFillOf(context), du.line, 0.7)!,
+              }, borderRadius: BorderRadius.circular(r)) : switch (b.state) {
                 BlockState.done => BoxDecoration(color: done, borderRadius: BorderRadius.circular(r)),
                 BlockState.skipped => BoxDecoration(border: Border.all(color: du.line, width: 1), borderRadius: BorderRadius.circular(r)),
                 BlockState.now => BoxDecoration(color: du.accentStrong, borderRadius: BorderRadius.circular(r)),
@@ -335,7 +351,8 @@ class _SessionScreenState extends State<SessionScreen> {
         })),
         const SizedBox(height: stageCaptionGap),
         Row(children: [
-          Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelMedium?.copyWith(letterSpacing: 0, color: du.accentText, fontWeight: FontWeight.w600))),
+          Expanded(child: Text(testing ? 'Calibrating · $label' : label, maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: t.labelMedium?.copyWith(letterSpacing: 0, color: testing ? freshInk(context) : du.accentText, fontWeight: FontWeight.w600))),
           if (upNext != null) ...[
             const SizedBox(width: 12),
             Expanded(child: Text('Next: $upNext', textAlign: TextAlign.end, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelMedium?.copyWith(letterSpacing: 0, color: du.inkTertiary))),
@@ -435,17 +452,22 @@ class _SessionScreenState extends State<SessionScreen> {
     final level = e.exercise.ladder != null ? e.rungLabel : _weightOf(e);
     final changeable = levelChoices(context.store.state, x, lift.ex).length > 1;
     final seconds = e.exercise.repLabel == 'seconds';
-    final levelStyle = t.titleMedium?.copyWith(color: du.accentText, fontWeight: FontWeight.w600);
+    // a calibration set: as many good reps as they can, up to the cap, to find their weight; the weight under test in fresh
+    final test = isTestSet(e, lift.set);
+    final levelStyle = t.titleMedium?.copyWith(color: test ? freshInk(context) : du.accentText, fontWeight: FontWeight.w600);
+    final side = e.exercise.perSide ? ' a side' : '';
     return [
       Text(e.exercise.name, style: t.headlineLarge),
       const SizedBox(height: 8),
       Row(children: [
-        Icon(LucideIcons.target, size: 16, color: du.inkSecondary),
+        Icon(test ? freshIcon : LucideIcons.target, size: 16, color: test ? freshInk(context) : du.inkSecondary),
         const SizedBox(width: 8),
-        Text('${e.lo} to ${e.hi} ${seconds ? 'seconds' : 'reps'}${e.exercise.perSide ? ' a side' : ''}', style: t.titleMedium),
+        // a calibration set's words take the room, on one line; the range and the level as always
+        if (test) Expanded(child: Text('As many as you can, up to $calibrationCap$side', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.titleMedium))
+        else Text('${e.lo} to ${e.hi} ${seconds ? 'seconds' : 'reps'}$side', style: t.titleMedium),
         const SizedBox(width: 12),
         if (level != null)
-          Expanded(child: Align(alignment: Alignment.centerRight, child: !changeable
+          (test ? (Widget c) => c : (Widget c) => Expanded(child: c))(Align(alignment: Alignment.centerRight, child: !changeable
               ? Text(level, maxLines: 1, overflow: TextOverflow.ellipsis, style: levelStyle)
               : Material(color: Colors.transparent, child: InkWell(
                   key: const ValueKey('level'),
@@ -454,7 +476,7 @@ class _SessionScreenState extends State<SessionScreen> {
                   child: Padding(padding: const EdgeInsets.fromLTRB(8, 4, 2, 4), child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Flexible(child: Text(level, maxLines: 1, overflow: TextOverflow.ellipsis, style: levelStyle)),
                     const SizedBox(width: 2),
-                    Icon(LucideIcons.chevronRight, size: 18, color: du.accentText),
+                    Icon(LucideIcons.chevronRight, size: 18, color: test ? freshInk(context) : du.accentText),
                   ])),
                 ))))
         else
@@ -462,7 +484,8 @@ class _SessionScreenState extends State<SessionScreen> {
       ]),
       if (circuit) Padding(padding: const EdgeInsets.only(top: 6), child: Text('${cur.exercises.map((i) => x.exercises[i].exercise.name).join(' → ')}, then rest and go again.', style: t.labelSmall)),
       const SizedBox(height: 16),
-      StageArt(stage: stageOf(e.exercise.type)),
+      // a calibration set says when to stop in the picture's three words, so nothing on the screen moves
+      StageArt(stage: stageOf(e.exercise.type), tagline: test ? 'Until form breaks' : null, taglineColor: test ? freshInk(context) : null),
       const SizedBox(height: 24),
       HowToSteps(howAt(e.exercise, e.rung)),
     ];
@@ -823,11 +846,13 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   /// The numbers a wheel offers for an exercise: every rep, or every five seconds for a long hold.
-  List<int> _wheelValues(SessionExercise e) {
+  List<int> _wheelValues(SessionExercise e, {bool test = false}) {
     final seconds = e.exercise.repLabel == 'seconds';
     final step = seconds && e.hi - e.lo > 12 ? 5 : 1;
     final next = seconds ? null : repsToStepUp(context.store.state, e);
     final top = max(e.hi + step * max(6, (e.hi - e.lo) ~/ step), next == null ? 0 : min(next + 2, e.hi * 3));
+    // a calibration set stops at the cap
+    if (test) return [for (var v = 0; v <= calibrationCap; v++) v];
     return [for (var v = 0; v <= top; v += step) v];
   }
 
@@ -842,8 +867,9 @@ class _SessionScreenState extends State<SessionScreen> {
     final r = liftingSet(x, cur)!;
     final e = x.exercises[r.ex];
     final seconds = e.exercise.repLabel == 'seconds';
-    final values = _wheelValues(e);
-    final before = [for (final s in e.sets) if (s.attempted) s.reps!].lastOrNull;
+    final test = isTestSet(e, r.set);
+    final values = _wheelValues(e, test: test);
+    final before = test ? null : [for (final s in e.sets) if (s.attempted) s.reps!].lastOrNull;
     return _RepWheel(
       title: seconds ? 'How many seconds did you hold?' : 'How many reps did you get?',
       values: values, initial: _nearest(values, before ?? e.hi), lo: e.lo, hi: e.hi, unit: seconds ? 'seconds' : 'reps',
@@ -905,7 +931,7 @@ class _SessionScreenState extends State<SessionScreen> {
   Widget _fixWheel(BuildContext context, Session x, SetRef r, VoidCallback back) {
     final e = x.exercises[r.ex];
     final seconds = e.exercise.repLabel == 'seconds';
-    final values = _wheelValues(e);
+    final values = _wheelValues(e, test: setOf(x, r).test);
     return _RepWheel(
       title: seconds ? 'Update the previous hold time' : 'Update the previous rep count',
       values: values, initial: _nearest(values, setOf(x, r).reps ?? e.hi), lo: e.lo, hi: e.hi, unit: seconds ? 'seconds' : 'reps',
@@ -945,7 +971,7 @@ class _SessionScreenState extends State<SessionScreen> {
   void _logReps(BuildContext context, Session x, int reps) {
     final store = context.store;
     HapticFeedback.mediumImpact();
-    store.update((_) => enterReps(x, reps, store.now));
+    store.update((st) => logReps(st, x, reps, store.now));
     setState(() {
       _viewForward = true;
       _hold = _wait;

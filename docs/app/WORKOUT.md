@@ -237,7 +237,8 @@ Next time is one of three words, **Harder**, **Same** or **Easier**, decided in 
 | Situation | Next time |
 |---|---|
 | At the top of what this place can do | Same; the target is beating the best total |
-| The first time ever | Same: a first go is taken as the right level. Harder only if the reps averaged three or more over the top, Easier only if two or more under the floor |
+| The first time ever | Same: a first go is taken as the right level. Harder if the reps averaged over the top and are worth a level more (or three or more over the top), Easier only if two or more under the floor |
+| Still calibrating without calibration sets (holds, older workouts), the reps averaged over the top | Harder now, to the level the reps are worth |
 | Every set at the next level, the average at its floor or better (a hard day) | Harder now |
 | The average at the step-up bar | Harder after the step-up number in a row (default one); at once when coming back after decay |
 | The average under the floor, at the working level, on a day that counts | Easier after the step-down number in a row (default two) |
@@ -245,6 +246,31 @@ Next time is one of three words, **Harder**, **Same** or **Easier**, decided in 
 
 A day counts against a level only when it ended normally or out of time: never on an easy-energy day, a low-energy
 read, a light exercise, or one that hurt. Harder and Easier move one step; a first time can pick further on its wheel.
+
+**Calibrating.** A new exercise starts at a guess and finds the user's weight in its first workout, with calibration
+sets (`mobile/lib/logic/calibrate.dart`). Its first set is as many good reps as they can, up to 20, at the guess: the
+target row says "As many as you can, up to 20" and the picture's tagline "Until form breaks" (the rack lifts' how-to
+already says to set the safeties). Under 20, that set found it: read with the one rep people leave in the tank, it
+gives the weight for the middle of today's range (the rating reads the reps as logged, like every working set, which
+stop short too, so a lift does not drop after it calibrates), the rest of the sets are working sets at it, and it is the user's
+level from then on. At 20 the set said only "at least", so the next set is heavier, by what 20 implies and 15 % more
+(a newcomer's at most a quarter more), and another calibration set; with nothing done, a fifth lighter. Three at most
+in a workout; three at 20 start heavier next time and keep looking. On the finish screen the tile says what found it
+("14 reps at 60 kg found it", "Your weight: 67.5 kg"), with no Right or Too light to answer, and calibration sets are
+left out of how the day is read (going to failure on purpose is not fading). Checked on simulated lifters before it was
+built: one workout calibrated 97 to 100 % of new exercises with one or two hard sets; the app's guess was safer to start
+from than the person's own pick (returning lifters overestimate), a cap of 15 left strong lifters short, and five sets
+to failure were no more accurate than two. Holds, and workouts logged before calibration sets, find the level the old
+way: reps averaged over the top jump to the level they are worth (`impliedRung`), and the first workout in the range
+or under it found it.
+
+**The guess** (`ensureState` in `mobile/lib/logic/ladder.dart`). An exercise with a strength standard starts at the
+heaviest level that rates no more than a start rating in the middle of the range, for this user's build, bodyweight
+and age: 750 for someone new, 950 with some experience, 1150 experienced (`experienceStart`), low on purpose since
+reps over the top jump at once. Once a lift for the same muscles has found its level, a new one starts 50 under their
+average rating instead (`startRating`), and finds its own level from there. An exercise without a standard keeps the
+library's starting weight for the experience, scaled by the most practised loaded lift for the same muscles. One
+weight for everyone put a newcomer woman near the middle of the people she is ranked against on most lifts.
 Exercises skipped, never started or changed to another level before starting are not judged. A first time sets the
 starting point and does not count toward a step-up run. The user can change any word on the finish screen; what is
 shown when they tap Done is what is saved.
@@ -252,14 +278,34 @@ shown when they tap Done is what is saved.
 ## The finish screen
 
 End goes straight to the finish (`mobile/lib/ui/logged.dart`): no stop question, no feel tap. Every exercise is one
-tile in one frame: a round mark, its name, one plain line, and next time's word at the right. A tap opens Easier,
-Same and Harder, just the words; whenever next time moves, the tile's line says where it lands ("Next time 37.5 kg").
+tile in one frame: a round mark, its name, one plain line, and at the right next time as a weight chip: the level it
+lands on, outlined when it stays, with an arrow in the step's colour when it moves. A tap on the chip (or the tile)
+opens Next time as three pills, minus, equals and plus: icons, the picked one opened with its word (Easier, Same,
+Harder), the same control as the take's (love it, it's fine, not for me; `ChoicePills`). A first time without
+calibration sets keeps its question instead.
+
+**A step up is an event.** When next time goes up (the app's level, or Harder picked: STEPPING UP), the tile's edge
+sweeps round once in the win's colours, a wash of them swells and fades, the tile pops a little, sparks burst from the
+mark and the new weight rolls up into the chip, with a firm haptic and a second tick as it lands (an earned level
+arrives the same way, quietly). Going down is a short mist wash and a light tick. Found in the Playground's tile lab on
+2026-11-04, against a heart in the corner, three bare marks and a swipe for the take, and arrows and hold-to-step-up
+for next time.
+
+**Colour** (`mobile/lib/ui/palette.dart`, chosen in the Playground's colour lab on 2026-11-04). The scheme is Ember and
+dusk: your own push is ember, a level the app earned is a soft violet dusk, going easy is mist blue-grey, finding out is
+sea-glass teal, hurt alone is red, and moss green stays you, your level and your progress. The finish takes colour at
+its edges: no tile is filled; a win (a level earned, your push) and a first time wear a thin edge in their colours with
+a coloured mark and label, every other tile is plain with a coloured mark; the badge and the confetti at the top carry
+the celebration. Each tile carries one accent colour, besides next time's word. Tried and set aside: a filled sweep on
+every win (a rainbow stack), one filled headline tile, and marks with no edges. Rank bars fill in the rank's colour,
+blending toward the next rank's.
 
 - **What happened, per exercise**, the first that fits: it hurt; the user went heavier mid-workout and made every set
-  (YOUR PUSH, the sweep, a flame) or did not (reached for it); a first time; a level earned (LEVELLED UP, the sweep);
+  (YOUR PUSH, its edge, a flame) or did not (reached for it); a first time; a level earned (LEVELLED UP, its edge);
   eased off partway; better than last time (heavier, or more total reps at the same weight); past the top of the
   range; short; steady. The mark shows which, or an arrow when next time moves.
-- **A first time** has its own tile: a fresh-coloured edge and label, a compass mark, "How was 40 kg?" with Right
+- **A first time** has its own tile: a fresh-coloured edge and label, a compass mark; calibrated, the weight it
+  found ("Your weight: 67.5 kg"); otherwise "How was 40 kg?" with Right
   picked (Too light or Too heavy opens a wheel of levels for next time), and the user's take: a heart, a thumbs up
   and a thumbs down, the picked one opened with its word. Unrated reads as the thumbs up.
 - **The tone** of the headline and badge comes from the most telling moment: a push or a level celebrates (confetti
@@ -279,8 +325,10 @@ Same and Harder, just the words; whenever next time moves, the tile's line says 
   rating" the first time, "new rank" with a small pop when it climbs a rank). See the strength rating below.
 
 The page's layout is fixed when it opens, so a choice animates inside its own tile and nothing else moves. Debug
-builds (the dev loops, never a release) have a Playground tab that opens the finish on sample workouts and the
-strength rating on sample lifts, without touching the user's data.
+builds (the dev loops, never a release) have a Playground tab that opens the finish on sample workouts, the strength
+rating on sample lifts, and under Ranks and calibration the real app over made-up lifters in every state (a calibration
+set, past the cap, found; a first rank, still finding, a good day; Today and Progress unranked, provisional and
+ranked), without touching the user's data.
 
 ## Strength rating
 
@@ -306,9 +354,26 @@ still not put off.
   version; the assisted machine is read as pull-ups with the assist off bodyweight. What a standard stands on is named:
   measured, modelled (FitnessVolt only), a close cousin's page, or estimated (no page: from the beginner start, spaced
   like the measured lifts for the same muscles).
-- **It moves like Elo.** The first workout sets it outright; then each workout moves it half the way to its worth for
-  the first three, a quarter after. An easy or low-energy day, a light exercise or one that hurt can lift it but never
-  lower it. It is worked out from the logged workouts every time, never stored.
+- **It moves like Elo**, from the day's best set (later sets are tired, and the standards are people's best efforts;
+  rating from the average read every lift about 40 low). An exercise is in one of three stages (`LiftStage`).
+  Calibrating: its weight is still being found, and a workout can only lift its rating, a floor. Calibrated: the
+  workout that found it sets the rating outright, so a strong lifter starts high. Settled: one more workout at that
+  weight; from then each workout moves it half the way to its worth for the next three, a quarter after. An easy or
+  low-energy day, a light exercise, one that hurt, or a workout with every set at the top of the range (the user
+  stopped where they were asked to) can lift it but never lower it, and cannot find its level. It is
+  worked out from the logged workouts every time, never stored.
+- **The overall rating** is the average rating of the lifts the user is training (done in the last six weeks; the
+  measured ones, when any are; `overallHistory`). Unranked until two lifts are calibrated, usually after the first
+  workout; provisional (the calibrated lifts) until five have settled; then the settled ones. A lift tried once never
+  settles and never counts, one dropped leaves after six weeks. It moves as fast as the average lift really does: a
+  good day moves it a few points while each lift moves more, so Today and the finish screen carry the day in the
+  lifts. A workout's change is its lifts' movement over every lift counted; a lift joining is not a change. Progress
+  draws the line from the lifts counted now (`overallLine`): each at its rating then, or its first rating before it
+  had one, so a weaker lift settling later does not read as a drop, the line ends at today's number, and it runs back
+  before the first rank. Tried and dropped: an average over every lift ever done (an old lift held it down for good),
+  weights fading with time (a good day on a weak lift brought it back at full weight and lowered it), and the user as
+  the player, moved by the average change of the day's lifts (each lift comes back about every five workouts, so it
+  counted the same progress five times over).
 
 The exercise card shows it under Strength: the rank and rating, the share of people it beats, what it is worth as
 lifts, the rating over time, and what the next rank takes. The playground's strength lab tries it on sample lifts.

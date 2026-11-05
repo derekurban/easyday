@@ -19,13 +19,25 @@
 // (1 + reps/30), so every version of it lands on its standard. An exercise with no standard page is estimated from its
 // beginner start, spaced like the measured lifts for the same muscles, and says so.
 //
-// Like Elo, the rating is the app's belief and each workout is evidence: the first workout sets it outright (a strong
-// lifter starts high), then it moves part of the way to each day's performance, further while the exercise is new, and a
-// day that does not count against the user (easy, low energy, light, hurt) can lift it but never lower it.
+// Like Elo, the rating is the app's belief and each workout is evidence, read from the day's best set. An exercise goes
+// through three stages ([LiftStage]). Calibrating: its weight is still being found (calibration sets at the cap, or
+// reps over the top), so a workout only lifts it, a floor. Calibrated: a calibration set ended under the cap (or, for
+// older workouts and holds, the reps landed in the range), which sets it outright, so a strong lifter starts high.
+// Settled: one more workout at that weight; from then it moves part of the way to each day's performance, further
+// while it is new, and a day that does not count against the user (easy, low energy, light, hurt) can lift it but
+// never lower it.
+//
+// The overall rating is the average of the lifts the user is actively training (done in the last [activeDays]):
+// unranked until two have been calibrated, provisional (the calibrated ones) until five have settled, then the settled
+// ones. It moves as fast as the average lift really does, so a good day moves it a few points while each lift moves
+// more; a lift tried once never settles and never counts, and one dropped leaves it after [activeDays]. A rule that
+// moved it by the average change of the day's lifts was tried and dropped: with each lift back every five workouts it
+// counted the same progress five times over.
 import 'dart:math';
 
 import '../data/library.dart';
 import '../data/model.dart';
+import 'calibrate.dart';
 import 'ladder.dart';
 import 'score.dart';
 
@@ -205,8 +217,9 @@ class Rater {
 
   double setRating(double load, int reps) => rating(load * epley(reps));
 
-  /// A day's performance: its sets averaged the way the judging averages them, as a rating.
-  double performance(List<({double load, int reps})> sets) => rating(sets.fold(0.0, (a, x) => a + x.load * epley(x.reps)) / sets.length);
+  /// A day's performance: its best set, as a rating. The best and not the average: later sets are tired, and the
+  /// standards are people's best efforts.
+  double performance(List<({double load, int reps})> sets) => rating(sets.fold(0.0, (a, x) => max(a, x.load * epley(x.reps))));
 
   /// The reps a rating is worth at a load.
   double repsAt(double rating, double load) => 30 * (strength(rating) / load - 1);
@@ -251,20 +264,31 @@ Rater raterFor(AppState s, Exercise ex, DateTime at) {
   return Rater(ex, sex: sex, bodyweight: s.profile?.bodyweightKg ?? (sex == Sex.man ? 80 : 65), age: s.profile?.ageAt(at) ?? 30);
 }
 
-/// One workout's place in an exercise's rating: when, what the day's sets were worth, and the rating after it.
-typedef RatedWorkout = ({DateTime at, double performance, double rating});
+/// Where an exercise is in finding the user's level: its weight still being found, found (one workout measured it), or
+/// settled (a workout since confirmed it), when its changes are progress.
+enum LiftStage { calibrating, calibrated, settled }
 
-/// What one workout's sets of an exercise were worth, and whether a lower one may count against the user: not on an easy
-/// or low-energy day, a light exercise, or one that hurt. Null when nothing was done or it hurt.
-({double performance, bool counts})? workoutPerformance(AppState s, Session x, int i, Rater r) {
+/// One workout's place in an exercise's rating: when, what the day's best set was worth, the rating after it, and the
+/// stage the exercise was in by then.
+typedef RatedWorkout = ({DateTime at, double performance, double rating, LiftStage stage});
+
+/// What one workout's sets of an exercise were worth (the best set), and whether a lower one may count against the
+/// user: not on an easy or low-energy day, a light exercise, or one that hurt, nor when every set reached the top of
+/// the range (the user stopped where they were asked to: at least this much). Null when nothing was done or it hurt.
+/// [skipCapped]: leave out calibration sets that reached the cap, which only said "at least".
+({double performance, bool counts})? workoutPerformance(AppState s, Session x, int i, Rater r, {bool skipCapped = false}) {
   final e = x.exercises[i];
-  final sets = e.attempted.toList();
+  var sets = e.attempted.toList();
   if (sets.isEmpty || x.painAt == i) return null;
+  // once a calibration set has found the level, the ones at the cap before it only said "at least"
+  if (skipCapped) sets = [for (final l in sets) if (!(l.test && (l.reps ?? 0) >= calibrationCap)) l];
+  if (sets.isEmpty) return null;
   final ex = e.exercise;
   final perf = r.performance([for (final l in sets) (load: ex.loaded ? r.load(kg: setLoad(s, e, l)) : r.load(rung: l.rung ?? e.rung), reps: l.reps ?? 0)]);
   final end = endReadOf(x.endRead);
   final low = end == EndRead.energy || end == EndRead.low || x.stopReason == StopReason.energy;
-  return (performance: perf, counts: x.energy != Energy.easy && e.atWorkingLevel && !low);
+  final atTop = !e.atCeiling && sets.every((l) => !l.test && (l.reps ?? 0) >= e.hi);
+  return (performance: perf, counts: x.energy != Energy.easy && e.atWorkingLevel && !low && !atTop);
 }
 
 /// An exercise's rating through the user's logged workouts, oldest first, and [plus] (the workout on the finish screen,
@@ -275,14 +299,35 @@ List<RatedWorkout> ratingHistory(AppState s, Exercise ex, DateTime now, {Session
   final out = <RatedWorkout>[];
   final logged = [for (final x in s.sessions) if (x.startedAt != null && !identical(x, plus)) x]..sort((a, b) => a.startedAt!.compareTo(b.startedAt!));
   double? rating;
+  var stage = LiftStage.calibrating;
+  var since = 0; // workouts rated since the level was found
   for (final x in [...logged, ?plus]) {
     final i = x.exercises.indexWhere((e) => e.exId == ex.id && e.attempted.isNotEmpty);
     if (i < 0) continue;
+    final e = x.exercises[i];
     final at = x.startedAt ?? now;
-    final p = workoutPerformance(s, x, i, raters.putIfAbsent(s.profile?.ageAt(at), () => raterFor(s, ex, at)));
+    final rater = raters.putIfAbsent(s.profile?.ageAt(at), () => raterFor(s, ex, at));
+    final p = workoutPerformance(s, x, i, rater);
     if (p == null) continue;
-    rating = nextRating(rating, p.performance, workoutsBefore: out.length, counts: p.counts);
-    out.add((at: at, performance: p.performance, rating: rating));
+    var perf = p.performance;
+    if (stage == LiftStage.calibrating) {
+      // calibration sets: found when one ended under the cap; older workouts and holds: when the reps landed in range
+      final tested = e.sets.any((l) => l.test);
+      final found = tested ? calibratedToday(e) : p.counts && foundLevel(e);
+      if (found) {
+        if (tested) perf = workoutPerformance(s, x, i, rater, skipCapped: true)?.performance ?? perf;
+        rating = perf;
+        stage = LiftStage.calibrated;
+        since = 1;
+      } else {
+        // still finding it: the reps say at least this much
+        rating = max(rating ?? perf, perf);
+      }
+    } else {
+      rating = nextRating(rating, perf, workoutsBefore: since++, counts: p.counts);
+      stage = LiftStage.settled;
+    }
+    out.add((at: at, performance: perf, rating: rating, stage: stage));
   }
   return out;
 }
@@ -317,27 +362,136 @@ List<String> liftsAt(AppState s, Exercise ex, Rater r, double rating, RepRange r
   return [for (final o in picked) '${o.$3} × ${o.$2}'];
 }
 
-/// The user's overall rating: every exercise they have a rating on, averaged, with [plus] (the workout on the finish
-/// screen) counted in. The change is what [plus] moved it, over the exercises rated before it, so a first rating on a
-/// new exercise never reads as a loss. Null when nothing is rated.
-({double rating, double? change})? overallRating(AppState s, DateTime now, {Session? plus}) {
+/// Calibrated lifts before the user has a first, provisional rank.
+const calibratedToRank = 2;
+
+/// Settled lifts before the rank stops being provisional.
+const settledToLock = 5;
+
+/// A lift counts toward the overall rating while it was done in this many days.
+const activeDays = 42;
+
+/// Where the user is in being ranked: not yet, a first read from the calibrated lifts, or ranked on the settled ones.
+enum RankStage { unranked, provisional, ranked }
+
+/// The overall rating after one workout. [rating]: null while unranked. [change]: what that workout's lifts did to it,
+/// once ranked (null while provisional and when none of them moved; a lift joining does not count as a change).
+/// [toGo]: unranked, the lifts still to calibrate; provisional, the lifts still to settle. [firstRank]: this workout
+/// gave the first rank.
+typedef OverallPoint = ({DateTime at, double? rating, double? change, RankStage stage, int toGo, bool firstRank});
+
+/// The user's overall rating through their logged workouts and [plus] (the workout on the finish screen), oldest first:
+/// at each workout, the average of the lifts done in the last [activeDays] (the measured ones, when any are), the
+/// calibrated ones while provisional and the settled ones once ranked.
+List<OverallPoint> overallHistory(AppState s, DateTime now, {Session? plus}) {
   final ids = <String>{
     for (final x in [...s.sessions, ?plus]) for (final e in x.exercises) if (e.attempted.isNotEmpty && e.exercise.isStrength && e.exercise.tracked) e.exId,
   };
-  final latest = <double>[];
-  var moved = 0.0, before = 0;
+  final byTime = <DateTime, List<(String, RatedWorkout)>>{};
   for (final id in ids) {
-    final h = ratingHistory(s, exerciseById[id]!, now, plus: plus);
-    if (h.isEmpty) continue;
-    latest.add(h.last.rating);
-    final today = plus != null && h.last.at == (plus.startedAt ?? now);
-    if (!today) {
-      before++;
-    } else if (h.length > 1) {
-      before++;
-      moved += h.last.rating - h[h.length - 2].rating;
-    }
+    for (final w in ratingHistory(s, exerciseById[id]!, now, plus: plus)) { (byTime[w.at] ??= []).add((id, w)); }
   }
-  if (latest.isEmpty) return null;
-  return (rating: latest.reduce((a, b) => a + b) / latest.length, change: plus == null || before == 0 ? null : moved / before);
+  final measured = {for (final id in ids) id: raterFor(s, exerciseById[id]!, now).grounded};
+  final latest = <String, RatedWorkout>{};
+  final out = <OverallPoint>[];
+  for (final at in byTime.keys.toList()..sort()) {
+    final before = Map.of(latest);
+    for (final (id, w) in byTime[at]!) { latest[id] = w; }
+    final active = [for (final e in latest.entries) if (at.difference(e.value.at).inDays <= activeDays) e];
+    final calibrated = [for (final e in active) if (e.value.stage != LiftStage.calibrating) e];
+    final settled = [for (final e in active) if (e.value.stage == LiftStage.settled) e];
+    final RankStage stage;
+    final List<MapEntry<String, RatedWorkout>> pool;
+    if (settled.length >= settledToLock) {
+      stage = RankStage.ranked;
+      pool = settled;
+    } else if (calibrated.length >= calibratedToRank) {
+      stage = RankStage.provisional;
+      pool = calibrated;
+    } else {
+      stage = RankStage.unranked;
+      pool = const [];
+    }
+    final firstRank = stage != RankStage.unranked && (out.isEmpty || out.last.stage == RankStage.unranked);
+    if (stage == RankStage.unranked) {
+      out.add((at: at, rating: null, change: null, stage: stage, toGo: calibratedToRank - calibrated.length, firstRank: false));
+      continue;
+    }
+    final use = pool.any((e) => measured[e.key]!) ? [for (final e in pool) if (measured[e.key]!) e] : pool;
+    final rating = use.fold(0.0, (a, e) => a + e.value.rating) / use.length;
+    // ranked: today's lifts against their own last rating, over the lifts counted; a lift just joining moves nothing
+    double? change;
+    if (stage == RankStage.ranked && out.last.stage == RankStage.ranked) {
+      var moved = 0.0;
+      var any = false;
+      for (final e in use) {
+        final b = before[e.key];
+        if (e.value.at == at && b != null && b.stage == LiftStage.settled) { moved += e.value.rating - b.rating; any = true; }
+      }
+      if (any) change = moved / use.length;
+    }
+    out.add((at: at, rating: rating, change: change, stage: stage, toGo: stage == RankStage.provisional ? settledToLock - settled.length : 0, firstRank: firstRank));
+  }
+  return out;
+}
+
+/// The user's overall rating now, with [plus] (the workout on the finish screen) counted in: the last point of
+/// [overallHistory], whose change is what [plus] did to it. Null when nothing is rated.
+OverallPoint? overallRating(AppState s, DateTime now, {Session? plus}) {
+  final h = overallHistory(s, now, plus: plus);
+  if (h.isEmpty) return null;
+  final o = h.last;
+  // without a workout on the finish screen there is no today to have moved it
+  if (plus != null && o.at == (plus.startedAt ?? now)) return o;
+  return (at: o.at, rating: o.rating, change: null, stage: o.stage, toGo: o.toGo, firstRank: false);
+}
+
+/// A lift the user is training now (done in the last [activeDays], its level found): its rating and stage, and what it
+/// climbed in the last 30 days once settled (null without two settled workouts to compare).
+typedef LiftStanding = ({String exId, double rating, LiftStage stage, double? climb});
+
+/// The lifts the user is training now, strongest first, for Progress.
+List<LiftStanding> standings(AppState s, DateTime now) {
+  final out = <LiftStanding>[];
+  final ids = <String>{for (final x in s.sessions) for (final e in x.exercises) if (e.attempted.isNotEmpty && e.exercise.isStrength && e.exercise.tracked) e.exId};
+  final since = now.subtract(const Duration(days: 30));
+  for (final id in ids) {
+    final h = ratingHistory(s, exerciseById[id]!, now);
+    if (h.isEmpty || h.last.stage == LiftStage.calibrating || now.difference(h.last.at).inDays > activeDays) continue;
+    final settled = [for (final w in h) if (w.stage == LiftStage.settled) w];
+    // from the last settled rating before the 30 days, else the first one inside them
+    final base = settled.where((w) => !w.at.isAfter(since)).lastOrNull ?? settled.firstOrNull;
+    final climb = base != null && settled.last.at.isAfter(base.at) ? settled.last.rating - base.rating : null;
+    out.add((exId: id, rating: h.last.rating, stage: h.last.stage, climb: climb));
+  }
+  out.sort((a, b) => b.rating.compareTo(a.rating));
+  return out;
+}
+
+/// The overall rating's line over time, for Progress: at each workout, the average of the lifts counted now (the ones
+/// [overallRating] averages today), each at its rating then, or its first rating before it had one. So the line moves
+/// only as those lifts did (a weaker lift settling later does not read as a drop), ends at today's number, and runs back
+/// before the first rank. Empty while unranked.
+List<({DateTime at, double rating})> overallLine(AppState s, DateTime now) {
+  final o = overallRating(s, now);
+  if (o == null || o.stage == RankStage.unranked) return const [];
+  final counted = <String, List<RatedWorkout>>{};
+  final ids = <String>{for (final x in s.sessions) for (final e in x.exercises) if (e.attempted.isNotEmpty && e.exercise.isStrength && e.exercise.tracked) e.exId};
+  for (final id in ids) {
+    final h = ratingHistory(s, exerciseById[id]!, now);
+    if (h.isEmpty || o.at.difference(h.last.at).inDays > activeDays) continue;
+    final ok = o.stage == RankStage.ranked ? h.last.stage == LiftStage.settled : h.last.stage != LiftStage.calibrating;
+    if (ok) counted[id] = [for (final w in h) if (w.stage != LiftStage.calibrating) w];
+  }
+  final measured = counted.keys.where((id) => raterFor(s, exerciseById[id]!, now).grounded).toList();
+  final use = measured.isNotEmpty ? measured : counted.keys.toList();
+  if (use.isEmpty) return const [];
+  final times = <DateTime>{for (final id in use) for (final w in counted[id]!) w.at}.toList()..sort();
+  return [
+    for (final at in times)
+      (at: at, rating: use.fold(0.0, (a, id) {
+        final h = counted[id]!;
+        return a + (h.where((w) => !w.at.isAfter(at)).lastOrNull ?? h.first).rating;
+      }) / use.length),
+  ];
 }

@@ -20,14 +20,18 @@ import '../logic/ladder.dart';
 import '../logic/muscle_map.dart';
 import '../logic/muscle_plan.dart';
 import '../logic/person.dart';
+import '../logic/rating.dart';
 import '../logic/selection.dart';
+import '../logic/stakes.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'exercise_card.dart';
 import 'exercise_muscles.dart';
+import 'fresh.dart';
 import 'motion.dart';
 import 'muscle_figure.dart';
 import 'muscle_picker.dart';
+import 'rank.dart';
 import 'stage_art.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -142,6 +146,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final lift = session.type == 'lift';
     final plan = _musclePlan(s, now);
     final empty = lift && session.exercises.isEmpty;
+    final stakes = lift && !empty ? stakesFor(s, session, now) : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -183,6 +188,8 @@ class _TodayScreenState extends State<TodayScreen> {
                     ),
                   ]),
                 ],
+                // where the user stands, and what a good day does to it
+                if (stakes != null) ...[const SizedBox(height: 16), _rankCard(context, stakes)],
                 const SizedBox(height: 16),
                 // the picture: the body with today's muscles, or the kind of movement
                 if (lift) _figureCard(context, s, now, session, plan) else StageArt(stage: session.kind == 'cardio' ? Stage.cardio : Stage.stretching),
@@ -207,7 +214,7 @@ class _TodayScreenState extends State<TodayScreen> {
                       onTap: () => _pickMuscles(context),
                     ))
                   else
-                    _plan(context, s, session, est),
+                    _plan(context, s, session, est, stakes),
                 ] else
                   _moveBody(context, session),
               ]),
@@ -383,22 +390,22 @@ class _TodayScreenState extends State<TodayScreen> {
 
   // ---------- the plan
 
-  Widget _plan(BuildContext context, AppState s, Session session, int est) {
+  Widget _plan(BuildContext context, AppState s, Session session, int est, Stakes? stakes) {
     final store = context.store;
     final g = s.goal!;
     final items = workoutItems(session);
     // the strip as the workout will show it: a block per set and per timed part
-    final blocks = <({String item, bool set})>[
+    final blocks = <({String item, bool set, bool fresh})>[
       for (final it in items)
-        if (it.lifting) for (final _ in setOrder(session, it)) (item: it.key, set: true)
-        else (item: it.key, set: false),
+        if (it.lifting) for (final r in setOrder(session, it)) (item: it.key, set: true, fresh: r.set == 0 && session.exercises[r.ex].calibrating)
+        else (item: it.key, set: false, fresh: false),
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
         Row1(icon: LucideIcons.flame, title: const Text('Warm-up'), subtitle: session.warmupMinutes == 0 ? 'None today' : null, value: session.warmupMinutes == 0 ? null : '${session.warmupMinutes} min', onTap: () => _warmupSheet(context, s)),
         const Divider(height: 1),
         for (var i = 0; i < session.exercises.length; i++) ...[
-          _exerciseRow(context, session, i),
+          _exerciseRow(context, session, i, stakes?.lifts[i]),
           const Divider(height: 1),
         ],
         if (g.cardioPct > 0 || session.cardioMinutes > 0) ...[
@@ -439,7 +446,72 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   /// A plan row: the exercise, its level and sets, and a tag only when today differs from the usual.
-  Widget _exerciseRow(BuildContext context, Session session, int i) {
+  /// The overall rank as one card: the rank, the number, how far to the next and what a good day today does to it.
+  /// Provisional until enough lifts have settled; unranked until enough are calibrated, with how many to go.
+  Widget _rankCard(BuildContext context, Stakes k) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final o = k.overall;
+    final rating = o?.rating;
+    if (o == null || o.stage == RankStage.unranked || rating == null) {
+      final toGo = o?.toGo ?? calibratedToRank;
+      final line = k.calibrating >= toGo
+          ? 'Unranked. Today calibrates enough for your first rank.'
+          : 'Unranked. $toGo more ${toGo == 1 ? 'exercise' : 'exercises'} to calibrate for your first rank${k.calibrating > 0 ? ', ${k.calibrating} today' : ''}.';
+      return Panel(child: Row(children: [
+        Icon(freshIcon, size: 18, color: freshInk(context)),
+        const SizedBox(width: 12),
+        Expanded(child: Text(line, style: t.bodyMedium?.copyWith(color: du.inkSecondary))),
+      ]));
+    }
+    final rank = rankOf(rating);
+    final next = rank.index + 1 < ranks.length ? ranks[rank.index + 1] : null;
+    final c = k.goodChange;
+    final parts = [
+      if (next != null) '${(next.from - rating).ceil()} to ${next.name}',
+      if (o.stage == RankStage.provisional) 'provisional until ${o.toGo} more ${o.toGo == 1 ? 'lift settles' : 'lifts settle'}'
+      else if (c != null && c > 0) 'a good day today ${c < 1 ? 'under a point' : '+${c.round()}'}',
+    ];
+    return Panel(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        RankBadge(rank.index, provisional: o.stage == RankStage.provisional),
+        const SizedBox(width: 10),
+        Flexible(child: Text('Strength ${rating.round()}', maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: t.titleMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]))),
+      ]),
+      const SizedBox(height: 12),
+      RankProgress(rating: rating),
+      if (parts.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Text(parts.join(' · '), style: t.bodySmall?.copyWith(color: du.inkSecondary)),
+      ],
+    ]));
+  }
+
+  /// A lift's rank on its row: the badge and the number, and under them what a good day does; a lift calibrating today
+  /// says so instead.
+  Widget? _stakeOf(BuildContext context, LiftStake? k) {
+    if (k == null) return null;
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    // at most a third of the row, so the name keeps its room at any text size
+    Widget bounded(Widget c) => ConstrainedBox(constraints: const BoxConstraints(maxWidth: 128), child: c);
+    if (k.calibrating) return null; // said by the fresh tag beside its name
+    final r = k.rating;
+    if (r == null) return null;
+    final up = k.good == null ? null : k.good! - r;
+    return bounded(Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+      FittedBox(fit: BoxFit.scaleDown, child: Row(mainAxisSize: MainAxisSize.min, children: [
+        RankBadge(rankOf(r).index, small: true, provisional: k.stage == LiftStage.calibrated),
+        const SizedBox(width: 6),
+        Text('${r.round()}', style: t.bodyMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()])),
+      ])),
+      if (up != null && up.round() > 0)
+        Padding(padding: const EdgeInsets.only(top: 2), child: Text('good day +${up.round()}', maxLines: 1, overflow: TextOverflow.ellipsis, style: t.labelSmall?.copyWith(color: du.accentText))),
+    ]));
+  }
+
+  Widget _exerciseRow(BuildContext context, Session session, int i, [LiftStake? stake]) {
     final e = session.exercises[i];
     final unit = e.exercise.repLabel == 'seconds' ? ' s' : '';
     final level = e.exercise.loaded ? e.rungLabel : e.rungLabel == e.exercise.name ? null : e.rungLabel;
@@ -448,10 +520,13 @@ class _TodayScreenState extends State<TodayScreen> {
     final word = context.store.state.ex[e.exId]?.preference == prefNo ? 'not for you' : e.fresh ? 'new' : e.asked ? 'forced' : null;
     return Row1(
       icon: exerciseIcon(e.exercise),
-      title: Text(e.exercise.name, overflow: TextOverflow.ellipsis),
-      tags: [if (tag != null) Tag(tag, accent: e.nextLevel), if (word != null) Tag(word, accent: word == 'new' || word == 'forced')],
-      subtitle: level == null ? sets : '$level · $sets',
-      value: '${max(1, (plannedSeconds(e) / 60).round())} min',
+      title: Text(e.exercise.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+      // a lift finding its weight today wears the fresh tag, in place of "new"
+      tags: [if (tag != null) Tag(tag, accent: e.nextLevel), if (e.calibrating) const FreshTag('calibrating') else if (word != null) Tag(word, accent: word == 'new' || word == 'forced')],
+      // with a rank on the right, the minutes join the facts under the name
+      subtitle: [?level, sets, if (_stakeOf(context, stake) != null) '${max(1, (plannedSeconds(e) / 60).round())} min'].join(' · '),
+      value: _stakeOf(context, stake) != null ? null : '${max(1, (plannedSeconds(e) / 60).round())} min',
+      trailing: _stakeOf(context, stake),
       onTap: () => _exerciseSheet(context, session, i),
     );
   }

@@ -1,56 +1,47 @@
-import 'package:easyday/data/library.dart';
 import 'package:easyday/data/store.dart';
 import 'package:easyday/ui/app.dart';
-import 'package:easyday/ui/logged.dart';
 import 'package:easyday/ui/playground.dart';
-import 'package:easyday/ui/strength_lab.dart';
 import 'package:easyday/ui/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import 'workout_test.dart' as w;
 
 void main() {
-  testWidgets('every sample in the playground opens the finish screen, and Done comes back', (tester) async {
-    tester.view.physicalSize = const Size(412, 915);
+  testWidgets('the tile lab: a weight chip opens easier, the same and harder; a first time takes your take', (tester) async {
+    tester.view.physicalSize = const Size(412, 1600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final real = Store(w.fresh(), null);
-    await tester.pumpWidget(StoreScope(store: real, child: MaterialApp(theme: buildTheme(Brightness.light), home: const PlaygroundScreen())));
-    Future<void> frames() async { for (var k = 0; k < 4; k++) { await tester.pump(const Duration(milliseconds: 500)); } }
-    final list = find.byType(Scrollable).first;
-    // the strength rating first: each opens, and back
-    for (final (id, _) in strengthLabExercises) {
-      final name = find.text(exerciseById[id]!.name);
-      await tester.scrollUntilVisible(name, 200, scrollable: list);
-      await tester.tap(name);
-      await frames();
-      expect(tester.takeException(), isNull, reason: id);
-      expect(find.byType(StrengthLabScreen), findsOneWidget);
-      await tester.pageBack();
-      await frames();
-    }
-    expect(playgroundSampleTitles.length, greaterThanOrEqualTo(8));
-    // the finish screen is kept closed until opened
-    expect(find.text(playgroundSampleTitles.first), findsNothing);
-    await tester.scrollUntilVisible(find.text('Finish screen'), 200, scrollable: list);
-    await tester.tap(find.text('Finish screen'));
+    await tester.pumpWidget(StoreScope(store: real, child: MaterialApp(theme: buildTheme(Brightness.dark), home: const PlaygroundScreen())));
+    Future<void> frames() async { for (var k = 0; k < 6; k++) { await tester.pump(const Duration(milliseconds: 250)); } }
     await frames();
-    for (final title in playgroundSampleTitles) {
-      await tester.scrollUntilVisible(find.text(title), 200, scrollable: list);
-      await tester.tap(find.text(title));
-      await frames();
-      expect(tester.takeException(), isNull, reason: title);
-      expect(find.byType(LoggedView), findsOneWidget, reason: title);
-      // only the samples that ended before the plan was done ask why
-      final early = title == 'Out of time' || title == 'It has to ask';
-      expect(find.text('You finished early').evaluate().isNotEmpty, early, reason: title);
-      await tester.tap(find.text('Done'));
-      await frames();
-      expect(find.byType(LoggedView), findsNothing, reason: 'back from $title');
-    }
-    expect(real.state.sessions, isEmpty, reason: 'the samples never touch the real data');
-    expect(real.state.active, isNull);
+    // the curl's chip: open it, harder (a step up, its label and weight), easier, the same
+    await tester.tap(find.text('12 kg'));
+    await frames();
+    expect(find.text('Next time'), findsOneWidget);
+    expect(find.text('Same'), findsOneWidget, reason: 'the picked pill opens with its word');
+    await tester.tap(find.byIcon(LucideIcons.plus));
+    await frames();
+    expect(find.text('Harder'), findsOneWidget);
+    expect(find.text('STEPPING UP'), findsOneWidget);
+    expect(find.text('13 kg'), findsOneWidget);
+    await tester.tap(find.byIcon(LucideIcons.minus));
+    await frames();
+    expect(find.text('Easier'), findsOneWidget);
+    expect(find.text('11 kg'), findsOneWidget);
+    await tester.tap(find.byIcon(LucideIcons.equal));
+    await frames();
+    // the take, on the first time
+    expect(find.text("It's fine"), findsOneWidget);
+    await tester.tap(find.byIcon(LucideIcons.heart));
+    await frames();
+    expect(find.text('Love it'), findsOneWidget);
+    await tester.tap(find.byTooltip('Light'));
+    await frames();
+    expect(tester.takeException(), isNull);
+    expect(real.state.sessions, isEmpty, reason: 'the lab never touches the real data');
   });
 }

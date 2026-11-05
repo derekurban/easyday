@@ -7,36 +7,39 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../logic/rating.dart';
 import 'motion.dart';
+import 'palette.dart';
 import 'theme.dart';
 
-/// The colour of a rank, from iron grey to champion magenta.
-Color rankColor(int i) => const [Color(0xFF7A7F87), Color(0xFFB0763C), Color(0xFF8E99A4), Color(0xFFC9971C), Color(0xFF2FA39A), Color(0xFF5B7CF0), Color(0xFFC844E8)][i];
+/// The colour of a rank, from iron grey to the top, in the palette in use ([StatePalette.ranks]).
+Color rankColorOf(BuildContext context, int i) => StatePalette.of(context).ranks[i];
 
 const _rankIcons = [LucideIcons.anvil, LucideIcons.shield, LucideIcons.shieldHalf, LucideIcons.medal, LucideIcons.award, LucideIcons.gem, LucideIcons.crown];
 
 /// A rank as a small badge: its icon and name in its colour. [onMagic] draws it in white over the level-up sweep.
 class RankBadge extends StatelessWidget {
-  const RankBadge(this.index, {super.key, this.onMagic = false, this.small = false});
+  const RankBadge(this.index, {super.key, this.onMagic = false, this.small = false, this.provisional = false});
   final int index;
+  final bool provisional; // calibrated, not settled: hollow, the ring fainter
   final bool onMagic;
   final bool small;
   @override
   Widget build(BuildContext context) {
     const white = Color(0xFFFFFFFF);
-    final c = onMagic ? white : rankColor(index);
-    return Container(
+    final c = onMagic ? white : rankColorOf(context, index);
+    // not settled yet: hollow and faded, so it reads as a first guess beside the settled ones
+    return Opacity(opacity: provisional && !onMagic ? 0.6 : 1, child: Container(
       padding: EdgeInsets.symmetric(horizontal: small ? 8 : 10, vertical: small ? 3 : 5),
       decoration: BoxDecoration(
-        color: onMagic ? white.withValues(alpha: 0.2) : c.withValues(alpha: 0.14),
+        color: onMagic ? white.withValues(alpha: 0.2) : provisional ? Colors.transparent : c.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: c.withValues(alpha: 0.6)),
+        border: Border.all(color: c.withValues(alpha: provisional ? 0.4 : 0.6)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(_rankIcons[index], size: small ? 12 : 14, color: c),
         SizedBox(width: small ? 4 : 5),
         Text(ranks[index].name, style: (small ? Theme.of(context).textTheme.labelMedium : Theme.of(context).textTheme.labelLarge)?.copyWith(color: c, fontWeight: FontWeight.w700)),
       ]),
-    );
+    ));
   }
 }
 
@@ -57,7 +60,7 @@ class RatingDelta extends StatelessWidget {
     final change = rating - before!;
     final rank = rankOf(rating);
     final up = withRank && rank.index > rankOf(before!).index;
-    final c = onMagic ? white : change > 0 ? du.accentText : du.warning;
+    final c = onMagic ? white : change > 0 ? du.accentText : StatePalette.of(context).gentleInk.of(context);
     return Row(mainAxisSize: MainAxisSize.min, children: [
       if (up) ...[
         TweenAnimationBuilder<double>(
@@ -77,19 +80,23 @@ class RatingDelta extends StatelessWidget {
 
 /// The way from this rank to the next as one bar in the rank's colour, with the next rank at its end.
 class RankProgress extends StatelessWidget {
-  const RankProgress({super.key, required this.rating});
+  const RankProgress({super.key, required this.rating, this.showCurrent = false});
   final double rating;
+  final bool showCurrent; // the rank it starts from, at the left, where no badge is near
   @override
   Widget build(BuildContext context) {
     final du = context.du;
     final t = Theme.of(context).textTheme;
     final rank = rankOf(rating);
     final top = rank.index == ranks.length - 1;
-    final c = rankColor(rank.index);
+    final c = rankColorOf(context, rank.index);
+    // the bar is the journey: the rank's own colour, blending toward the next one's as it nears it
+    final toward = top ? c : Color.lerp(c, rankColorOf(context, rank.index + 1), rank.progress)!;
     return Row(children: [
+      if (showCurrent) ...[RankBadge(rank.index, small: true), const SizedBox(width: 10)],
       Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(999), child: SizedBox(height: 8, child: Stack(children: [
         Container(color: du.sunk),
-        FractionallySizedBox(widthFactor: top ? 1 : rank.progress, child: Container(color: c)),
+        FractionallySizedBox(widthFactor: top ? 1 : rank.progress, heightFactor: 1, child: Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [c, toward])))),
       ])))),
       const SizedBox(width: 10),
       if (top) Text('top rank', style: t.labelMedium?.copyWith(color: c)) else RankBadge(rank.index + 1, small: true),
@@ -118,9 +125,9 @@ Future<void> showRanks(BuildContext context, {required String title, required do
           margin: const EdgeInsets.symmetric(vertical: 3),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: i == mine ? rankColor(i).withValues(alpha: 0.12) : null,
+            color: i == mine ? rankColorOf(context, i).withValues(alpha: 0.12) : null,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: i == mine ? rankColor(i) : const Color(0x00000000), width: 1.2),
+            border: Border.all(color: i == mine ? rankColorOf(context, i) : const Color(0x00000000), width: 1.2),
           ),
           child: Row(children: [
             SizedBox(width: 118, child: Align(alignment: Alignment.centerLeft, child: Opacity(opacity: i <= mine ? 1 : 0.5, child: RankBadge(i)))),
@@ -128,7 +135,7 @@ Future<void> showRanks(BuildContext context, {required String title, required do
               Text(i == 0 ? 'Under 800' : '${ranks[i].from.round()}+ · beats ${Rater.percentile(ranks[i].from).round()} %', style: t.labelLarge),
               if (i > 0) Text(takes(ranks[i].from), style: t.bodySmall?.copyWith(color: du.inkSecondary)),
             ])),
-            if (i == mine) Text('you', style: t.labelLarge?.copyWith(color: rankColor(i), fontWeight: FontWeight.w700)),
+            if (i == mine) Text('you', style: t.labelLarge?.copyWith(color: rankColorOf(context, i), fontWeight: FontWeight.w700)),
           ]),
         ),
         if (basis != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(basis, style: t.bodySmall?.copyWith(color: du.inkTertiary))),
@@ -146,13 +153,14 @@ class RatingChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final du = context.du;
     return SizedBox(height: height, child: CustomPaint(size: Size.infinite, painter: _ChartPainter(ratings, performances, du.accentStrong, du.inkTertiary, du.line,
-        Theme.of(context).textTheme.labelSmall!.copyWith(color: du.inkTertiary))));
+        Theme.of(context).textTheme.labelSmall!.copyWith(color: du.inkTertiary), StatePalette.of(context).ranks)));
   }
 }
 
 class _ChartPainter extends CustomPainter {
-  _ChartPainter(this.ratings, this.perfs, this.line, this.dot, this.grid, this.label);
+  _ChartPainter(this.ratings, this.perfs, this.line, this.dot, this.grid, this.label, this.rankColors);
   final List<double> ratings, perfs;
+  final List<Color> rankColors;
   final Color line, dot, grid;
   final TextStyle label;
   @override
@@ -173,9 +181,9 @@ class _ChartPainter extends CustomPainter {
     for (var k = 1; k < ranks.length; k++) {
       final v = ranks[k].from;
       if (v < lo || v > hi) continue;
-      final p = Paint()..color = rankColor(k).withValues(alpha: 0.7)..strokeWidth = 1.2;
+      final p = Paint()..color = rankColors[k].withValues(alpha: 0.7)..strokeWidth = 1.2;
       for (var xx = left; xx < size.width; xx += 8) { canvas.drawLine(Offset(xx, y(v)), Offset(min(xx + 4, size.width), y(v)), p); }
-      final tp = TextPainter(text: TextSpan(text: ranks[k].name, style: label.copyWith(color: rankColor(k))), textDirection: TextDirection.ltr)..layout();
+      final tp = TextPainter(text: TextSpan(text: ranks[k].name, style: label.copyWith(color: rankColors[k])), textDirection: TextDirection.ltr)..layout();
       tp.paint(canvas, Offset(left + 4, y(v) - tp.height - 1));
     }
     final d = Paint()..color = dot;

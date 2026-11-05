@@ -1,6 +1,10 @@
+import 'dart:math';
+
 import 'package:easyday/data/library.dart';
 import 'package:easyday/data/model.dart';
 import 'package:easyday/logic/after.dart';
+import 'package:easyday/logic/calibrate.dart';
+import 'package:easyday/logic/workout.dart';
 import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/rating.dart';
 import 'package:easyday/logic/score.dart';
@@ -138,15 +142,192 @@ void main() {
     expect(ratingHistory(s, ex, w.t0, plus: b).last.rating, before);
   });
 
-  test("the overall rating averages every rated exercise, and a first rating on a new one never reads as a change", () {
+  test('older workouts without calibration sets: reps over the top only lift the rating; the first in range sets it', () {
     final s = w.fresh(template: 'gym');
-    final a = sc.play(s, [[10, 10, 10]]);
+    final a = sc.play(s, [[25, 25, 25]]);
     finishSession(s, a, Finish(endRead: EndRead.none), a.endedAt!);
-    final before = overallRating(s, w.t0)!;
-    expect(before.change, isNull);
-    final b = sc.play(s, [[12, 12, 12], [10, 10, 10]])..startedAt = w.t0.add(const Duration(days: 2));
-    final after = overallRating(s, w.t0, plus: b)!;
-    final squat = ratingHistory(s, a.exercises[0].exercise, w.t0, plus: b);
-    expect(after.change, closeTo(squat.last.rating - squat.first.rating, 1e-6), reason: 'only the exercise rated before moves it');
+    final ex = a.exercises[0].exercise;
+    expect(ratingHistory(s, ex, w.t0).single.stage, LiftStage.calibrating, reason: 'over the top: the weight is too light to say');
+    final hi = a.exercises[0].hi + 1;
+    final b = sc.play(s, [[hi, hi, hi]])..startedAt = w.t0.add(const Duration(days: 2));
+    final two = ratingHistory(s, ex, w.t0, plus: b);
+    expect(two.last.stage, LiftStage.calibrating);
+    expect(two.last.rating, max(two.first.rating, two.last.performance), reason: 'a floor: it can only rise');
+    finishSession(s, b, Finish(endRead: EndRead.none), b.endedAt!);
+    final c = sc.play(s, [[10, 10, 10]])..startedAt = w.t0.add(const Duration(days: 4));
+    final three = ratingHistory(s, ex, w.t0, plus: c);
+    expect(three.last.stage, LiftStage.calibrated);
+    expect(three.last.rating, three.last.performance, reason: 'the level found: set outright, not pulled');
+    finishSession(s, c, Finish(endRead: EndRead.none), c.endedAt!);
+    final d = sc.play(s, [[11, 11, 11]])..startedAt = w.t0.add(const Duration(days: 6));
+    expect(ratingHistory(s, ex, w.t0, plus: d).last.stage, LiftStage.settled, reason: 'one more workout at the weight');
+  });
+
+  test('a rating reads the best set of the day, not the average', () {
+    final s = w.fresh(template: 'gym');
+    final a = sc.play(s, [[12, 8, 6]]);
+    finishSession(s, a, Finish(endRead: EndRead.none), a.endedAt!);
+    final e = a.exercises[0];
+    final r = raterFor(s, e.exercise, w.t0);
+    final kg = e.attempted.first.kg ?? e.loadKg!;
+    expect(ratingHistory(s, e.exercise, w.t0).single.performance, closeTo(r.rating(r.load(kg: kg) * epley(12)), 1e-6));
+  });
+
+  // one logged workout of known lifts, [days] after the start, every set of each exercise at its reps
+  Session day(AppState s, int days, List<int> reps) {
+    final x = sc.play(s, [for (final r in reps) [r, r, r]], minutes: 90);
+    final shift = Duration(days: days);
+    x.startedAt = x.startedAt!.add(shift);
+    finishSession(s, x, Finish(endRead: EndRead.none), x.endedAt!.add(shift));
+    return x;
+  }
+
+  // a workout played from the start with calibration sets: the first sets of each exercise as many as the user can
+  Session calibrate(AppState s, List<List<int>> reps, {int days = 0}) {
+    final x = w.build(s, warmup: 0, minutes: 90);
+    if (days == 0) { for (final e in x.exercises) { expect(e.calibrating, isTrue, reason: '${e.exercise.name} is new'); } }
+    final at = w.t0.add(Duration(days: days));
+    startWorkout(s, x, at);
+    var t = at;
+    for (var i = 0; i < x.exercises.length && i < reps.length; i++) {
+      for (final r in reps[i]) {
+        t = t.add(const Duration(seconds: 40));
+        logReps(s, x, r, t);
+        t = t.add(const Duration(seconds: 90));
+        ready(x, t);
+      }
+    }
+    endWorkout(x, t);
+    return x;
+  }
+
+  test('a calibration set under the cap calibrates the exercise there and then; the sets after are working sets at its weight', () {
+    final s = w.fresh(template: 'gym');
+    final x = calibrate(s, [[14, 10, 10]]);
+    final e = x.exercises[0];
+    expect(e.sets[0].test, isTrue);
+    expect(e.sets[1].test, isFalse, reason: 'found: the rest are working sets');
+    final kg0 = e.sets[0].kg!, kg1 = e.sets[1].kg!;
+    final step = stepKg(s, e.exercise);
+    // the weight that 14 reps (and the one left in the tank) is worth in the middle of today's range, on the grid
+    final worth = kg0 * epley(15) / epley(((e.lo + e.hi) / 2).round());
+    expect(kg1, lessThanOrEqualTo(worth + step), reason: 'about what the set was worth');
+    expect(kg1, greaterThan(kg0), reason: '14 reps in an ${e.lo} to ${e.hi} range: heavier');
+    final st = s.ex[e.exId]!;
+    expect(st.calibrating, isFalse);
+    finishSession(s, x, Finish(endRead: EndRead.none), x.endedAt!);
+    expect(loadFor(s, e.exercise, st, st.rung, e.range), closeTo(kg1, 1e-6), reason: 'the found weight is the level next time');
+    final h = ratingHistory(s, e.exercise, w.t0);
+    expect(h.single.stage, LiftStage.calibrated);
+    final r = raterFor(s, e.exercise, w.t0);
+    expect(h.single.rating, greaterThanOrEqualTo(r.rating(r.load(kg: kg0) * epley(14)) - 1e-6), reason: 'at least what the calibration set showed');
+    expect(h.single.rating, lessThan(r.rating(r.load(kg: kg0) * epley(14 + leftInTheTank)) + 30), reason: 'the rep in the tank sets the weight, not the rating');
+  });
+
+  test('at the cap the next set is heavier and another calibration set; a newcomer jumps at most a quarter', () {
+    final s = w.fresh(template: 'gym');
+    final x = calibrate(s, [[calibrationCap, 9, 9]]);
+    final e = x.exercises[0];
+    expect(e.sets[0].test, isTrue);
+    expect(e.sets[1].test, isTrue, reason: 'the cap said only "at least"');
+    expect(e.sets[2].test, isFalse, reason: '9 reps found it');
+    final kg0 = e.sets[0].kg!, kg1 = e.sets[1].kg!;
+    expect(kg1, greaterThanOrEqualTo(kg0 * epley(calibrationCap + leftInTheTank) / epley(((e.lo + e.hi) / 2).round()) - stepKg(s, e.exercise)));
+    final newcomer = w.fresh(template: 'gym')..profile!.experience = 'new';
+    final y = calibrate(newcomer, [[calibrationCap, 9]]);
+    expect(y.exercises[0].sets[1].kg!, lessThanOrEqualTo(y.exercises[0].sets[0].kg! * newcomerJump + 1e-6));
+  });
+
+  test('three calibration sets at the cap leave it calibrating, starting heavier next time', () {
+    final s = w.fresh(template: 'gym');
+    final x = calibrate(s, [[calibrationCap, calibrationCap, calibrationCap]]);
+    final e = x.exercises[0];
+    expect([for (final l in e.sets) l.test], [true, true, true]);
+    expect(s.ex[e.exId]!.calibrating, isTrue);
+    finishSession(s, x, Finish(endRead: EndRead.none), x.endedAt!);
+    expect(ratingHistory(s, e.exercise, w.t0).single.stage, LiftStage.calibrating);
+    expect(loadFor(s, e.exercise, s.ex[e.exId]!, s.ex[e.exId]!.rung, e.range), greaterThan(e.sets[2].kg!), reason: 'where the last set said');
+  });
+
+  test('a calibration set with nothing done goes lighter and tries again', () {
+    final s = w.fresh(template: 'gym');
+    final x = calibrate(s, [[0, 10, 10]]);
+    final e = x.exercises[0];
+    expect(e.sets[1].test, isTrue);
+    expect(e.sets[1].kg!, lessThan(e.sets[0].kg!));
+  });
+
+  test('unranked until two lifts are calibrated, provisional until five have settled, then the average of the settled ones', () {
+    final s = w.fresh(template: 'gym');
+    final a = calibrate(s, [[12, 10, 10]]);
+    final one = overallRating(s, w.t0, plus: a)!;
+    if (a.exercises.length == 1) {
+      expect(one.stage, RankStage.unranked);
+      expect(one.toGo, 1);
+    }
+    finishSession(s, a, Finish(endRead: EndRead.none), a.endedAt!);
+    // every lift found in its first workout, every workout after it the same reps
+    OverallPoint? o;
+    for (var d = 2; d < 60 && o?.stage != RankStage.ranked; d += 2) {
+      final x = calibrate(s, [for (var k = 0; k < 6; k++) [12, 10, 10]], days: d);
+      o = overallRating(s, w.t0, plus: x);
+      if (o!.stage == RankStage.provisional) expect(o.rating, isNotNull);
+      finishSession(s, x, Finish(endRead: EndRead.none), x.endedAt!);
+    }
+    final h = overallHistory(s, w.t0);
+    expect(h.where((p) => p.firstRank).length, 1);
+    final first = h.indexWhere((p) => p.stage != RankStage.unranked);
+    expect(h[first].stage, RankStage.provisional);
+    final at = h.indexWhere((p) => p.stage == RankStage.ranked);
+    expect(at, greaterThan(first));
+    // ranked: the average of the settled lifts done in the last six weeks
+    final settled = <double>[];
+    for (final id in {for (final x in s.sessions) for (final e in x.exercises) if (e.attempted.isNotEmpty) e.exId}) {
+      final r = ratingHistory(s, exerciseById[id]!, w.t0).where((r) => !r.at.isAfter(h[at].at)).lastOrNull;
+      if (r != null && r.stage == LiftStage.settled && h[at].at.difference(r.at).inDays <= activeDays && raterFor(s, exerciseById[id]!, r.at).grounded) settled.add(r.rating);
+    }
+    expect(settled, isNotEmpty);
+    expect(h[at].rating, closeTo(settled.reduce((x, y) => x + y) / settled.length, 1e-6));
+  });
+
+  test("once ranked, a workout's change is its lifts' movement over every lift counted, and a lift unused for six weeks drops out", () {
+    final s = w.fresh(template: 'gym');
+    var d = 0;
+    for (; d < 60 && overallRating(s, w.t0)?.stage != RankStage.ranked; d += 2) { day(s, d, [10, 10, 10, 10, 10, 10]); }
+    expect(overallRating(s, w.t0)!.stage, RankStage.ranked);
+    // a workout with a settled lift in it, a better day for it
+    Session? x;
+    OverallPoint? after;
+    for (var k = 0; k < 10 && after?.change == null; k++, d += 2) {
+      x = sc.play(s, [[14, 14, 14], [10, 10, 10]], minutes: 90);
+      x.startedAt = x.startedAt!.add(Duration(days: d));
+      after = overallRating(s, w.t0, plus: x);
+      if (after!.change == null) finishSession(s, x, Finish(endRead: EndRead.none), x.endedAt!.add(Duration(days: d)));
+    }
+    expect(after!.change, isNotNull);
+    // the change: the lifts counted that moved today, over every lift counted
+    final h = overallHistory(s, w.t0, plus: x);
+    final last = h.last, prev = h[h.length - 2];
+    expect(after.change!, greaterThan(0));
+    expect(after.change!.abs(), lessThan(30), reason: 'a few points: the day over every lift counted');
+    expect(last.rating! - prev.rating!, closeTo(after.change!, 1e-6), reason: 'nothing joined or left today');
+    // far later, only what was done lately counts
+    final late = sc.play(s, [[10, 10, 10]]);
+    late.startedAt = late.startedAt!.add(Duration(days: d + 200));
+    final o = overallRating(s, w.t0, plus: late)!;
+    expect(o.stage, isNot(RankStage.ranked), reason: 'one lift active is not enough to rank');
+  });
+
+  test("Progress's line ends at today's number and moves only as the lifts counted today did", () {
+    final s = w.fresh(template: 'gym');
+    for (var d = 0; d < 60 && overallRating(s, w.t0)?.stage != RankStage.ranked; d += 2) { day(s, d, [10, 10, 10, 10, 10, 10]); }
+    // the same lifts, better and better
+    for (var k = 0; k < 6; k++) { day(s, 70 + 2 * k, [11 + k ~/ 2, 11 + k ~/ 2, 11 + k ~/ 2, 11 + k ~/ 2, 11 + k ~/ 2, 11 + k ~/ 2]); }
+    final line = overallLine(s, w.t0);
+    expect(line, isNotEmpty);
+    expect(line.last.rating, closeTo(overallRating(s, w.t0)!.rating!, 1e-6));
+    for (var i = 1; i < line.length; i++) {
+      expect(line[i].rating, greaterThanOrEqualTo(line[i - 1].rating - 1e-6), reason: 'no lift got weaker, so the line never falls');
+    }
   });
 }

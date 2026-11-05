@@ -6,6 +6,7 @@ import '../data/index.dart';
 import '../data/library.dart';
 import '../data/model.dart';
 import 'builder.dart' show changeSeconds, warmupSetsSeconds;
+import 'calibrate.dart' show settleCalibration;
 import 'ladder.dart';
 import 'person.dart';
 import 'score.dart';
@@ -144,6 +145,8 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
     st.lastDoneAt = now;
     st.decayPeriodsApplied = 0;
     st.swappedOut = 0;
+    // calibration sets: the level they said, however the reps came in
+    if (e.sets.any((l) => l.test)) settleCalibration(s, session, r.index);
     // calibrating: the rep band the user picked becomes this exercise's own; the weight follows the reps
     if (e.reps != null) st.repsOverride = expressionRange[Expression.values.byName(e.reps!)];
     if (!r.judged) continue;
@@ -195,7 +198,9 @@ void _judge(AppState s, Session session, DateTime now, List<String> lines) {
           st.shortRun = 0;
         }
     }
-    st.calibrating = false;
+    // calibrating until a workout finds the level: reps over the top keep looking
+    // (calibration sets look after it themselves, set by set)
+    if (!e.sets.any((l) => l.test) && foundLevel(e)) st.calibrating = false;
   }
   lines.addAll([...ups, ...downs]);
   if (lines.isEmpty) lines.add(headline(s, session, w));

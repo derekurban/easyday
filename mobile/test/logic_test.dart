@@ -11,6 +11,7 @@ import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/person.dart';
 import 'package:easyday/logic/score.dart';
 import 'package:easyday/logic/selection.dart';
+import 'package:easyday/logic/rating.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final t0 = DateTime(2026, 10, 14, 9);
@@ -162,9 +163,10 @@ void main() {
       // the assisted machine: a level up is less help
       final a = ex['assisted_pullup']!;
       final st = ensureState(s, a);
-      expect(rungLabel(s, a, st, st.rung, middleReps), '30 kg assistance', reason: 'some experience starts at 30 kg of help');
+      final start = rungLabel(s, a, st, st.rung, middleReps);
+      expect(start, matches(RegExp(r'^\d+ kg assistance$')), reason: 'it starts with some help');
       expect(loadFor(s, a, st, st.rung + 2, middleReps), greaterThan(loadFor(s, a, st, st.rung, middleReps)));
-      expect(rungLabel(s, a, st, st.rung + 2, middleReps), isNot('30 kg assistance'));
+      expect(rungLabel(s, a, st, st.rung + 2, middleReps), isNot(start));
       expect(fmtLevelStep(s, a), '5 kg less assistance');
       expect(fmtLoad(s, a, assistRefKg), 'no assistance');
     });
@@ -269,17 +271,38 @@ void main() {
       expect(defaultsFor(s, t0.add(const Duration(days: 1))).minutes, s.plan!.timeDefault);
     });
 
-    test('calibration: a first time with reps well past the range steps up at once, even with step up = 3', () {
+    test('calibration: reps past the range jump to the level they are worth, even with step up = 3, until one lands in it', () {
       final s = fresh()..settings.stepUp = 3;
-      run(s, t0, repsBy: const {'bb_squat': 20});
-      expect(s.ex['bb_squat']!.rung, 1);
+      final a = run(s, t0, repsBy: const {'bb_squat': 20});
+      final e = a.exercises.firstWhere((e) => e.exId == 'bb_squat');
+      final st = s.ex['bb_squat']!;
+      expect(st.rung, greaterThan(1), reason: 'more than one step: 20 reps in an 8 to 12 range is worth far more');
+      final worth = e.loadKg! * epley(20);
+      expect(loadFor(s, e.exercise, st, st.rung, e.range) * epley(10), lessThanOrEqualTo(worth + 1e-9), reason: 'the middle of the range is in reach');
+      expect(loadFor(s, e.exercise, st, st.rung + 1, e.range) * epley(10), greaterThan(worth), reason: 'and the level above is not');
+      expect(st.calibrating, isTrue, reason: 'reps over the top have not found the level yet');
+      final jumped = st.rung;
+      run(s, t0.add(const Duration(days: 2)), repsBy: const {'bb_squat': 15}, muscles: quads, picks: const {'quads1': 'bb_squat'});
+      expect(st.rung, greaterThan(jumped), reason: 'still over the top while calibrating: it jumps again');
+      final again = st.rung;
+      run(s, t0.add(const Duration(days: 4)), repsBy: const {'bb_squat': 10}, muscles: quads, picks: const {'quads1': 'bb_squat'});
+      expect(st.calibrating, isFalse, reason: 'reps in the range: the level is found');
+      expect(st.rung, again);
+    });
+
+    test('calibration: reps at the top of the range or under it assume nothing', () {
+      final s = fresh();
+      run(s, t0, repsBy: const {'bb_squat': 12});
+      expect(s.ex['bb_squat']!.rung, 0);
+      expect(s.ex['bb_squat']!.calibrating, isFalse);
     });
 
     test('bodyweight ladders climb by variant, once the reps are worth the next version', () {
       final s = fresh(template: 'none');
+      s.ex['pushup'] = ExerciseState(rung: 3, startRung: 3, secPerSet: 60); // pinned at push-ups
       final a = run(s, t0);
       final pushup = a.exercises.firstWhere((e) => e.exId == 'pushup');
-      expect(pushup.rungLabel, 'Push-ups'); // experience some -> rung 3
+      expect(pushup.rungLabel, 'Push-ups');
       expect(s.ex['pushup']!.rung, 3, reason: 'the top of the range is not yet worth feet-elevated push-ups');
       final need = repsToStepUp(s, pushup, rung: 3)!;
       expect(need, greaterThan(pushup.hi));
@@ -329,13 +352,44 @@ void main() {
       expect(st.startRung, rung);
     });
 
-    test('a loaded exercise seeds from history with another exercise for the same muscle, clamped', () {
+    test('a loaded exercise without a standard seeds from history with another exercise for the same muscle, clamped', () {
       final s = fresh();
       final squat = exerciseById['bb_squat']!;
       final st = ensureState(s, squat)..appearances = 3;
       st.rung = rungForLoad(s, squat, st, 100);
-      final goblet = ensureState(s, exerciseById['goblet']!);
-      expect(loadFor(s, exerciseById['goblet']!, goblet, 0, middleReps), closeTo(24, stepKg(s, exerciseById['goblet']!))); // twice the library start, the clamp
+      final btb = exerciseById['behind_the_back_squat']!;
+      expect(raterFor(s, btb, t0).grounded, isFalse);
+      final seeded = ensureState(s, btb);
+      expect(loadFor(s, btb, seeded, 0, middleReps), closeTo(2 * startLoad(btb, 1), stepKg(s, btb))); // twice the library start, the clamp
+    });
+
+    // an exercise with a standard starts at the heaviest level that rates no more than [target] in the middle of the range
+    void startsAt(AppState s, Exercise ex, double target) {
+      final st = ensureState(s, ex);
+      final r = raterFor(s, ex, DateTime.now());
+      final kg = loadFor(s, ex, st, st.rung, middleReps);
+      expect(r.rating(r.load(kg: kg) * epley(10)), lessThanOrEqualTo(target + 1e-6), reason: '${ex.name} at $kg kg');
+      expect(r.rating(r.load(kg: kg + stepKg(s, ex)) * epley(10)), greaterThan(target), reason: 'and a step heavier is past it');
+    }
+
+    test('an exercise with a standard starts where the experience says, for this body: lighter for a woman', () {
+      final man = fresh(template: 'gym');
+      startsAt(man, exerciseById['bb_bench']!, experienceStart[1]);
+      final woman = fresh(template: 'gym')..settings.figure = 'female';
+      startsAt(woman, exerciseById['bb_bench']!, experienceStart[1]);
+      expect(loadFor(woman, exerciseById['bb_bench']!, woman.ex['bb_bench']!, 0, middleReps),
+          lessThan(loadFor(man, exerciseById['bb_bench']!, man.ex['bb_bench']!, 0, middleReps)));
+      final newcomer = fresh(template: 'gym')..profile!.experience = 'new';
+      startsAt(newcomer, exerciseById['bb_bench']!, experienceStart[0]);
+    });
+
+    test('once a lift for the same muscles has found its level, a new one starts a little under its rating', () {
+      final s = fresh(template: 'gym');
+      run(s, t0, repsBy: const {'bb_squat': 10}, muscles: quads, picks: const {'quads1': 'bb_squat'});
+      final squat = ratingHistory(s, exerciseById['bb_squat']!, t0).last;
+      expect(squat.stage, LiftStage.calibrated);
+      s.ex.remove('goblet');
+      startsAt(s, exerciseById['goblet']!, squat.rating - knownStartMargin);
     });
 
     test('holds use seconds: the range floors at the ladder range', () {
@@ -554,6 +608,9 @@ void main() {
     test('a level is a weight in its home reps, one plate step a level; other reps carry it, heavier and fewer or lighter and more', () {
       final s = fresh(goal: 'strength', template: 'gym');
       final ex = exerciseById['bb_squat']!;
+      final home = homeRange(s, ex);
+      // pinned at the library start, where the rounding checks below were laid
+      s.ex[ex.id] = ExerciseState(rung: 0, startRung: 0, baseKg: roundStep(carryLoad(startLoad(ex, 1), middleReps, home), 2.5), baseReps: home, baseStepKg: 2.5, secPerSet: 60);
       final st = ensureState(s, ex);
       final heavy = loadFor(s, ex, st, st.rung, heavyReps), middle = loadFor(s, ex, st, st.rung, middleReps), light = loadFor(s, ex, st, st.rung, lightReps);
       expect(heavy, greaterThan(middle));

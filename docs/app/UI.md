@@ -36,8 +36,11 @@ goes.
 ## The screens
 
 - **Today.** Title: the day's name. Fact row: exercises, sets, about how long; at the right, today against the
-  usual. The body figure painted with today's muscles, in the picture slot; tap it for the muscle picker. The
-  plan: a row per part, name and level on the left, minutes on the right, a chevron on every row. A tag only
+  usual. The rank card: the overall rank and number, the bar to the next rank, how far it is and what a good day
+  today does to it (or unranked, and how many exercises to calibrate). The body figure painted with today's muscles,
+  in the picture slot; tap it for the muscle picker. The plan: a row per part, name and level on the left; on a lift's
+  row its rank and number at the right with what a good day does under them (or "finds its weight" while it
+  calibrates), the minutes with the facts; minutes on the right of the other rows; a chevron on every row. A tag only
   when today differs from the usual. Under the plan the strip as the workout will show it and one line: about
   how long and when it ends. A text link to walk or stretch instead. The dock: energy, time, and one button,
   Start workout. On a movement day: the same skeleton with the stage picture and the how-to or the moves.
@@ -45,9 +48,11 @@ goes.
   on the card. The level as the progression, tap a level for today, a link to make it yours. Swap for: the alternatives in recommended order.
   Then the how-to at that level.
 - **Done for today.** The check, the one line, the workout as a row of facts, one quiet line, and two ways on.
-- **Progress.** Workouts per month, then days active and workouts all time as facts. Muscle strain: the figure
-  and one line, a strip per muscle. Rhythm: a row per muscle, two facts each. Levels, last 30 days. Recent
-  workouts.
+- **Progress.** The overall rank and number, what it has moved since the line began, the line over time and the bar
+  to the next rank (or unranked, and how many to calibrate). Your best lifts: the three strongest, rank and number,
+  the share of people each beats. Climbing fastest, last 30 days. One row to Muscles and history: workouts per month,
+  days active and workouts all time as facts; muscle strain, the figure and a strip per muscle; rhythm; levels, last
+  30 days; recent workouts.
 - **Exercises.** Search, filters, the index. One line per exercise: the name, its level when practised, the
   difficulty word at the right.
 - **Exercise card.** Title: the name. Fact row: the muscles it works and the difficulty. The stage picture.

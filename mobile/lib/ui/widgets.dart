@@ -11,6 +11,7 @@ import '../data/library.dart';
 import '../data/model.dart';
 import 'motion.dart';
 import 'theme.dart';
+import 'fresh.dart';
 
 // ---------- icons for the domain
 
@@ -294,11 +295,12 @@ String cardioNeeds(Cardio c) {
 List<({String name, String detail, String how})> routineRows(Routine r) => [for (final mv in r.moves) (name: mv.n, detail: '${mv.seconds} seconds', how: mv.how)];
 
 /// The workout as the strip will show it: a thin block for every set and every timed part, all the same width, sets
-/// of one exercise 2 px apart and parts 7 px apart. Sets in the accent line, timed parts in the plain one.
+/// of one exercise 2 px apart and parts 7 px apart. Sets in the accent line, calibration sets in fresh, timed parts in
+/// the plain one.
 class PlanStrip extends StatelessWidget {
   const PlanStrip(this.blocks, {super.key, this.height = 8});
-  /// Each block's item key and whether it is a set.
-  final List<({String item, bool set})> blocks;
+  /// Each block's item key, whether it is a set, and whether a calibration set.
+  final List<({String item, bool set, bool fresh})> blocks;
   final double height;
   @override
   Widget build(BuildContext context) {
@@ -311,7 +313,8 @@ class PlanStrip extends StatelessWidget {
       final unit = ((c.maxWidth - gaps) / blocks.length).clamp(1.0, c.maxWidth);
       return SizedBox(height: height, child: Row(children: [
         for (var i = 0; i < blocks.length; i++) ...[
-          Container(width: unit, height: height, decoration: BoxDecoration(color: blocks[i].set ? du.accentLine : du.line, borderRadius: BorderRadius.circular(height / 2))),
+          Container(width: unit, height: height, decoration: BoxDecoration(
+              color: blocks[i].fresh ? Color.lerp(freshFillOf(context), du.surface, 0.25) : blocks[i].set ? du.accentLine : du.line, borderRadius: BorderRadius.circular(height / 2))),
           if (gapAfter(i) > 0) SizedBox(width: gapAfter(i)),
         ],
       ]));
@@ -980,4 +983,50 @@ class _TriPainter extends CustomPainter {
   }
   @override
   bool shouldRepaint(_TriPainter o) => o.xMin != xMin || o.xIdeal != xIdeal || o.xMax != xMax || o.active != active || o.x1 != x1;
+}
+
+/// One of a [ChoicePills]' choices: what it means, its icon, its word, and its colour once picked.
+typedef Choice<T> = ({T value, IconData icon, String word, Color color});
+
+/// A row of round choices, one picked: each its icon, the picked one opened with its word, in its colour. A short [label]
+/// at the left. The finish's "Your take" (love it, it's fine, not for me) and next time's step (easier, same, harder).
+class ChoicePills<T> extends StatelessWidget {
+  const ChoicePills({super.key, this.label, required this.options, required this.value, required this.onPick});
+  final String? label;
+  final List<Choice<T>> options;
+  final T value;
+  final ValueChanged<T> onPick;
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final dur = m(context, const Duration(milliseconds: 300));
+    const ease = Curves.easeOutCubic;
+    Widget option(Choice<T> o) {
+      final on = o.value == value;
+      return Tooltip(message: o.word, child: Pressable(borderRadius: 999, onTap: on ? () {} : () { HapticFeedback.selectionClick(); onPick(o.value); }, child: AnimatedContainer(
+        duration: dur,
+        curve: ease,
+        height: 38,
+        constraints: const BoxConstraints(minWidth: 38),
+        padding: EdgeInsets.symmetric(horizontal: on ? 13 : 10),
+        decoration: BoxDecoration(
+          color: on ? o.color.withValues(alpha: 0.13) : du.bg,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: on ? o.color : du.line, width: on ? 1.5 : 0.6),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          AnimatedScale(scale: on ? 1.1 : 1, duration: dur, curve: Curves.easeOutBack, child: Icon(o.icon, size: 17, color: on ? o.color : du.inkSecondary)),
+          AnimatedSize(duration: dur, curve: ease, child: on
+              ? Padding(padding: const EdgeInsets.only(left: 7),
+                  child: Text(o.word, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, style: t.labelLarge?.copyWith(color: o.color, fontWeight: FontWeight.w600)))
+              : const SizedBox(height: 17)),
+        ]),
+      )));
+    }
+    return Row(children: [
+      if (label != null) Expanded(child: Text(label!, style: t.labelMedium)) else const Spacer(),
+      for (final (k, o) in options.indexed) ...[if (k > 0) const SizedBox(width: 6), option(o)],
+    ]);
+  }
 }
