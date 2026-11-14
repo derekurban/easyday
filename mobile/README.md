@@ -84,11 +84,12 @@ Two flavours on one dimension, so a try-out never touches the real install:
 
 | Flavour | Application id | Name | Icon |
 |---|---|---|---|
-| `prod` | `app.easyday` | Easyday | green bracket |
-| `staging` | `app.easyday.staging` | Easyday Staging | amber bracket |
+| `prod` | `app.easyday` | Easyday | morning-blue tile |
+| `staging` | `app.easyday.staging` | Easyday Staging | dawn tile (indigo to peach) |
 
 The dev loop runs staging (`FLAVOR=prod node tool/dev.mjs` for prod). Every `flutter run` or `flutter build apk` needs
-`--flavor prod|staging`. The launcher icons are drawn from the brand mark `../app/icon.svg` by `python -I tool/icons.py`.
+`--flavor prod|staging`. The launcher icons are cut from the generated brand image `tool/icon-source.png` by
+`python -I tool/icons.py`.
 
 Release builds are signed with the keystore named in `android/key.properties` (ignored by git; the keystore lives in
 `~/.keys/easyday/`). Without that file a checkout still builds, signed with the debug key, but such a build cannot update
