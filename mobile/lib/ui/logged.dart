@@ -395,7 +395,7 @@ class _LoggedViewState extends State<LoggedView> {
       curve: ease,
       padding: EdgeInsets.all(switch (kind) { _Kind.magic => 0, _Kind.first || _Kind.edge => 1.4, _Kind.plain => 0.6 }),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(cardRadius),
         gradient: LinearGradient(colors: edge, begin: Alignment.topLeft, end: Alignment.bottomRight),
         boxShadow: [BoxShadow(color: glow, blurRadius: kind == _Kind.plain ? 8 : 18, offset: const Offset(0, 2))],
       ),
@@ -403,7 +403,7 @@ class _LoggedViewState extends State<LoggedView> {
         duration: dur,
         curve: ease,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(13.4)),
+        decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(cardRadius - 0.6)),
         child: AnimatedSize(duration: dur, curve: ease, alignment: Alignment.topCenter, child: child),
       ),
     ));
@@ -548,7 +548,7 @@ class _LoggedViewState extends State<LoggedView> {
 
     // a timed part: its name and how long it took
     Widget timed(WorkoutItem it, String name, IconData icon) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Panel(padding: EdgeInsets.zero, child: InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(cardRadius),
       onTap: () => showItemEdit(context, x, it, name),
       child: Padding(padding: const EdgeInsets.fromLTRB(14, 14, 14, 14), child: Row(children: [
         Icon(icon, size: 18, color: du.inkSecondary),
@@ -623,7 +623,7 @@ class _LoggedViewState extends State<LoggedView> {
     return Container(
       key: _painKey,
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: du.warningSubtle, borderRadius: BorderRadius.circular(14), border: Border.all(color: du.warningLine, width: 0.6)),
+      decoration: BoxDecoration(color: du.warningSubtle, borderRadius: BorderRadius.circular(cardRadius), border: Border.all(color: du.warningLine, width: 0.6)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(hurt == null ? 'What hurt?' : 'Something hurt during ${name(hurt)}', style: t.titleMedium),
         if (hurt == null) ...[
@@ -795,7 +795,7 @@ class _StepPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final rr = RRect.fromRectAndRadius(rect, const Radius.circular(14));
+    final rr = RRect.fromRectAndRadius(rect, const Radius.circular(cardRadius));
     if (swell > 0) {
       canvas.drawRRect(rr, Paint()..color = colors[colors.length ~/ 2].withValues(alpha: 0.13 * swell));
       canvas.drawRRect(rr.deflate(0.8), Paint()

@@ -1,5 +1,8 @@
-// Design-system tokens (derekurban/design-system v0.1.0) as a Flutter theme: neutral surfaces, one green accent,
-// hairline rings instead of borders, Albert Sans for titles and Wix Madefor Text for everything else.
+// The app's theme since the makeover (2026-11-16): a warm white page with white cards, or true black with near-black
+// cards. Ink is the accent: links, selected things and marks are plain. The only colour is the sun (the one filled
+// button, the muscles a workout works, the workout pictures) and the sky at the top of Today (sky.dart). Cards are
+// round and have no ring, titles are heavy Albert Sans, everything else is Wix Madefor Text. Before the makeover the
+// tokens were derekurban/design-system v0.1.0: true greys, a moss green accent, hairline rings.
 import 'package:flutter/material.dart';
 
 class Du extends ThemeExtension<Du> {
@@ -7,22 +10,33 @@ class Du extends ThemeExtension<Du> {
     required this.bg, required this.surface, required this.sunk, required this.line, required this.ink, required this.inkSecondary,
     required this.inkTertiary, required this.accentStrong, required this.accentText, required this.accentSubtle, required this.accentLine,
     required this.onAccent, required this.warning, required this.warningSubtle, required this.warningLine,
+    required this.art, required this.artSoft, required this.artFaint, required this.segmentOn, required this.cardShadow,
   });
   final Color bg, surface, sunk, line, ink, inkSecondary, inkTertiary, accentStrong, accentText, accentSubtle, accentLine, onAccent;
+  /// The workout pictures (stage_art.dart): the sun's orange, a softer and a faint tone of it.
+  final Color art, artSoft, artFaint;
+  /// The chosen segment of a segmented control, raised from its track.
+  final Color segmentOn;
+  /// What lifts a card off the page: a warm soft shadow in the light theme, nothing on black.
+  final List<BoxShadow> cardShadow;
   /// The warning status: text and fill, a tinted surface, and its ring. Only for status, never decoration.
   final Color warning, warningSubtle, warningLine;
 
   static const light = Du(
-    bg: Color(0xFFF6F6F6), surface: Color(0xFFFCFCFC), sunk: Color(0xFFEDEDED), line: Color(0xFFD4D4D4),
-    ink: Color(0xFF1B1B1B), inkSecondary: Color(0xFF555555), inkTertiary: Color(0xFF696969),
-    accentStrong: Color(0xFF456938), accentText: Color(0xFF426635), accentSubtle: Color(0xFFE6F3E2), accentLine: Color(0xFFAEC6A6), onAccent: Color(0xFFFAFAFA),
+    bg: Color(0xFFFBF8F3), surface: Color(0xFFFFFFFF), sunk: Color(0xFFF1EBE2), line: Color(0xFFE9E1D6),
+    ink: Color(0xFF14110F), inkSecondary: Color(0xFF6B6058), inkTertiary: Color(0xFF7D7269),
+    accentStrong: Color(0xFF14110F), accentText: Color(0xFF14110F), accentSubtle: Color(0xFFF3EEE7), accentLine: Color(0xFFD6CCBF), onAccent: Color(0xFFFFFFFF),
     warning: Color(0xFF8B590E), warningSubtle: Color(0xFFFCEDDE), warningLine: Color(0xFFDEB990),
+    art: Color(0xFFEE8A45), artSoft: Color(0xFFF3C7A5), artFaint: Color(0xFFFBEADB), segmentOn: Color(0xFFFFFFFF),
+    cardShadow: [BoxShadow(color: Color(0x0D503214), blurRadius: 2, offset: Offset(0, 1)), BoxShadow(color: Color(0x12503214), blurRadius: 16, offset: Offset(0, 6))],
   );
   static const dark = Du(
-    bg: Color(0xFF141414), surface: Color(0xFF1C1C1C), sunk: Color(0xFF080808), line: Color(0xFF383838),
-    ink: Color(0xFFEEEEEE), inkSecondary: Color(0xFF9E9E9E), inkTertiary: Color(0xFF909090),
-    accentStrong: Color(0xFF86AB7A), accentText: Color(0xFF87A87C), accentSubtle: Color(0xFF1E281A), accentLine: Color(0xFF394A34), onAccent: Color(0xFF1B1B1B),
+    bg: Color(0xFF000000), surface: Color(0xFF151416), sunk: Color(0xFF1E1D20), line: Color(0xFF2A282C),
+    ink: Color(0xFFFFFFFF), inkSecondary: Color(0xFFA09CA3), inkTertiary: Color(0xFF8C8890),
+    accentStrong: Color(0xFFFFFFFF), accentText: Color(0xFFFFFFFF), accentSubtle: Color(0xFF242326), accentLine: Color(0xFF3B393E), onAccent: Color(0xFF000000),
     warning: Color(0xFFC38B46), warningSubtle: Color(0xFF322210), warningLine: Color(0xFF5A4123),
+    art: Color(0xFFF29450), artSoft: Color(0xFF6E4B33), artFaint: Color(0xFF2B2019), segmentOn: Color(0xFF2E2C30),
+    cardShadow: [],
   );
 
   @override
@@ -34,6 +48,13 @@ class Du extends ThemeExtension<Du> {
 extension DuContext on BuildContext {
   Du get du => Theme.of(this).extension<Du>()!;
 }
+
+/// The sun, top to bottom, and the ink that reads on it: the one filled button.
+const sunGradient = [Color(0xFFFFE38C), Color(0xFFFDB582), Color(0xFFFB9A86)];
+const onSun = Color(0xFF3A1A0C);
+/// A card's corner, and a button's (a full pill at the heights the app uses).
+const cardRadius = 24.0;
+const buttonRadius = 28.0;
 
 const titleFont = 'Albert Sans';
 const bodyFont = 'Wix Madefor Text';
@@ -48,9 +69,9 @@ ThemeData buildTheme(Brightness b) {
   );
   final text = TextTheme(
     displayLarge: TextStyle(fontFamily: titleFont, fontSize: 56, height: 1.0, fontWeight: FontWeight.w300, letterSpacing: -1.8, color: du.ink),
-    headlineLarge: TextStyle(fontFamily: titleFont, fontSize: 40, height: 1.1, fontWeight: FontWeight.w500, letterSpacing: -1.1, color: du.ink),
-    headlineMedium: TextStyle(fontFamily: titleFont, fontSize: 24, height: 1.25, fontWeight: FontWeight.w500, letterSpacing: -0.4, color: du.ink),
-    titleLarge: TextStyle(fontFamily: titleFont, fontSize: 18, height: 1.33, fontWeight: FontWeight.w500, letterSpacing: -0.2, color: du.ink),
+    headlineLarge: TextStyle(fontFamily: titleFont, fontSize: 38, height: 1.1, fontWeight: FontWeight.w700, letterSpacing: -1.0, color: du.ink),
+    headlineMedium: TextStyle(fontFamily: titleFont, fontSize: 24, height: 1.25, fontWeight: FontWeight.w600, letterSpacing: -0.4, color: du.ink),
+    titleLarge: TextStyle(fontFamily: titleFont, fontSize: 18, height: 1.33, fontWeight: FontWeight.w600, letterSpacing: -0.2, color: du.ink),
     titleMedium: TextStyle(fontFamily: bodyFont, fontSize: 16, height: 1.4, fontWeight: FontWeight.w500, color: du.ink),
     bodyLarge: TextStyle(fontFamily: bodyFont, fontSize: 16, height: 1.5, fontWeight: FontWeight.w400, color: du.ink),
     bodyMedium: TextStyle(fontFamily: bodyFont, fontSize: 14, height: 1.5, fontWeight: FontWeight.w400, color: du.ink),
@@ -65,20 +86,28 @@ ThemeData buildTheme(Brightness b) {
     extensions: [du], splashFactory: InkSparkle.splashFactory, visualDensity: VisualDensity.standard,
     appBarTheme: AppBarTheme(backgroundColor: du.bg, foregroundColor: du.ink, elevation: 0, scrolledUnderElevation: 0, centerTitle: false,
         titleTextStyle: text.headlineMedium),
-    cardTheme: CardThemeData(color: du.surface, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: hairline)),
+    cardTheme: CardThemeData(color: du.surface, elevation: 0, margin: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(cardRadius))),
     dividerTheme: DividerThemeData(color: du.line, thickness: 0.6, space: 0.6),
     filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
-        backgroundColor: du.accentStrong, foregroundColor: du.onAccent, disabledBackgroundColor: du.sunk, disabledForegroundColor: du.inkTertiary,
-        minimumSize: const Size(64, 52), textStyle: text.labelLarge,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+        backgroundColor: sunGradient.last, foregroundColor: onSun, disabledBackgroundColor: du.sunk, disabledForegroundColor: du.inkTertiary,
+        minimumSize: const Size(64, 52), textStyle: text.labelLarge?.copyWith(fontWeight: FontWeight.w600), shadowColor: sunGradient.last,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius))).copyWith(
+      // the sun is ink on the button's own material, so a press still ripples over it; a soft shadow in its colour by day
+      elevation: WidgetStateProperty.resolveWith((st) => b == Brightness.dark || st.contains(WidgetState.disabled) ? 0 : st.contains(WidgetState.pressed) ? 1 : 3),
+      backgroundBuilder: (context, states, child) => states.contains(WidgetState.disabled) ? child ?? const SizedBox.shrink()
+          : Ink(decoration: BoxDecoration(borderRadius: BorderRadius.circular(buttonRadius),
+              gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: sunGradient, stops: [0, 0.8, 1])), child: child),
+    )),
     outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
         foregroundColor: du.ink, side: hairline, minimumSize: const Size(64, 52), textStyle: text.labelLarge, backgroundColor: du.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius)))),
     textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: du.accentText, textStyle: text.labelLarge, minimumSize: const Size(44, 44))),
     segmentedButtonTheme: SegmentedButtonThemeData(style: ButtonStyle(
-      side: WidgetStatePropertyAll(hairline),
-      backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? du.accentSubtle : du.surface),
-      foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? du.accentText : du.ink),
+      // a track with the chosen segment raised from it, no ring
+      side: WidgetStatePropertyAll(BorderSide(color: du.sunk, width: 3)),
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+      backgroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? du.segmentOn : du.sunk),
+      foregroundColor: WidgetStateProperty.resolveWith((st) => st.contains(WidgetState.selected) ? du.ink : du.inkSecondary),
       textStyle: WidgetStatePropertyAll(text.labelLarge), visualDensity: VisualDensity.standard,
       padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10, vertical: 14)),
     )),
@@ -86,14 +115,16 @@ ThemeData buildTheme(Brightness b) {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), showCheckmark: false),
     listTileTheme: ListTileThemeData(contentPadding: const EdgeInsets.symmetric(horizontal: 16), titleTextStyle: text.bodyLarge, subtitleTextStyle: text.bodySmall, iconColor: du.inkSecondary),
     bottomSheetTheme: BottomSheetThemeData(backgroundColor: du.surface, surfaceTintColor: Colors.transparent, showDragHandle: true,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20)))),
-    navigationBarTheme: NavigationBarThemeData(backgroundColor: du.surface, indicatorColor: du.accentSubtle, elevation: 0, height: 68,
-        labelTextStyle: WidgetStatePropertyAll(text.labelMedium), iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(color: st.contains(WidgetState.selected) ? du.accentText : du.inkSecondary, size: 22))),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(buttonRadius)))),
+    // the tab in use is told by its ink alone
+    navigationBarTheme: NavigationBarThemeData(backgroundColor: du.surface, indicatorColor: Colors.transparent, elevation: 0, height: 68,
+        labelTextStyle: WidgetStateProperty.resolveWith((st) => text.labelMedium?.copyWith(color: st.contains(WidgetState.selected) ? du.ink : du.inkSecondary, fontWeight: st.contains(WidgetState.selected) ? FontWeight.w600 : FontWeight.w500)),
+        iconTheme: WidgetStateProperty.resolveWith((st) => IconThemeData(color: st.contains(WidgetState.selected) ? du.ink : du.inkSecondary, size: 22))),
     inputDecorationTheme: InputDecorationTheme(filled: true, fillColor: du.surface, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: hairline),
         enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: hairline),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: du.accentLine, width: 2))),
     sliderTheme: SliderThemeData(
-      activeTrackColor: du.accentStrong, inactiveTrackColor: du.sunk, thumbColor: du.accentStrong, overlayColor: du.accentSubtle,
+      activeTrackColor: du.accentStrong, inactiveTrackColor: du.line, thumbColor: Colors.white, overlayColor: du.accentSubtle,
       trackHeight: 6, activeTickMarkColor: du.accentLine, inactiveTickMarkColor: du.line,
       valueIndicatorColor: du.ink, valueIndicatorTextStyle: text.labelLarge?.copyWith(color: du.bg), showValueIndicator: ShowValueIndicator.onDrag,
       rangeThumbShape: const RoundRangeSliderThumbShape(enabledThumbRadius: 11), thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 11),
@@ -111,7 +142,7 @@ ThemeData buildTheme(Brightness b) {
   );
 }
 
-/// A resting card: surface, hairline ring, soft lift.
+/// A resting card: surface, round corners, a soft lift by day. No ring.
 class Panel extends StatelessWidget {
   const Panel({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.onTap, this.sunk = false, this.clip = false});
   final Widget child;
@@ -126,15 +157,14 @@ class Panel extends StatelessWidget {
       clipBehavior: clip ? Clip.antiAlias : Clip.none,
       decoration: BoxDecoration(
         color: sunk ? du.sunk : du.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: du.line, width: 0.6),
-        boxShadow: sunk ? null : const [BoxShadow(color: Color(0x0A000000), blurRadius: 2, offset: Offset(0, 1)), BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2))],
+        borderRadius: BorderRadius.circular(cardRadius),
+        boxShadow: sunk ? null : du.cardShadow,
       ),
       padding: padding,
       child: child,
     );
     if (onTap == null) return box;
-    return Material(color: Colors.transparent, child: InkWell(borderRadius: BorderRadius.circular(14), onTap: onTap, child: box));
+    return Material(color: Colors.transparent, child: InkWell(borderRadius: BorderRadius.circular(cardRadius), onTap: onTap, child: box));
   }
 }
 

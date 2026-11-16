@@ -89,7 +89,7 @@ class _EditDrawerState extends State<_EditDrawer> {
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         decoration: BoxDecoration(
           color: du.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(cardRadius),
           border: Border.all(color: k == focus ? du.accentStrong : du.line, width: k == focus ? 1.5 : 0.6),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [

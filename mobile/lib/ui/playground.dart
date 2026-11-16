@@ -12,9 +12,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../logic/daylight.dart';
 import 'fresh.dart';
 import 'motion.dart';
 import 'palette.dart';
+import 'sky.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -68,6 +70,8 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
           ),
           body: Column(children: [
             Expanded(child: ListView(key: ValueKey('tiles$replay'), padding: const EdgeInsets.fromLTRB(16, 0, 16, 24), children: [
+              const _SkyLab(),
+              const SizedBox(height: 20),
               Text('The finish screen\'s tiles, rethought: fewer words, and a step up that feels like one. Try them; nothing here touches your workouts.',
                   style: t.bodyMedium?.copyWith(color: du.inkSecondary)),
               const SizedBox(height: 14),
@@ -82,6 +86,29 @@ class _PlaygroundScreenState extends State<PlaygroundScreen> {
       }),
     );
   }
+}
+
+/// The sky at the top of Today, at any hour: drag through the day, or let it follow the clock again.
+class _SkyLab extends StatelessWidget {
+  const _SkyLab();
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<double?>(valueListenable: skyHour, builder: (context, h, _) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    final hour = h ?? hourOf(DateTime.now());
+    String clock(double x) => '${x.floor() % 24}:${((x % 1) * 60).round().toString().padLeft(2, '0')}';
+    return Panel(padding: EdgeInsets.zero, clip: true, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const SkyBehind(tail: 0, child: SizedBox(height: 120)),
+      Padding(padding: const EdgeInsets.fromLTRB(16, 12, 8, 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text('Sky at ${clock(hour)} · ${daylightName(hour)}', style: t.titleMedium)),
+          TextButton(onPressed: h == null ? null : () => skyHour.value = null, child: Text(h == null ? 'On the clock' : 'Follow the clock')),
+        ]),
+        Slider(value: hour.clamp(0, 23.75), min: 0, max: 23.75, divisions: 95, label: clock(hour), onChanged: (v) => skyHour.value = v),
+        Padding(padding: const EdgeInsets.only(right: 8), child: Text('Drag through the day, then open Today. It stays at that hour until you follow the clock again.', style: t.bodySmall?.copyWith(color: du.inkTertiary))),
+      ])),
+    ]));
+  });
 }
 
 /// One prototype tile. Its look is the Edges restraint: plain, a thin edge in a win's colour, one accent. Next time moves
@@ -259,7 +286,7 @@ class _ProtoTileState extends State<_ProtoTile> with TickerProviderStateMixin {
       return Transform.scale(scale: 1 + 0.025 * swell, child: Container(
         padding: EdgeInsets.all(edge == null ? 0.6 : 1.4 + 0.8 * swell),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(cardRadius),
           gradient: spin > 0
               ? SweepGradient(colors: [...colors, colors.first], transform: GradientRotation(2 * pi * Curves.easeOutCubic.transform(spin)))
               : LinearGradient(colors: colors.length == 1 ? [colors.first, colors.first] : colors, begin: Alignment.topLeft, end: Alignment.bottomRight),
@@ -269,7 +296,7 @@ class _ProtoTileState extends State<_ProtoTile> with TickerProviderStateMixin {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: Color.alphaBlend(calm.withValues(alpha: 0.14 * calmWash), Color.alphaBlend(tint.withValues(alpha: wash), du.surface)),
-            borderRadius: BorderRadius.circular(13.4),
+            borderRadius: BorderRadius.circular(cardRadius - 0.6),
           ),
           child: child,
         ),

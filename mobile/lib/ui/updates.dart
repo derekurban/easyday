@@ -227,7 +227,7 @@ class UpdateBanner extends StatelessWidget {
             child: Container(
               decoration: BoxDecoration(
                 color: du.warningSubtle,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(cardRadius),
                 border: Border.all(color: du.warningLine, width: 0.6),
               ),
               padding: const EdgeInsets.all(16),
@@ -245,7 +245,8 @@ class UpdateBanner extends StatelessWidget {
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: onGo,
-                    style: FilledButton.styleFrom(backgroundColor: du.warning, foregroundColor: du.surface, minimumSize: const Size(64, 44)),
+                    style: FilledButton.styleFrom(backgroundColor: du.warning, foregroundColor: du.surface, minimumSize: const Size(64, 44), elevation: 0,
+                        backgroundBuilder: (context, states, child) => child ?? const SizedBox.shrink()),  // the warning's own colour, not the sun
                     icon: const Icon(LucideIcons.arrowDown, size: 18),
                     label: const Text('Go to update'),
                   ),

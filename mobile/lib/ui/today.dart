@@ -1,5 +1,6 @@
-// Today: the workout, ready to start (UI.md). The day's name from the muscles it works ("Back and biceps day"), one
-// line of numbers, the body figure painted with today's muscles (tap it for the muscle picker), then the plan: the
+// Today: the workout, ready to start (UI.md). At the top the sky for the time of day (sky.dart), and on it the day's
+// name from the muscles it works ("Back and biceps day") and the day as three numbers; the first card sits on the
+// sky's horizon. Then the body figure painted with today's muscles (tap it for the muscle picker), then the plan: the
 // warm-up, each exercise with its level and sets, cardio and stretching, and the strip as the workout will show it.
 // Tap a row to swap it, change today's level, move it or leave it out. Energy and time sit at the bottom, already
 // answered, with one button: Start workout. When today's workout is done, closure.
@@ -32,6 +33,7 @@ import 'motion.dart';
 import 'muscle_figure.dart';
 import 'muscle_picker.dart';
 import 'rank.dart';
+import 'sky.dart';
 import 'stage_art.dart';
 import 'theme.dart';
 import 'widgets.dart';
@@ -148,49 +150,57 @@ class _TodayScreenState extends State<TodayScreen> {
     final empty = lift && session.exercises.isEmpty;
     final stakes = lift && !empty ? stakesFor(s, session, now) : null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Today'),
-        actions: [
-          TextButton.icon(
-            onPressed: () => _pickLocation(context),
-            icon: Icon(locationId == null && nearbyId != null && loc?.id == nearbyId ? LucideIcons.locate : locationIcon(loc?.template ?? 'none'), size: 18),
-            label: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 200), child: Text(loc?.name ?? 'No location', overflow: TextOverflow.ellipsis)),
-          ),
-        ],
-      ),
+    // no app bar: the sky runs to the top of the screen, under the status bar, and scrolls away with the page
+    return AnnotatedRegion<SystemUiOverlayStyle>(value: Theme.of(context).brightness == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark, child: Scaffold(
       body: Column(children: [
         Expanded(child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          padding: const EdgeInsets.only(bottom: 16),
           children: [
-            Reveal(
-              key: ValueKey(fingerprint),
-              offset: 8,
+            // the sky, and on it: the place, the day's name, its numbers, and the one line for the moment
+            SkyBehind(child: Padding(
+              padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 4, 16, 16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                // the day's name, its numbers, and the one line for the moment
+                Row(children: [
+                  Expanded(child: Text('Today', style: t.headlineMedium)),
+                  TextButton.icon(
+                    onPressed: () => _pickLocation(context),
+                    icon: Icon(locationId == null && nearbyId != null && loc?.id == nearbyId ? LucideIcons.locate : locationIcon(loc?.template ?? 'none'), size: 18),
+                    label: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 200), child: Text(loc?.name ?? 'No location', overflow: TextOverflow.ellipsis)),
+                  ),
+                ]),
+                const SizedBox(height: 6),
+                Reveal(key: ValueKey('head $fingerprint'), offset: 8, child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 Text(empty ? 'Nothing to work' : session.name, style: t.headlineLarge, maxLines: 3, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 8),
-                if (lift)
-                  FactLine(
-                    empty ? 'Choose muscles, or move instead' : '${session.exercises.length} exercise${session.exercises.length == 1 ? '' : 's'} · $setCount sets · about $est min',
-                    icon: LucideIcons.dumbbell, trailing: empty ? null : _usualShort(session),
-                  )
+                const SizedBox(height: 10),
+                if (lift && !empty)
+                  _dayNumbers(context, session.exercises.length, setCount, est, _usualShort(session))
+                else if (lift)
+                  const FactLine('Choose muscles, or move instead', icon: LucideIcons.dumbbell)
                 else
-                  FactLine(session.kind == 'cardio' ? 'About ${session.minutes} minutes' : 'About ${session.estMinutes} minutes', icon: LucideIcons.timer,
-                      trailing: session.kind == 'cardio' ? 'easy pace' : null),
+                  // kept clear of the sun, like the line under it
+                  Padding(padding: const EdgeInsets.only(right: 112), child: FactLine(session.kind == 'cardio' ? 'About ${session.minutes} minutes' : 'About ${session.estMinutes} minutes', icon: LucideIcons.timer,
+                      trailing: session.kind == 'cardio' ? 'easy pace' : null)),
                 if (nudge != null && dismissedNudge != nudge) ...[
-                  const SizedBox(height: 8),
-                  Row(children: [
+                  const SizedBox(height: 10),
+                  // kept clear of the sun, which rests on the horizon at the right
+                  Padding(padding: const EdgeInsets.only(right: 96), child: Row(children: [
                     Expanded(child: QuietLine(nudge, icon: LucideIcons.sunrise, accent: true)),
                     IconButton(
                       onPressed: () { store.update((x) => x.person.nudgeDismissed = true); setState(() => dismissedNudge = nudge); },
                       icon: const Icon(LucideIcons.x, size: 16), tooltip: 'Dismiss', visualDensity: VisualDensity.compact,
                     ),
-                  ]),
+                  ])),
                 ],
+                ])),
+              ]),
+            )),
+            // the first card sits on the sky's horizon
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Reveal(
+              key: ValueKey(fingerprint),
+              offset: 8,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                 // where the user stands, and what a good day does to it
-                if (stakes != null) ...[const SizedBox(height: 16), _rankCard(context, stakes)],
-                const SizedBox(height: 16),
+                if (stakes != null) ...[_rankCard(context, stakes), const SizedBox(height: 12)],
                 // the picture: the body with today's muscles, or the kind of movement
                 if (lift) _figureCard(context, s, now, session, plan) else StageArt(stage: session.kind == 'cardio' ? Stage.cardio : Stage.stretching),
                 const SizedBox(height: 20),
@@ -218,9 +228,9 @@ class _TodayScreenState extends State<TodayScreen> {
                 ] else
                   _moveBody(context, session),
               ]),
-            ),
+            )),
             const SizedBox(height: 12),
-            if (s.settings.calendar && limit) _calendarLine(context, mins),
+            if (s.settings.calendar && limit) Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: _calendarLine(context, mins)),
             const SizedBox(height: 4),
             Center(child: lift
                 ? TextButton.icon(onPressed: () => _moveSheet(context, loc), icon: const Icon(LucideIcons.footprints, size: 18), label: const Text('Walk or stretch instead'))
@@ -235,6 +245,24 @@ class _TodayScreenState extends State<TodayScreen> {
         )),
         _dock(context, s, session, e: e, mins: mins, n: n, limit: limit, defaults: defaults, est: est),
       ]),
+    ));
+  }
+
+  /// The day as three numbers, and under them how today compares when it is not the usual.
+  Widget _dayNumbers(BuildContext context, int exercises, int sets, int minutes, String usual) {
+    final t = Theme.of(context).textTheme;
+    final du = context.du;
+    Widget n(int v, String word) => Padding(padding: const EdgeInsets.only(right: 24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+      Text('$v', style: t.headlineMedium?.copyWith(fontSize: 28, height: 1.05, fontWeight: FontWeight.w700, letterSpacing: -0.6, fontFeatures: const [FontFeature.tabularFigures()])),
+      Text(word, style: t.labelMedium?.copyWith(color: du.ink.withValues(alpha: 0.72))),
+    ]));
+    final differs = usual != 'your usual';
+    return Semantics(
+      label: '$exercises exercise${exercises == 1 ? '' : 's'}, $sets sets, about $minutes minutes${differs ? ', $usual' : ''}',
+      child: ExcludeSemantics(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [n(exercises, exercises == 1 ? 'exercise' : 'exercises'), n(sets, 'sets'), n(minutes, 'minutes')]),
+        if (differs) Padding(padding: const EdgeInsets.only(top: 6), child: Text(usual, style: t.labelLarge)),
+      ])),
     );
   }
 
@@ -318,11 +346,11 @@ class _TodayScreenState extends State<TodayScreen> {
         ? (plan.manual ? 'Nothing forced' : 'Nothing to work')
         : 'Working ${lower(working)}${forced.isNotEmpty ? ' · ${lower(forced)} forced' : ''}';
     return Tooltip(message: 'Muscles', child: Material(color: Colors.transparent, child: InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(cardRadius),
       onTap: () => _pickMuscles(context),
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-        decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(14)),
+        decoration: BoxDecoration(color: du.surface, borderRadius: BorderRadius.circular(cardRadius), boxShadow: du.cardShadow),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(height: stageArtHeight, child: Center(child: MuscleFigure(highlight: const {}, tint: tint, height: stageArtHeight, interactive: false))),
           const SizedBox(height: stageCaptionGap),
@@ -400,26 +428,22 @@ class _TodayScreenState extends State<TodayScreen> {
         if (it.lifting) for (final r in setOrder(session, it)) (item: it.key, set: true, fresh: r.set == 0 && session.exercises[r.ex].calibrating)
         else (item: it.key, set: false, fresh: false),
     ];
+    // each part of the plan is its own card
+    Widget card(Widget row) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Panel(padding: EdgeInsets.zero, clip: true, child: row));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Panel(padding: EdgeInsets.zero, clip: true, child: Column(children: [
-        Row1(icon: LucideIcons.flame, title: const Text('Warm-up'), subtitle: session.warmupMinutes == 0 ? 'None today' : null, value: session.warmupMinutes == 0 ? null : '${session.warmupMinutes} min', onTap: () => _warmupSheet(context, s)),
-        const Divider(height: 1),
+        card(Row1(icon: LucideIcons.flame, title: const Text('Warm-up'), subtitle: session.warmupMinutes == 0 ? 'None today' : null, value: session.warmupMinutes == 0 ? null : '${session.warmupMinutes} min', onTap: () => _warmupSheet(context, s))),
         for (var i = 0; i < session.exercises.length; i++) ...[
-          _exerciseRow(context, session, i, stakes?.lifts[i]),
-          const Divider(height: 1),
+          card(_exerciseRow(context, session, i, stakes?.lifts[i])),
         ],
         if (g.cardioPct > 0 || session.cardioMinutes > 0) ...[
-          Row1(icon: LucideIcons.footprints, title: const Text('Cardio'), subtitle: skipCardio ? 'Not today' : null, value: skipCardio ? null : '${session.cardioMinutes} min', onTap: () => _blockSheet(context, 'Cardio', skipCardio, (v) => skipCardio = v)),
-          const Divider(height: 1),
+          card(Row1(icon: LucideIcons.footprints, title: const Text('Cardio'), subtitle: skipCardio ? 'Not today' : null, value: skipCardio ? null : '${session.cardioMinutes} min', onTap: () => _blockSheet(context, 'Cardio', skipCardio, (v) => skipCardio = v))),
         ],
         if (g.stretchPct > 0 || session.stretchMinutes > 0) ...[
-          Row1(icon: LucideIcons.stretchHorizontal, title: const Text('Stretching'), subtitle: skipStretch ? 'Not today' : null, value: skipStretch ? null : '${session.stretchMinutes} min', onTap: () => _blockSheet(context, 'Stretching', skipStretch, (v) => skipStretch = v)),
-          const Divider(height: 1),
+          card(Row1(icon: LucideIcons.stretchHorizontal, title: const Text('Stretching'), subtitle: skipStretch ? 'Not today' : null, value: skipStretch ? null : '${session.stretchMinutes} min', onTap: () => _blockSheet(context, 'Stretching', skipStretch, (v) => skipStretch = v))),
         ],
         if (session.exercises.length > 1)
-          Row1(icon: orderIcon[s.settings.order], title: Text(orderName[s.settings.order]!), onTap: () => _orderSheet(context, s)),
-      ])),
-      const SizedBox(height: 12),
+          card(Row1(icon: orderIcon[s.settings.order], title: Text(orderName[s.settings.order]!), onTap: () => _orderSheet(context, s))),
+      const SizedBox(height: 4),
       PlanStrip(blocks),
       const SizedBox(height: 8),
       Row(children: [

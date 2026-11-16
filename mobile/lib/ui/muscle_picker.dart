@@ -25,9 +25,9 @@ import 'theme.dart';
 
 /// An excluded muscle's fill: a very dark gray multiplied over the plate at nearly full strength.
 const muscleExcluded = Color(0xF2303030);
-/// The forced green: the light theme's accent in both themes, since the figure is the same light gray in both and the
-/// dark theme's paler accent comes out too close to the secondary strength.
-const musclePrimary = Color(0xFF456938);
+/// The colour of the muscles a workout works: the sun's orange, the same in both themes since the figure is the same
+/// light gray in both.
+const musclePrimary = Color(0xFFE2832D);
 /// The secondary strength: the primary colour at this alpha, for the available muscles the workout works mainly.
 const muscleSecondaryAlpha = 0.45;
 
@@ -359,7 +359,7 @@ class _MusclePickerScreenState extends State<MusclePickerScreen> {
           duration: m(context, durBase),
           decoration: BoxDecoration(
             color: st == MuscleState.excluded ? du.sunk : du.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(cardRadius),
             border: Border.all(color: on ? muscleSelect : du.line, width: on ? 1.5 : 0.6),
           ),
           child: ListTile(
