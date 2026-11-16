@@ -1,0 +1,165 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Albert+Sans:wght@400;500;600;700&family=Wix+Madefor+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+.board{display:grid;gap:34px}
+.dir h3{font:600 15px var(--font-sans);margin:0 0 3px;color:var(--foreground)}
+.dir h3 span{font-family:var(--font-mono);font-weight:500;color:var(--muted-foreground);margin-right:8px}
+.dir p{font:400 13px/1.5 var(--font-sans);color:var(--muted-foreground);margin:0 0 12px;max-width:640px}
+.pair{display:flex;flex-wrap:wrap;gap:16px}
+.phone{zoom:.87;width:390px;height:844px;position:relative;overflow:hidden;border-radius:36px;background:var(--bg);color:var(--ink);
+  font-family:'Wix Madefor Text',system-ui,sans-serif;font-size:15px;line-height:1.35;outline:1px solid rgba(128,128,128,.35);outline-offset:-1px}
+.phone *{box-sizing:border-box}
+.phone svg{flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sky{position:absolute;inset:0 0 auto 0;height:340px;background:var(--sky);display:none}
+.sun{position:absolute;width:140px;height:70px;border-radius:70px 70px 0 0;right:-30px;top:105px;background:linear-gradient(180deg,#FFE38C,#FDB582 80%,#FB9A86);display:none}
+.has-sky .sky,.has-sky .sun{display:block}
+.body{position:relative}
+.top{display:flex;justify-content:space-between;align-items:center;padding:20px 20px 0;color:var(--head)}
+.top b{font:500 20px 'Albert Sans',sans-serif}
+.place{display:flex;gap:6px;align-items:center;color:var(--headlink);font-weight:500;font-size:14.5px}
+h1{font:var(--tw) var(--ts)/1.1 'Albert Sans',sans-serif;letter-spacing:-.9px;margin:14px 20px 8px;color:var(--head)}
+.facts{margin:0 20px;font-size:14.5px;display:flex;gap:7px;align-items:center;color:var(--head);font-weight:500}
+.stats{margin:2px 20px 0;display:flex;gap:8px}
+.stats div{flex:1;background:var(--surface);border-radius:16px;padding:10px 12px;font-size:12px;color:var(--ink2)}
+.stats b{display:block;font:700 24px/1.1 'Albert Sans',sans-serif;color:var(--ink);letter-spacing:-.5px}
+.card{background:var(--surface);border-radius:var(--r);border:var(--cb);box-shadow:var(--cs)}
+.rank{margin:14px 20px 0;padding:14px 16px;position:relative}
+.rank .row{display:flex;align-items:center;gap:10px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:var(--bronze);background:var(--bronzebg);padding:3px 9px 3px 7px;border-radius:999px}
+.rank .n{font:600 22px 'Albert Sans',sans-serif;letter-spacing:-.4px}
+.rank .to{margin-left:auto;font-size:12.5px;color:var(--ink2)}
+.bar{height:6px;border-radius:3px;background:var(--track);margin-top:11px;overflow:hidden}
+.bar i{display:block;height:100%;width:62%;border-radius:3px;background:var(--bar)}
+.fig{margin:12px 20px 0;padding:14px 16px 12px;background:var(--figbg);border-radius:var(--r);border:var(--cb);box-shadow:var(--cs)}
+.fig img{display:block;height:118px;margin:0 auto 10px}
+.fig .cap{display:flex;justify-content:space-between;font-size:13.5px;color:var(--ink2)}
+.link{color:var(--link);font-weight:500}
+.planh{margin:18px 20px 8px;display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--ink2)}
+.planh span{display:flex;gap:7px;align-items:center}
+.plan{margin:0 20px;overflow:hidden}
+.plan .rowp{display:flex;align-items:center;gap:13px;padding:13px 14px;border-top:1px solid var(--line)}
+.plan .rowp:first-child{border-top:0}
+.plan .rowp > svg:first-child{color:var(--ink2)}
+.plan .nm{flex:1;min-width:0}
+.plan .nm b{display:block;font-weight:500;font-size:15.5px}
+.plan .nm small{font-size:12.5px;color:var(--ink2)}
+.plan .mn{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:6px}
+.split .plan{background:none;border:0;box-shadow:none;display:grid;gap:8px;overflow:visible}
+.split .plan .rowp{background:var(--surface);border-radius:var(--r);border:var(--cb);box-shadow:var(--cs)}
+.dock{position:absolute;left:0;right:0;bottom:64px;background:var(--dockbg);border-top:1px solid var(--line);padding:12px 20px 14px}
+.dock .lr{display:flex;align-items:center;gap:14px;margin-bottom:10px;font-size:13.5px;color:var(--ink2)}
+.dock .lr > span:first-child{width:46px}
+.seg{flex:1;display:flex;background:var(--segbg);border-radius:var(--segr);padding:var(--segpad);border:var(--segb)}
+.seg span{flex:1;text-align:center;padding:8px 0;border-radius:calc(var(--segr) - 2px);color:var(--ink);font-weight:500;font-size:14px}
+.seg .on{background:var(--segon);color:var(--segonink);box-shadow:var(--segs)}
+.slider{flex:1;height:6px;border-radius:3px;background:var(--track);position:relative}
+.slider i{position:absolute;left:0;top:0;bottom:0;width:26%;border-radius:3px;background:var(--fill)}
+.slider u{position:absolute;left:26%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;background:var(--thumb);box-shadow:var(--thumbs)}
+.mins{color:var(--link);font-weight:500;font-size:15px}
+.btn{height:54px;border-radius:var(--br);background:var(--btn);color:var(--btnink);display:flex;align-items:center;justify-content:center;gap:9px;font-weight:600;font-size:15.5px;box-shadow:var(--btns)}
+.nav{position:absolute;left:0;right:0;bottom:0;height:64px;background:var(--navbg);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;font-size:11.5px;color:var(--ink2)}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:3px;font-weight:500}
+.nav .on{color:var(--navon)}
+.nav .on svg{background:var(--navpill);border-radius:999px;padding:var(--navpad);width:var(--navw);box-sizing:content-box}
+</style></head><body>
+<img id="f-blue" src="figure-blue.png" alt="" hidden><img id="f-sun" src="figure-sun.png" alt="" hidden><img id="f-coral" src="figure-coral.png" alt="" hidden><img id="f-navy" src="figure-navy.png" alt="" hidden>
+<div class="board" id="board"></div>
+<script>
+const P = 'file:///';
+const I = {
+  place: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/>',
+  bell: '<path d="M14.4 14.4 9.6 9.6"/><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z"/><path d="m21.5 21.5-1.4-1.4M3.9 3.9 2.5 2.5"/><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z"/>',
+  flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+  weight: '<circle cx="12" cy="5" r="3"/><path d="M6.5 8a2 2 0 0 0-1.905 1.46L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.925-2.54L19.4 9.5A2 2 0 0 0 17.48 8Z"/>',
+  chev: '<path d="m9 18 6-6-6-6"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  shuffle: '<path d="m18 14 4 4-4 4M18 2l4 4-4 4"/><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22M2 6h1.972a4 4 0 0 1 3.6 2.2M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"/>',
+  list: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="m3 6 1 1 2-2M3 12l1 1 2-2M3 18l1 1 2-2"/>',
+  cal: '<path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/>',
+  trend: '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
+  sliders: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+  shield: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>',
+};
+const ic = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24">${I[n]}</svg>`;
+
+const base = {tw: 500, ts: '34px', r: '14px', cb: 'none', cs: 'none', segr: '12px', segpad: '3px', segb: 'none', segs: 'none', br: '14px', btns: 'none',
+  thumbs: '0 1px 4px rgba(0,0,0,.25)', navpill: 'transparent', navpad: '0', navw: '22px', bronze: '#B0763C', bronzebg: 'rgba(176,118,60,.14)', sky: 'none'};
+
+const dirs = [
+ {n: 'A', name: 'Paper', idea: 'Apple-calm. Grey page, pure white cards with no borders or shadows, bold titles, and a black button. Almost no colour: only the muscles and the rank.', fig: 'blue',
+  light: {bg:'#F2F2F7',surface:'#FFFFFF',figbg:'#FFFFFF',line:'#E4E4EA',ink:'#0B0B0F',ink2:'#62626A',head:'#0B0B0F',headlink:'#0B0B0F',link:'#0B0B0F',tw:600,r:'20px',
+    track:'#DCDCE2',bar:'#B0763C',segbg:'#E4E4EA',segon:'#FFFFFF',segonink:'#0B0B0F',segs:'0 1px 3px rgba(0,0,0,.12)',fill:'#0B0B0F',thumb:'#FFFFFF',btn:'#0B0B0F',btnink:'#FFFFFF',br:'27px',dockbg:'#F2F2F7',navbg:'#F9F9FB',navon:'#0B0B0F'},
+  dark: {bg:'#000000',surface:'#1C1C1E',figbg:'#1C1C1E',line:'#2A2A2E',ink:'#F5F5F7',ink2:'#9C9CA4',head:'#F5F5F7',headlink:'#F5F5F7',link:'#F5F5F7',tw:600,r:'20px',
+    track:'#2E2E32',bar:'#C58A4E',segbg:'#1C1C1E',segon:'#3A3A3F',segonink:'#F5F5F7',fill:'#F5F5F7',thumb:'#FFFFFF',btn:'#F5F5F7',btnink:'#000000',br:'27px',dockbg:'#000000',navbg:'#0A0A0B',navon:'#F5F5F7'}},
+ {n: 'B', name: 'Fluent', idea: 'Microsoft-clean. A faint blue wash at the top of the page, white cards with a hairline and a soft shadow, tighter corners. Blue on links, the selected tab and a gradient button.', fig: 'blue',
+  light: {bg:'linear-gradient(180deg,#E1EDFF 0,#F5F6FA 280px)',surface:'#FFFFFF',figbg:'#FFFFFF',line:'#E4E8EF',ink:'#15202E',ink2:'#586475',head:'#15202E',headlink:'#1F6FDB',link:'#1F6FDB',tw:600,r:'12px',
+    cb:'1px solid #E4E8EF',cs:'0 1px 2px rgba(16,32,64,.05),0 4px 12px rgba(16,32,64,.06)',track:'#DDE3EC',bar:'#B0763C',segbg:'#FFFFFF',segb:'1px solid #DDE3EC',segr:'10px',segon:'#E6F0FE',segonink:'#1F6FDB',
+    fill:'#2374E1',thumb:'#2374E1',btn:'linear-gradient(180deg,#4B9BF4,#2374E1)',btnink:'#FFFFFF',br:'10px',btns:'0 4px 12px rgba(35,116,225,.28)',dockbg:'#F5F6FA',navbg:'#FFFFFF',navon:'#1F6FDB',navpill:'#E6F0FE',navpad:'4px 18px',navw:'22px'},
+  dark: {bg:'linear-gradient(180deg,#14233D 0,#0E1319 280px)',surface:'#171D26',figbg:'#171D26',line:'#262F3B',ink:'#EEF2F7',ink2:'#9AA6B5',head:'#EEF2F7',headlink:'#7DB8FA',link:'#7DB8FA',tw:600,r:'12px',
+    cb:'1px solid #262F3B',track:'#2A3441',bar:'#C58A4E',segbg:'#171D26',segb:'1px solid #262F3B',segr:'10px',segon:'#17304F',segonink:'#8CC0FB',
+    fill:'#5AA6F7',thumb:'#5AA6F7',btn:'linear-gradient(180deg,#5AA6F7,#2F82EA)',btnink:'#FFFFFF',br:'10px',dockbg:'#0E1319',navbg:'#131921',navon:'#7DB8FA',navpill:'#17304F',navpad:'4px 18px'}},
+ {n: 'C', name: 'Daybreak', idea: 'The icon as atmosphere. The top of Today is the sky with the sun rising behind the first card, and the Start button is the sun. Everything below is plain ink on white.', fig: 'sun', cls: 'has-sky',
+  light: {bg:'#F6F7FA',sky:'linear-gradient(180deg,#7FC4FD 0%,#BFE0FE 50%,#E6F0FB 80%,#F6F7FA 100%)',surface:'#FFFFFF',figbg:'#FFFFFF',line:'#E6E8EE',ink:'#16202C',ink2:'#5B6675',head:'#0E2A47',headlink:'#0E2A47',link:'#16202C',r:'18px',
+    cs:'0 2px 10px rgba(30,50,90,.08)',track:'#E0E4EA',bar:'#B0763C',segbg:'#E9ECF1',segon:'#FFFFFF',segonink:'#16202C',segs:'0 1px 3px rgba(0,0,0,.10)',fill:'#16202C',thumb:'#FFFFFF',
+    btn:'linear-gradient(180deg,#FEDF8A,#FDB582 55%,#FB8C8B)',btnink:'#3A1A0C',br:'16px',btns:'0 4px 14px rgba(251,140,139,.35)',dockbg:'#F6F7FA',navbg:'#FFFFFF',navon:'#16202C'},
+  dark: {bg:'#121018',sky:'linear-gradient(180deg,#2A1E8C 0%,#5B3DB9 42%,#2C2148 78%,#121018 100%)',surface:'#1C1924',figbg:'#1C1924',line:'#2D2938',ink:'#F1EFF6',ink2:'#A39EB2',head:'#FFFFFF',headlink:'#FFFFFF',link:'#F1EFF6',r:'18px',
+    track:'#322D3E',bar:'#C58A4E',segbg:'#1C1924',segon:'#39344A',segonink:'#F1EFF6',fill:'#F1EFF6',thumb:'#FFFFFF',
+    btn:'linear-gradient(180deg,#FEDF8A,#FDB582 55%,#FB8C8B)',btnink:'#3A1A0C',br:'16px',dockbg:'#121018',navbg:'#16131D',navon:'#F1EFF6'}},
+ {n: 'D', name: 'Clay', idea: 'Warm and soft. A cream page, rounder cards that float on a warm shadow, each part of the plan its own card, and one coral accent on the button and slider.', fig: 'coral', cls: 'split',
+  light: {bg:'#F4EFE8',surface:'#FFFCF7',figbg:'#FFFCF7',line:'#E8E0D5',ink:'#2B2420',ink2:'#72665D',head:'#2B2420',headlink:'#2B2420',link:'#2B2420',r:'24px',
+    cs:'0 1px 2px rgba(80,50,20,.05),0 6px 16px rgba(80,50,20,.07)',track:'#E3DACE',bar:'#B0763C',segbg:'#E9E1D6',segr:'16px',segon:'#FFFCF7',segonink:'#2B2420',segs:'0 1px 3px rgba(80,50,20,.12)',fill:'#E46A45',thumb:'#FFFFFF',
+    btn:'#E46A45',btnink:'#FFFFFF',br:'27px',btns:'0 6px 16px rgba(228,106,69,.30)',dockbg:'#F4EFE8',navbg:'#FBF7F1',navon:'#2B2420'},
+  dark: {bg:'#181513',surface:'#231F1C',figbg:'#231F1C',line:'#352F2A',ink:'#F3EDE6',ink2:'#B0A59B',head:'#F3EDE6',headlink:'#F3EDE6',link:'#F3EDE6',r:'24px',
+    track:'#3A332E',bar:'#C58A4E',segbg:'#231F1C',segr:'16px',segon:'#3D3631',segonink:'#F3EDE6',fill:'#F0805C',thumb:'#FFFFFF',
+    btn:'#F0805C',btnink:'#2A1208',br:'27px',dockbg:'#181513',navbg:'#1D1917',navon:'#F3EDE6'}},
+ {n: 'E', name: 'Night', idea: 'Bold and sporty, dark first. True black, heavy titles, the day as three big numbers, and one hot gradient on the button and the rank bar.', fig: 'sun', stats: true, darkFirst: true,
+  light: {bg:'#FFFFFF',surface:'#F2F2F4',figbg:'#F2F2F4',line:'#E6E6EA',ink:'#000000',ink2:'#66666E',head:'#000000',headlink:'#000000',link:'#000000',tw:700,ts:'37px',r:'22px',
+    track:'#DDDDE2',bar:'linear-gradient(90deg,#FF9A3D,#FF5E5B)',segbg:'#F2F2F4',segon:'#FFFFFF',segonink:'#000000',segs:'0 1px 3px rgba(0,0,0,.14)',fill:'#FF7A45',thumb:'#FFFFFF',
+    btn:'linear-gradient(90deg,#FF9A3D,#FF5E5B)',btnink:'#1A0800',br:'18px',dockbg:'#FFFFFF',navbg:'#FFFFFF',navon:'#000000'},
+  dark: {bg:'#000000',surface:'#141416',figbg:'#141416',line:'#232326',ink:'#FFFFFF',ink2:'#9B9BA1',head:'#FFFFFF',headlink:'#FFFFFF',link:'#FFFFFF',tw:700,ts:'37px',r:'22px',
+    track:'#2A2A2E',bar:'linear-gradient(90deg,#FF9A3D,#FF5E5B)',segbg:'#141416',segon:'#2C2C30',segonink:'#FFFFFF',fill:'#FF8A45',thumb:'#FFFFFF',
+    btn:'linear-gradient(90deg,#FF9A3D,#FF5E5B)',btnink:'#1A0800',br:'18px',dockbg:'#000000',navbg:'#000000',navon:'#FFFFFF'}},
+ {n: 'F', name: 'Mist', idea: 'One hue, many tones. A pale blue-grey page with deeper tonal cards (no white, no borders, no shadows) and navy for ink, the button and the muscles. The quietest of the six.', fig: 'navy', figDark: 'blue',
+  light: {bg:'#EDF1F6',surface:'#E0E7F0',figbg:'#E0E7F0',line:'#D2DBE7',ink:'#14233B',ink2:'#53627B',head:'#14233B',headlink:'#14233B',link:'#14233B',r:'16px',
+    track:'#CBD6E4',bar:'#33598F',bronze:'#33598F',bronzebg:'rgba(51,89,143,.14)',segbg:'#E0E7F0',segon:'#C8D5E6',segonink:'#14233B',fill:'#1B2F52',thumb:'#1B2F52',
+    btn:'#1B2F52',btnink:'#FFFFFF',br:'14px',dockbg:'#EDF1F6',navbg:'#E6ECF3',navon:'#14233B'},
+  dark: {bg:'#0D1520',surface:'#152233',figbg:'#152233',line:'#203146',ink:'#E6EEF8',ink2:'#93A4BB',head:'#E6EEF8',headlink:'#E6EEF8',link:'#E6EEF8',r:'16px',
+    track:'#263A54',bar:'#8FB4E8',bronze:'#A9C6EE',bronzebg:'rgba(143,180,232,.16)',segbg:'#152233',segon:'#26394F',segonink:'#E6EEF8',fill:'#C6DBFA',thumb:'#C6DBFA',
+    btn:'#C6DBFA',btnink:'#0D1520',br:'14px',dockbg:'#0D1520',navbg:'#101A27',navon:'#E6EEF8'}},
+];
+
+function phone(d, mode) {
+  const v = {...base, ...d[mode]};
+  const style = Object.entries(v).map(([k, x]) => `--${k}:${x}`).join(';');
+  const fig = mode === 'dark' && d.figDark ? d.figDark : d.fig;
+  const row = (icon, name, sub, mins) => `<div class="rowp">${ic(icon, 20)}<div class="nm"><b>${name}</b>${sub ? `<small>${sub}</small>` : ''}</div><div class="mn">${mins}${ic('chev', 16)}</div></div>`;
+  return `<div class="phone ${d.cls || ''}" style="${style}">
+    <div class="sky"></div><div class="sun"></div>
+    <div class="body">
+      <div class="top"><b>Today</b><span class="place">${ic('place', 17)}Commercial gym</span></div>
+      <h1>Chest, lats and front shoulders day</h1>
+      ${d.stats ? `<div class="stats"><div><b>2</b>exercises</div><div><b>6</b>sets</div><div><b>35</b>minutes</div></div>`
+               : `<div class="facts">${ic('bell', 17)}2 exercises · 6 sets · about 35 min</div>`}
+      <div class="card rank"><div class="row"><span class="chip">${ic('shield', 13)}Bronze</span><span class="n">905</span><span class="to">95 to Silver</span></div><div class="bar"><i></i></div></div>
+      <div class="fig"><img src="${document.getElementById('f-' + fig).src}" alt=""><div class="cap"><span>Working chest, lats and front shoulders</span><span class="link">Change</span></div></div>
+      <div class="planh"><span>${ic('list', 16)}Plan</span><span class="link" style="display:flex;gap:6px;align-items:center">${ic('shuffle', 16)}Shuffle</span></div>
+      <div class="card plan">
+        ${row('flame', 'Warm-up', '', '5 min')}
+        ${row('weight', 'Dumbbell pullover', '10 kg · 3 × 13 to 18', '8 min')}
+        ${row('weight', 'Machine shoulder press', '20 kg · 3 × 13 to 18', '7 min')}
+      </div>
+    </div>
+    <div class="dock">
+      <div class="lr"><span>Energy</span><div class="seg"><span>Easy</span><span class="on">Normal</span><span>Hard</span></div></div>
+      <div class="lr"><span>Time</span><div class="slider"><i></i><u></u></div><span class="mins">35 min</span></div>
+      <div class="btn">${ic('play', 18)}Start workout</div>
+    </div>
+    <div class="nav"><div class="on">${ic('cal', 22)}Today</div><div>${ic('trend', 22)}Progress</div><div>${ic('bell', 22)}Exercises</div><div>${ic('sliders', 22)}Settings</div></div>
+  </div>`;
+}
+
+document.getElementById('board').innerHTML = dirs.map(d => `<section class="dir"><h3><span>${d.n}</span>${d.name}</h3><p>${d.idea}</p>
+  <div class="pair">${d.darkFirst ? phone(d, 'dark') + phone(d, 'light') : phone(d, 'light') + phone(d, 'dark')}</div></section>`).join('');
+</script>
+</body></html>

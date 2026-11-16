@@ -1319,7 +1319,7 @@ class _RepWheelState extends State<_RepWheel> {
       const SizedBox(height: 8),
       SizedBox(height: 72, child: Stack(alignment: Alignment.center, children: [
         Container(width: _extent, height: 72, decoration: BoxDecoration(
-          color: du.accentSubtle, borderRadius: BorderRadius.circular(14), border: Border.all(color: du.accentLine, width: 1.5))),
+          color: du.accentSubtle, borderRadius: BorderRadius.circular(cardRadius), border: Border.all(color: du.accentLine, width: 1.5))),
         ShaderMask(
           shaderCallback: (r) => const LinearGradient(colors: [Color(0x00000000), Color(0xFF000000), Color(0xFF000000), Color(0x00000000)], stops: [0, 0.22, 0.78, 1]).createShader(r),
           blendMode: BlendMode.dstIn,
