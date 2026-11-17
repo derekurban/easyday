@@ -25,20 +25,26 @@ goes.
    reads as a count of steps. Done, skipped, now and ahead each have a colour.
 9. **Looking is free.** Browsing never changes anything. A done value is edited with the same control that
    entered it, and saves as it turns.
-10. **Accent is ink and marks, never a background.** Green goes on the strip, the number in the window, the
-    weight, a step number, the one button. Never on a card.
-11. **Polish tokens.** Gutter 16. Card radius 14. Full-width buttons 56. Section headers are sentence case
-    with an icon (`SectionHeader`). Step numbers are `StepNumber`. Colours are checked in both themes.
+10. **Ink is the accent, and the sun is the only colour.** Links, hints, selected things and marks are plain
+    ink. Colour is kept for the sun: the one filled button, the muscles a workout works, the workout
+    pictures, and the sky at the top of Today. A state keeps its own colour (calibrating, a rank, the
+    finish). Never a coloured card.
+11. **Polish tokens.** The page is warm white with white cards, or true black with near-black cards. Gutter
+    16. Card radius 24, no ring, a soft warm shadow by day. Buttons are pills, full-width ones 56. Titles
+    are heavy. Section headers are sentence case with an icon (`SectionHeader`). Step numbers are
+    `StepNumber`. Colours are checked in both themes.
 12. **Logic lives in logic, with tests.** A screen draws a view model; it never computes one.
 13. **Haptics on every state change.** A selection tick for browsing and picking, a light tap for starting
     and pausing, a medium one for logging.
 
 ## The screens
 
-- **Today.** Title: the day's name. Fact row: exercises, sets, about how long; at the right, today against the
-  usual. The rank card: the overall rank and number, the bar to the next rank, how far it is and what a good day
+- **Today.** No app bar: the sky for the time of day runs to the top of the screen, with the sun at the right
+  resting on the horizon (a moon at night), and scrolls away with the page. On the sky: the place, the day's
+  name, and the day as three numbers (exercises, sets, minutes), with a line under them only when today differs
+  from the usual. The first card sits on the horizon. The rank card: the overall rank and number, the bar to the next rank, how far it is and what a good day
   today does to it (or unranked, and how many exercises to calibrate). The body figure painted with today's muscles,
-  in the picture slot; tap it for the muscle picker. The plan: a row per part, name and level on the left; on a lift's
+  in the picture slot; tap it for the muscle picker. The plan: a card per part, name and level on the left; on a lift's
   row its rank and number at the right with what a good day does under them (or "finds its weight" while it
   calibrates), the minutes with the facts; minutes on the right of the other rows; a chevron on every row. A tag only
   when today differs from the usual. Under the plan the strip as the workout will show it and one line: about

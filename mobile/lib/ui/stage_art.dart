@@ -104,7 +104,7 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
     final line = widget.tagline ?? own;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(14)),
+      decoration: BoxDecoration(color: du.sunk, borderRadius: BorderRadius.circular(cardRadius)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         AnimatedSwitcher(
           duration: m(context, durSlow),
@@ -113,7 +113,7 @@ class _StageArtState extends State<StageArt> with SingleTickerProviderStateMixin
             height: stageArtHeight,
             width: double.infinity,
             child: CustomPaint(painter: _StagePainter(widget.stage, _c,
-                _Ink(du.accentStrong, du.accentLine, du.accentSubtle, du.line, du.inkTertiary, du.ink))),
+                _Ink(du.art, du.artSoft, du.artFaint, du.line, du.inkTertiary, du.ink))),
           ),
         ),
         const SizedBox(height: stageCaptionGap),

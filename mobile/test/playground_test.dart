@@ -10,7 +10,7 @@ import 'workout_test.dart' as w;
 
 void main() {
   testWidgets('the tile lab: a weight chip opens easier, the same and harder; a first time takes your take', (tester) async {
-    tester.view.physicalSize = const Size(412, 1600);
+    tester.view.physicalSize = const Size(412, 2200);  // tall enough for the sky lab above the tiles
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);

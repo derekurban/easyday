@@ -363,7 +363,7 @@ class OptionCard extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
         decoration: BoxDecoration(
           color: selected ? du.accentSubtle : du.surface,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(cardRadius),
           border: Border.all(color: selected ? du.accentStrong : du.line, width: selected ? 1.5 : 0.6),
         ),
         child: Row(children: [

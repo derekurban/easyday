@@ -444,7 +444,7 @@ class _FigureChoice extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
           decoration: BoxDecoration(
             color: selected ? du.accentSubtle : du.surface,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(cardRadius),
             border: Border.all(color: selected ? du.accentStrong : du.line, width: selected ? 1.5 : 0.6),
           ),
           child: ExcludeSemantics(child: Column(children: [
