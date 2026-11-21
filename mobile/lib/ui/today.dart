@@ -24,7 +24,9 @@ import '../logic/person.dart';
 import '../logic/rating.dart';
 import '../logic/selection.dart';
 import '../logic/stakes.dart';
+import '../logic/watch_view.dart';
 import '../logic/workout.dart';
+import '../watch.dart';
 import 'app.dart';
 import 'exercise_card.dart';
 import 'exercise_muscles.dart';
@@ -75,6 +77,12 @@ class _TodayScreenState extends State<TodayScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadContext());
+  }
+
+  @override
+  void dispose() {
+    WatchLink.today = null; // a workout started, or Today went: nothing to start from the wrist
+    super.dispose();
   }
 
   Future<void> _loadContext() async {
@@ -138,7 +146,10 @@ class _TodayScreenState extends State<TodayScreen> {
     final ps = personState(s, now);
     final nudge = nudgeFor(s, now);
 
-    if (finishedToday(s, now) && !continuedToday(s, now)) return _doneForToday(context, s, now);
+    if (finishedToday(s, now) && !continuedToday(s, now)) {
+      WatchLink.today = null;
+      return _doneForToday(context, s, now);
+    }
 
     final opts = _options(s, now);
     final session = buildSession(s, opts, now);
@@ -148,6 +159,13 @@ class _TodayScreenState extends State<TodayScreen> {
     final lift = session.type == 'lift';
     final plan = _musclePlan(s, now);
     final empty = lift && session.exercises.isEmpty;
+    // the watch shows what Start would start, and can start it
+    final count1 = session.exercises.length;
+    WatchLink.today = WatchToday(
+      name: session.name,
+      detail: lift ? '$count1 ${count1 == 1 ? 'exercise' : 'exercises'} · about $est min' : 'About $est min',
+      start: empty ? null : () { if (mounted) lift ? _start(context, session) : _startMove(context, session); },
+    );
     final stakes = lift && !empty ? stakesFor(s, session, now) : null;
 
     // no app bar: the sky runs to the top of the screen, under the status bar, and scrolls away with the page

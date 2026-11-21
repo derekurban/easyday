@@ -52,6 +52,14 @@
 
         </receiver>
 
+        <!-- Hears the watch: taps and heart rate, kept in an inbox until the app reads them (WatchInbox.kt). -->
+        <service android:name=".WatchListenerService" android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED"/>
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/easyday/"/>
+            </intent-filter>
+        </service>
+
         <!-- Hears how an in-app update's install session ended (UpdateReceiver.kt). -->
         <receiver android:name=".UpdateReceiver" android:exported="false"/>
 

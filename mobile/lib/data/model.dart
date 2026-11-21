@@ -550,6 +550,10 @@ class Session {
   /// clocks, the rest and the item times all read as if the pause never happened.
   DateTime? pausedAt;
   int pausedSeconds = 0; // all pauses so far: startedAt minus this is when the workout really began
+  /// Each pause: when it began, on the phone's clock, and how long it lasted. Resuming moves every time before it on by
+  /// its length, so the watch's heart rate, recorded in real time, is laid on the workout's clock by them (heart.dart).
+  List<({DateTime at, int ms})> pauses = [];
+  HeartLog? heart;       // what the watch recorded during the workout (docs/app/WATCH.md); null without a watch
   int? cardioDone;       // the minutes of cardio the user logged on the wheel, the cardio block or a cardio day
   StopReason? stopReason;
   int? stopAt;           // exercise index where the stop happened
@@ -573,6 +577,8 @@ class Session {
         'startedAt': _ms(startedAt), 'endedAt': _ms(endedAt), 'pausedAt': _ms(pausedAt), 'pausedSeconds': pausedSeconds, 'cardioDone': cardioDone, 'stopReason': stopReason == null ? null : _e(stopReason!), 'stopAt': stopAt,
         'feel': feel == null ? null : _e(feel!), 'note': note, 'swappedToMove': swappedToMove, 'order': _e(order), 'skipped': skipped,
         'calendarEventId': calendarEventId, if (reviewing) 'reviewing': true, if (endRead != null) 'endRead': endRead, if (painAt != null) 'painAt': painAt, 'warmupMinutes': warmupMinutes, 'items': itemStarts.map((k, v) => MapEntry(k, _ms(v))),
+        if (pauses.isNotEmpty) 'pauses': [for (final p in pauses) [_ms(p.at), p.ms]],
+        if (heart != null) 'heart': heart!.toJson(),
       };
   static Session fromJson(Map<String, dynamic> j) => Session(
         id: j['id'], type: j['type'], kind: j['kind'], name: j['name'], itemIndex: j['itemIndex'] ?? 0, locationId: j['locationId'],
@@ -593,6 +599,8 @@ class Session {
     ..endedAt = _d(j['endedAt'])
     ..pausedAt = _d(j['pausedAt'])
     ..pausedSeconds = j['pausedSeconds'] ?? 0
+    ..pauses = [for (final p in (j['pauses'] as List? ?? [])) (at: _d(p[0])!, ms: (p[1] as num).toInt())]
+    ..heart = j['heart'] == null ? null : HeartLog.fromJson(j['heart'])
     ..cardioDone = j['cardioDone']
     ..stopReason = j['stopReason'] == null ? null : _p(StopReason.values, j['stopReason'], StopReason.time)
     ..stopAt = j['stopAt']
@@ -603,6 +611,37 @@ class Session {
     ..reviewing = j['reviewing'] ?? false
     ..endRead = j['endRead']
     ..painAt = j['painAt'];
+}
+
+/// What the watch recorded during a workout: heart rate samples in time order, on the phone's clock in real time (pauses
+/// included; heart.dart lays them on the workout's clock), and the energy the watch counts for the whole workout. Kept as
+/// a start and whole seconds after it, so a workout's samples stay a few kilobytes. docs/app/WATCH.md.
+class HeartLog {
+  HeartLog();
+  List<DateTime> t = [];
+  List<int> bpm = [];
+  double? kcal;
+  String device = '';   // the watch's name, as it calls itself
+
+  Map<String, dynamic> toJson() {
+    final t0 = t.isEmpty ? 0 : t.first.millisecondsSinceEpoch;
+    return {
+      't0': t0, 'dt': [for (final x in t) ((x.millisecondsSinceEpoch - t0) / 1000).round()], 'bpm': bpm,
+      if (kcal != null) 'kcal': kcal, if (device.isNotEmpty) 'device': device,
+    };
+  }
+
+  static HeartLog fromJson(Map<String, dynamic> j) {
+    final t0 = (j['t0'] as num?)?.toInt() ?? 0;
+    final dt = List<num>.from(j['dt'] ?? const []);
+    final bpm = List<num>.from(j['bpm'] ?? const []);
+    final n = min(dt.length, bpm.length);
+    return HeartLog()
+      ..t = [for (var i = 0; i < n; i++) DateTime.fromMillisecondsSinceEpoch(t0 + dt[i].toInt() * 1000)]
+      ..bpm = [for (var i = 0; i < n; i++) bpm[i].toInt()]
+      ..kcal = (j['kcal'] as num?)?.toDouble()
+      ..device = j['device'] ?? '';
+  }
 }
 
 /// What carries over between workouts that is not a level: pain pauses, the two defaults, and the muscles the user asked

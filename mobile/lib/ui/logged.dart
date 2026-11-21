@@ -9,6 +9,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../data/model.dart';
 import '../logic/calibrate.dart';
+import '../logic/heart.dart';
 import '../logic/ladder.dart';
 import '../logic/rating.dart';
 import '../logic/score.dart';
@@ -16,6 +17,7 @@ import '../logic/selection.dart';
 import '../logic/workout.dart';
 import 'app.dart';
 import 'fresh.dart';
+import 'heart_chart.dart';
 import 'palette.dart';
 import 'edit_drawer.dart';
 import 'motion.dart';
@@ -77,6 +79,7 @@ class _LoggedViewState extends State<LoggedView> {
     final minutes = max(1, (checkSeconds(x, store.now) / 60).round());
     final week = workoutsThisWeek(s, x);
     final overall = overallRating(s, store.now, plus: x);
+    final heart = heartSummary(x, now: store.now); // from the watch, when one was worn
     final page = _details
         ? Column(key: const ValueKey('details'), children: [
             Padding(padding: const EdgeInsets.fromLTRB(20, 8, 20, 4), child: Row(children: [
@@ -88,6 +91,7 @@ class _LoggedViewState extends State<LoggedView> {
             ])),
             Expanded(child: ListView(padding: const EdgeInsets.fromLTRB(20, 8, 20, 16), children: [
             if (!w.finished) ...[_endCard(context, x, w), const SizedBox(height: 12)],
+            if (heart != null) ...[HeartPanel(session: x, summary: heart), const SizedBox(height: 10)],
             ..._did(context, x, w),
             const SizedBox(height: 4),
             if (_open.contains('pain')) _pain(context, x) else _quietLinks(context, dotted),
@@ -102,6 +106,8 @@ class _LoggedViewState extends State<LoggedView> {
               const SizedBox(height: 8),
               Reveal(delay: const Duration(milliseconds: 250), child: Text('$minutes min · $done ${done == 1 ? 'exercise' : 'exercises'} · $sets ${sets == 1 ? 'set' : 'sets'}',
                   style: t.bodyLarge?.copyWith(color: du.inkSecondary), textAlign: TextAlign.center)),
+              if (heart != null) Reveal(delay: const Duration(milliseconds: 290), child: Padding(padding: const EdgeInsets.only(top: 4),
+                  child: Text(heartLine(heart), style: t.bodyMedium?.copyWith(color: du.inkSecondary), textAlign: TextAlign.center))),
               if (week > 1) Reveal(delay: const Duration(milliseconds: 320), child: Padding(padding: const EdgeInsets.only(top: 4),
                   child: Text('Your ${_ordinal(week)} workout this week', style: t.bodyMedium?.copyWith(color: du.accentText), textAlign: TextAlign.center))),
               // the overall strength rating, and what today did to it
@@ -545,6 +551,8 @@ class _LoggedViewState extends State<LoggedView> {
     Widget cell(String text, {int flex = 1, TextAlign align = TextAlign.left, TextStyle? style}) =>
         Expanded(flex: flex, child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: align, style: style ?? t.bodyMedium));
     final quiet = t.bodyMedium?.copyWith(color: du.inkSecondary);
+    // each set's peak heart rate, when a watch was worn
+    final heart = heartSummary(x, now: now);
 
     // a timed part: its name and how long it took
     Widget timed(WorkoutItem it, String name, IconData icon) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Panel(padding: EdgeInsets.zero, child: InkWell(
@@ -579,6 +587,7 @@ class _LoggedViewState extends State<LoggedView> {
           if (showLevel) cell(ex.loaded ? 'Weight' : 'Version', flex: 3, align: TextAlign.right, style: t.labelSmall),
           cell('Took', flex: 2, align: TextAlign.right, style: t.labelSmall),
           cell('Rest', flex: 2, align: TextAlign.right, style: t.labelSmall),
+          if (heart != null) cell('Peak', flex: 2, align: TextAlign.right, style: t.labelSmall),
         ]),
         for (final k in sets) InkWell(onTap: () => showExerciseEdit(context, x, i, focus: k), child: Padding(padding: const EdgeInsets.symmetric(vertical: 7), child: Row(children: [
           cell('${k + 1}', style: quiet),
@@ -586,6 +595,7 @@ class _LoggedViewState extends State<LoggedView> {
           if (showLevel) cell(level(e, e.sets[k]), flex: 3, align: TextAlign.right),
           cell(time(setSecondsOf(x, (ex: i, set: k))), flex: 2, align: TextAlign.right, style: quiet),
           cell(time(restAfterOf(x, (ex: i, set: k))), flex: 2, align: TextAlign.right, style: quiet),
+          if (heart != null) cell('${setPeak(x, (ex: i, set: k), points: heart.points) ?? '–'}', flex: 2, align: TextAlign.right, style: quiet),
         ]))),
       ])));
     }
