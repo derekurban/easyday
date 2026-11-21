@@ -19,9 +19,9 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
 import java.util.TimeZone
 
-/// Hosts three small channels: the calendar (permissions, today's events, the writable calendars, writing one event),
+/// Hosts four small channels: the calendar (permissions, today's events, the writable calendars, writing one event),
 /// the updater (what build and phone this is, the install permission, and installing a downloaded APK over this app),
-/// and links (opening a web page in the browser).
+/// links (opening a web page in the browser), and the watch (what it shows, and its inbox: WatchInbox.kt).
 class MainActivity : FlutterActivity() {
     private var pendingPermission: MethodChannel.Result? = null
     private var pendingWrite: MethodChannel.Result? = null
@@ -74,6 +74,15 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+        val watch = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "easyday/watch")
+        WatchInbox.notify = { runOnUiThread { watch.invokeMethod("inbox", null) } }
+        watch.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "publish" -> WatchInbox.publish(applicationContext, call.argument<String>("json")!!) { ok -> runOnUiThread { result.success(ok) } }
+                "takeInbox" -> result.success(WatchInbox.take(applicationContext))
+                else -> result.notImplemented()
+            }
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "easyday/links").setMethodCallHandler { call, result ->
             when (call.method) {
                 "open" -> result.success(try {
@@ -109,6 +118,11 @@ class MainActivity : FlutterActivity() {
         true
     } catch (e: Exception) {
         false
+    }
+
+    override fun onDestroy() {
+        WatchInbox.notify = null   // the inbox keeps what comes in until the next start reads it
+        super.onDestroy()
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {

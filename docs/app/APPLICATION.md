@@ -577,7 +577,8 @@ Explicitly out of scope, at least until the core loop has proven itself.
 - Nutrition, body weight, and body composition.
 - Social features, sharing, and leaderboards.
 - Form coaching beyond the step guides, and video.
-- Detailed analytics, heart rate, pace, routes, or any cardio metric beyond duration and effort.
+- Detailed analytics, heart-rate zones or targets, pace, routes, or any cardio metric beyond duration and effort. A
+  watch's heart rate is kept as a record of the workout and shown on the finish, never as an input (`WATCH.md`).
 - Program marketplaces or user-authored programs.
 - Anything that asks the user to configure behaviour the app could infer.
 

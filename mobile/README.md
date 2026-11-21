@@ -12,6 +12,8 @@ The logic in `lib/logic/` is the spec in `../docs/app/APPLICATION.md` (sections 
 | `lib/data/exercises.g.dart` | The 324 library entries, generated from `../data/library.json` by `tool/gen_library.py`: never edit it, change the dataset and regenerate (`../docs/app/EXERCISE_DATA.md`) |
 | `lib/data/index.dart` | Indexes: the five ways the library can be grouped for browsing (muscle group, body region, equipment, progression type, difficulty, type), and the twenty muscle names folding onto eleven groups |
 | `lib/integrations.dart` | Notifications (daily reminder), calendar (busy minutes today), location (nearest saved place) |
+| `lib/watch.dart`, `lib/logic/watch_view.dart`, `lib/logic/heart.dart` | The watch link: what the watch shows, the taps it sends back, the heart rate it records (`../docs/app/WATCH.md`) |
+| `android/wear/` | The Wear OS app (Kotlin, Compose for Wear OS, Health Services): `./gradlew :wear:assembleStagingDebug` from `android/` |
 | `lib/data/model.dart` | Persisted state with hand-written JSON |
 | `lib/data/store.dart` | One JSON blob in shared preferences, plus the shiftable clock |
 | `lib/logic/ladder.dart` | Levels: what one means per exercise, ceilings, labels, cost in play, timing seeds (the code still says rung/ladder; the UI says level/progression) |

@@ -6,8 +6,9 @@ import 'dart:math';
 
 import '../data/model.dart';
 import 'after.dart';
-import 'calibrate.dart' show isTestSet;
+import 'calibrate.dart' show isTestSet, calibrationCap;
 import 'ladder.dart';
+import 'score.dart' show repsToStepUp;
 
 enum ItemKind { warmup, exercise, circuit, free, cardio, stretch }
 
@@ -378,6 +379,7 @@ void resumeWorkout(Session s, DateTime now) {
   final d = now.difference(p);
   if (d <= Duration.zero) return;
   s.pausedSeconds += d.inSeconds;
+  s.pauses.add((at: p, ms: d.inMilliseconds));
   s.startedAt = s.startedAt?.add(d);
   s.itemStarts.updateAll((_, t) => t.add(d));
   for (final e in s.exercises) {
@@ -386,6 +388,103 @@ void resumeWorkout(Session s, DateTime now) {
       x.at = x.at?.add(d);
     }
   }
+}
+
+// ---- names and labels, for the workout screen and the watch ----
+
+/// An exercise's name for the strip: without the equipment word that starts so many of them.
+String shortExerciseName(String name) {
+  const gear = {'barbell', 'dumbbell', 'dumbbells', 'kettlebell', 'cable', 'machine', 'band', 'smith', 'ez-bar', 'ez', 'trap-bar', 'landmine', 'weighted', 'ring', 'rings', 'suspension'};
+  final words = name.split(' ');
+  var i = 0;
+  while (i < words.length - 1 && gear.contains(words[i].toLowerCase())) { i++; }
+  final rest = words.sublist(i).join(' ');
+  return rest[0].toUpperCase() + rest.substring(1);
+}
+
+/// An item's short name, for the strip.
+String itemShortName(Session x, WorkoutItem it) => switch (it.kind) {
+      ItemKind.warmup => 'Warm-up',
+      ItemKind.exercise => shortExerciseName(x.exercises[it.exercises.single].exercise.name),
+      ItemKind.circuit => 'Circuit',
+      ItemKind.free => 'Free form',
+      ItemKind.cardio => 'Cardio',
+      ItemKind.stretch => 'Stretch',
+    };
+
+/// An item's name, as a title.
+String itemName(Session x, WorkoutItem it) => switch (it.kind) {
+      ItemKind.warmup => 'Warm-up',
+      ItemKind.exercise => x.exercises[it.exercises.single].exercise.name,
+      ItemKind.circuit => 'Circuit',
+      ItemKind.free => 'Exercises',
+      ItemKind.cardio => 'Cardio',
+      ItemKind.stretch => 'Stretching',
+    };
+
+/// What comes next: the exercise of the next set (this one again, or the next in a circuit), else the next part.
+String? nextName(Session x, List<WorkoutItem> items, int curIdx) {
+  final cur = items[curIdx];
+  if (cur.kind == ItemKind.free) {
+    // free form: what comes next is the user's to pick, while any set is left besides the one under way
+    final more = setOrder(x, cur).any((r) => !setOf(x, r).attempted && !setOf(x, r).lifting) || freeChoices(x, cur).any(x.skipped.contains);
+    if (more) return 'your pick';
+  } else if (cur.lifting) {
+    final order = setOrder(x, cur);
+    final lift = liftingSet(x, cur);
+    final i = lift == null ? -1 : order.indexOf(lift);
+    final n = lift == null ? nextSet(x, cur) : (i + 1 < order.length ? order[i + 1] : null);
+    if (n != null) return shortExerciseName(x.exercises[n.ex].exercise.name);
+  }
+  return curIdx + 1 < items.length ? itemShortName(x, items[curIdx + 1]) : null;
+}
+
+/// The button to what comes next, named for what it does: Start set 2, Start bench press, Start round 2, Start
+/// cardio, or Finish workout when nothing is left.
+String readyLabel(Session x, List<WorkoutItem> items, WorkoutItem cur) {
+  String start(String what) => 'Start ${what[0].toLowerCase()}${what.substring(1)}';
+  if (cur.kind == ItemKind.free) {
+    if (freeChoices(x, cur).isNotEmpty) return 'Choose next exercise';
+  } else if (cur.lifting) {
+    final n = nextSet(x, cur), last = lastLogged(x, cur);
+    if (n != null) {
+      if (last != null && n.ex == last.ex) return 'Start set ${x.exercises[n.ex].attempted.length + 1}';
+      if (last != null && cur.kind == ItemKind.circuit && n.set > last.set) return 'Start round ${n.set + 1}';
+      return start(shortExerciseName(x.exercises[n.ex].exercise.name));
+    }
+  }
+  final i = items.indexWhere((it) => it.key == cur.key);
+  if (i + 1 >= items.length) return 'Finish workout';
+  final next = items[i + 1];
+  if (next.kind == ItemKind.free) return 'Choose an exercise';
+  return start(next.kind == ItemKind.exercise ? shortExerciseName(x.exercises[next.exercises.single].exercise.name) : itemName(x, next));
+}
+
+/// Free form, from the list: leave the exercises left for the next part, or finish when nothing comes after.
+String moveOnLabel(Session x, List<WorkoutItem> items, WorkoutItem cur) {
+  final i = items.indexWhere((it) => it.key == cur.key);
+  return i + 1 >= items.length ? 'Finish workout' : 'Start ${itemName(x, items[i + 1]).toLowerCase()}';
+}
+
+/// The numbers a rep wheel offers for an exercise: every rep, or every five seconds for a long hold. A calibration set
+/// stops at the cap.
+List<int> repWheelValues(AppState state, SessionExercise e, {bool test = false}) {
+  final seconds = e.exercise.repLabel == 'seconds';
+  final step = seconds && e.hi - e.lo > 12 ? 5 : 1;
+  final next = seconds ? null : repsToStepUp(state, e);
+  final top = max(e.hi + step * max(6, (e.hi - e.lo) ~/ step), next == null ? 0 : min(next + 2, e.hi * 3));
+  if (test) return [for (var v = 0; v <= calibrationCap; v++) v];
+  return [for (var v = 0; v <= top; v += step) v];
+}
+
+/// Where a rep wheel opens: on the last set's reps of the exercise, or the top of the range; a calibration set on the
+/// top of the range.
+int repWheelStart(SessionExercise e, List<int> values, {bool test = false}) {
+  final before = test ? null : [for (final s in e.sets) if (s.attempted) s.reps!].lastOrNull;
+  final to = before ?? e.hi;
+  var best = 0;
+  for (var i = 0; i < values.length; i++) { if ((values[i] - to).abs() < (values[best] - to).abs()) best = i; }
+  return best;
 }
 
 // ---- the strip ----

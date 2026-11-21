@@ -15,9 +15,11 @@ import '../logic/after.dart';
 import '../logic/builder.dart';
 import '../logic/calibrate.dart';
 import '../logic/calendar.dart';
+import '../logic/heart.dart';
 import '../logic/ladder.dart';
 import '../logic/score.dart';
 import '../logic/workout.dart';
+import '../watch.dart';
 import 'app.dart';
 import 'fresh.dart';
 import 'logged.dart';
@@ -48,12 +50,80 @@ class _SessionScreenState extends State<SessionScreen> {
     super.initState();
     _tick = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
     WidgetsBinding.instance.addPostFrameCallback((_) => _resume());
+    WatchLink.onCommand = _fromWatch;
   }
 
   @override
   void dispose() {
     _tick?.cancel();
+    if (WatchLink.onCommand == _fromWatch) WatchLink.onCommand = null;
     super.dispose();
+  }
+
+  /// A tap from the watch, already checked to be for the step under way (watch.dart): it does what the button here
+  /// does, through the same code. False when it does not apply here, so the watch is sent what is on screen instead.
+  bool _fromWatch(Map<String, dynamic> cmd) {
+    if (!mounted) return false;
+    final store = context.store;
+    final x = store.state.active;
+    if (x == null || note != null) return false;
+    final op = cmd['op'];
+    bool did() {
+      setState(() { _view = null; _choosing = false; });
+      return true;
+    }
+    switch (op) {
+      case 'pause' || 'resume':
+        final pause = op == 'pause';
+        if ((x.pausedAt != null) == pause || x.reviewing) return false;
+        _pause(context, x, pause);
+        return did();
+      case 'end':
+        // a movement day has no end but Done; leaving it without logging is the phone's to do
+        if (x.reviewing || x.type != 'lift') return false;
+        _end(context, x);
+        return did();
+      case 'moveDone':
+        if (x.type != 'move' || x.pausedAt != null) return false;
+        if (x.kind == 'cardio') {
+          final secs = store.now.difference(x.startedAt ?? store.now).inSeconds;
+          store.update((_) => x.cardioDone = max(1, (secs / 60).round()));
+        }
+        _finish(context, x, null);
+        return did();
+    }
+    if (x.type != 'lift' || x.reviewing || x.pausedAt != null || x.exercises.isEmpty) return false;
+    final items = workoutItems(x);
+    final cur = currentItem(x) ?? items.first;
+    final lifting = cur.lifting && liftingSet(x, cur) != null;
+    switch (op) {
+      case 'log':
+        final reps = cmd['reps'];
+        if (reps is! num || !lifting) return false;
+        _logReps(context, x, reps.toInt());
+        return did();
+      case 'ready':
+        if (lifting || (cur.kind == ItemKind.free && freeChoices(x, cur).isNotEmpty)) return false;
+        if (cur.kind == ItemKind.cardio && x.itemStarts[cur.key] != null) return false; // the stopwatch's own tap
+        _ready(context, x);
+        return did();
+      case 'pick':
+        final ex = cmd['ex'];
+        if (ex is! num || cur.kind != ItemKind.free || lifting || !freeChoices(x, cur).contains(ex.toInt())) return false;
+        _pick(context, x, ex.toInt());
+        return did();
+      case 'moveOn':
+        if (cur.kind != ItemKind.free || lifting) return false;
+        _moveOn(context, x, items, cur);
+        return did();
+      case 'cardio':
+        if (cur.kind != ItemKind.cardio || x.itemStarts[cur.key] == null) return false;
+        final secs = store.now.difference(x.itemStarts[cur.key]!).inSeconds;
+        store.update((_) => x.cardioDone = max(1, (secs / 60).round()));
+        _ready(context, x);
+        return did();
+    }
+    return false;
   }
 
   /// A workout started before the strip existed has no item under way: start its first one now.
@@ -258,33 +328,11 @@ class _SessionScreenState extends State<SessionScreen> {
 
   // ---- the strip ----
 
-  String _short(Session x, WorkoutItem it) => switch (it.kind) {
-        ItemKind.warmup => 'Warm-up',
-        ItemKind.exercise => _shortName(x.exercises[it.exercises.single].exercise.name),
-        ItemKind.circuit => 'Circuit',
-        ItemKind.free => 'Free form',
-        ItemKind.cardio => 'Cardio',
-        ItemKind.stretch => 'Stretch',
-      };
+  String _short(Session x, WorkoutItem it) => itemShortName(x, it);
 
-  String _name(Session x, WorkoutItem it) => switch (it.kind) {
-        ItemKind.warmup => 'Warm-up',
-        ItemKind.exercise => x.exercises[it.exercises.single].exercise.name,
-        ItemKind.circuit => 'Circuit',
-        ItemKind.free => 'Exercises',
-        ItemKind.cardio => 'Cardio',
-        ItemKind.stretch => 'Stretching',
-      };
+  String _name(Session x, WorkoutItem it) => itemName(x, it);
 
-  /// An exercise's name for the strip: without the equipment word that starts so many of them.
-  static String _shortName(String name) {
-    const gear = {'barbell', 'dumbbell', 'dumbbells', 'kettlebell', 'cable', 'machine', 'band', 'smith', 'ez-bar', 'ez', 'trap-bar', 'landmine', 'weighted', 'ring', 'rings', 'suspension'};
-    final words = name.split(' ');
-    var i = 0;
-    while (i < words.length - 1 && gear.contains(words[i].toLowerCase())) { i++; }
-    final rest = words.sublist(i).join(' ');
-    return rest[0].toUpperCase() + rest.substring(1);
-  }
+  static String _shortName(String name) => shortExerciseName(name);
 
   /// The strip: a thin block for every set and every timed part, with gaps between the parts. The part under way stands
   /// taller; resting, the gap after the last set opens a little and holds a dot. No clock: nothing hurries anyone.
@@ -377,23 +425,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   /// What comes next: the exercise of the next set (this one again, or the next in a circuit), else the next part.
-  String? _nextName(Session x, List<WorkoutItem> items, int curIdx) {
-    final cur = items[curIdx];
-    if (cur.kind == ItemKind.free) {
-      // free form: what comes next is the user's to pick, while any set is left besides the one under way
-      final more = setOrder(x, cur).any((r) => !setOf(x, r).attempted && !setOf(x, r).lifting) || freeChoices(x, cur).any(x.skipped.contains);
-      if (more) return 'your pick';
-    } else if (cur.lifting) {
-      final order = setOrder(x, cur);
-      final lift = liftingSet(x, cur);
-      final i = lift == null ? -1 : order.indexOf(lift);
-      final n = lift == null ? nextSet(x, cur) : (i + 1 < order.length ? order[i + 1] : null);
-      if (n != null) {
-        return _shortName(x.exercises[n.ex].exercise.name);
-      }
-    }
-    return curIdx + 1 < items.length ? _short(x, items[curIdx + 1]) : null;
-  }
+  String? _nextName(Session x, List<WorkoutItem> items, int curIdx) => nextName(x, items, curIdx);
 
   /// Where each block sits: every block the same width, sets of one exercise 2 px apart, different parts 7 px apart,
   /// and the gap being rested in opened to 16 px for its dot.
@@ -717,30 +749,10 @@ class _SessionScreenState extends State<SessionScreen> {
 
   /// The button to what comes next, named for what it does: Start set 2, Start bench press, Start round 2, Start
   /// cardio, or Finish workout when nothing is left.
-  String _readyLabel(Session x, List<WorkoutItem> items, WorkoutItem cur) {
-    String start(String what) => 'Start ${what[0].toLowerCase()}${what.substring(1)}';
-    if (cur.kind == ItemKind.free) {
-      if (freeChoices(x, cur).isNotEmpty) return 'Choose next exercise';
-    } else if (cur.lifting) {
-      final n = nextSet(x, cur), last = lastLogged(x, cur);
-      if (n != null) {
-        if (last != null && n.ex == last.ex) return 'Start set ${x.exercises[n.ex].attempted.length + 1}';
-        if (last != null && cur.kind == ItemKind.circuit && n.set > last.set) return 'Start round ${n.set + 1}';
-        return start(_shortName(x.exercises[n.ex].exercise.name));
-      }
-    }
-    final i = items.indexWhere((it) => it.key == cur.key);
-    if (i + 1 >= items.length) return 'Finish workout';
-    final next = items[i + 1];
-    if (next.kind == ItemKind.free) return 'Choose an exercise';
-    return start(next.kind == ItemKind.exercise ? _shortName(x.exercises[next.exercises.single].exercise.name) : _name(x, next));
-  }
+  String _readyLabel(Session x, List<WorkoutItem> items, WorkoutItem cur) => readyLabel(x, items, cur);
 
   /// Free form, from the list: leave the exercises left for the next part, or finish when nothing comes after.
-  String _moveOnLabel(Session x, List<WorkoutItem> items, WorkoutItem cur) {
-    final i = items.indexWhere((it) => it.key == cur.key);
-    return i + 1 >= items.length ? 'Finish workout' : 'Start ${_name(x, items[i + 1]).toLowerCase()}';
-  }
+  String _moveOnLabel(Session x, List<WorkoutItem> items, WorkoutItem cur) => moveOnLabel(x, items, cur);
 
   void _moveOn(BuildContext context, Session x, List<WorkoutItem> items, WorkoutItem cur) {
     final store = context.store;
@@ -846,15 +858,7 @@ class _SessionScreenState extends State<SessionScreen> {
   }
 
   /// The numbers a wheel offers for an exercise: every rep, or every five seconds for a long hold.
-  List<int> _wheelValues(SessionExercise e, {bool test = false}) {
-    final seconds = e.exercise.repLabel == 'seconds';
-    final step = seconds && e.hi - e.lo > 12 ? 5 : 1;
-    final next = seconds ? null : repsToStepUp(context.store.state, e);
-    final top = max(e.hi + step * max(6, (e.hi - e.lo) ~/ step), next == null ? 0 : min(next + 2, e.hi * 3));
-    // a calibration set stops at the cap
-    if (test) return [for (var v = 0; v <= calibrationCap; v++) v];
-    return [for (var v = 0; v <= top; v += step) v];
-  }
+  List<int> _wheelValues(SessionExercise e, {bool test = false}) => repWheelValues(context.store.state, e, test: test);
 
   static int _nearest(List<int> values, int to) {
     var best = 0;
@@ -869,10 +873,9 @@ class _SessionScreenState extends State<SessionScreen> {
     final seconds = e.exercise.repLabel == 'seconds';
     final test = isTestSet(e, r.set);
     final values = _wheelValues(e, test: test);
-    final before = test ? null : [for (final s in e.sets) if (s.attempted) s.reps!].lastOrNull;
     return _RepWheel(
       title: seconds ? 'How many seconds did you hold?' : 'How many reps did you get?',
-      values: values, initial: _nearest(values, before ?? e.hi), lo: e.lo, hi: e.hi, unit: seconds ? 'seconds' : 'reps',
+      values: values, initial: repWheelStart(e, values, test: test), lo: e.lo, hi: e.hi, unit: seconds ? 'seconds' : 'reps',
       action: 'Log',
       enabled: enabled,
       hold: hold,
@@ -1097,6 +1100,7 @@ class _SessionScreenState extends State<SessionScreen> {
     final split = workoutSplit(session, end);
     final skipped = [for (final i in session.skipped) if (i < session.exercises.length) session.exercises[i].exercise.name];
     final longest = items.fold(1.0, (a, it) => max(a, itemEnd(session, it, end).difference(session.itemStarts[it.key]!).inSeconds.toDouble()));
+    final heart = heartSummary(session, now: end);
     return Scaffold(
       body: SafeArea(
         child: Column(children: [
@@ -1115,6 +1119,8 @@ class _SessionScreenState extends State<SessionScreen> {
               Text(mmss(total), style: t.displayLarge?.copyWith(fontSize: 44), textAlign: TextAlign.center),
               if (lift && session.estMinutes > 0) Text('planned about ${session.estMinutes} min', style: t.bodySmall, textAlign: TextAlign.center),
             ],
+            if (heart != null) Padding(padding: const EdgeInsets.only(top: 6),
+                child: Text(heartLine(heart), style: t.bodyMedium?.copyWith(color: du.inkSecondary), textAlign: TextAlign.center)),
             if (items.any((it) => it.lifting)) ...[
               const SizedBox(height: 18),
               const Subhead('On exercises', icon: LucideIcons.activity),
