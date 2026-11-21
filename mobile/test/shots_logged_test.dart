@@ -9,6 +9,7 @@ import 'package:easyday/data/model.dart';
 import 'package:easyday/data/store.dart';
 import 'package:easyday/logic/after.dart';
 import 'package:easyday/logic/calibrate.dart';
+import 'package:easyday/logic/heart.dart';
 import 'package:easyday/logic/ladder.dart';
 import 'package:easyday/logic/score.dart';
 import 'package:easyday/logic/workout.dart';
@@ -54,7 +55,40 @@ Store play(List<List<int>> Function(Session x) reps, {bool first = false, bool c
   return Store(s, null);
 }
 
+/// A heart from a watch: resting at 92, climbing through each set and settling in the rest after it.
+void wearHeart(Session x) {
+  final start = x.startedAt!, end = x.endedAt!;
+  final sets = [for (final e in x.exercises) for (final s in e.sets) if (s.start != null && s.at != null) s];
+  final samples = <(DateTime, int)>[];
+  for (var t = start; t.isBefore(end); t = t.add(const Duration(seconds: 5))) {
+    var bpm = 92.0;
+    for (final s in sets) {
+      final into = t.difference(s.start!).inSeconds, after = t.difference(s.at!).inSeconds;
+      final len = s.at!.difference(s.start!).inSeconds;
+      if (into >= 0 && after <= 0) bpm += 55.0 * into / len;
+      if (after > 0) bpm += 60 * (after < 15 ? 1 : (1 - (after - 15) / 70).clamp(0, 1));
+    }
+    samples.add((t, bpm.clamp(60, 175).round()));
+  }
+  addHeart(x, samples, kcal: 286, device: 'Galaxy Watch4 (6F2C)');
+}
+
 void main() {
+  testWidgets('finish with a watch', (tester) async {
+    tester.view.physicalSize = const Size(412, 915);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.runAsync(loadFonts);
+    final d = play((x) => [for (final e in x.exercises) List.filled(e.sets.length, e.hi)], warmup: 5, minutes: 60);
+    wearHeart(d.state.active!);
+    await snap(tester, d, 'h1-finish');
+    await tester.tap(find.text('Check or fix details'));
+    await settle(tester);
+    await snap(tester, d, 'h2-details');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('finish', (tester) async {
     tester.view.physicalSize = const Size(412, 915);
     tester.view.devicePixelRatio = 1;
